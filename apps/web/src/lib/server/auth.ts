@@ -4,14 +4,14 @@ import { redirect } from 'next/navigation';
 import { ConsoleMailer, createAuthService, parseSecretKey, SESSION_ABSOLUTE_HOURS, type AuthService, type SessionInfo } from '@bilanx/auth';
 import { createSql, type Sql } from '@bilanx/db';
 import { createProfilesService, type ProfilesService } from '@bilanx/profiles';
-import { createLabService, type LabService } from '@bilanx/records';
+import { createInsulinService, createLabService, type InsulinService, type LabService } from '@bilanx/records';
 import { createDocumentsService, type DocumentsService } from '@bilanx/documents';
 
 /**
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createSql();
@@ -29,6 +29,11 @@ export function profiles(): ProfilesService {
 export function lab(): LabService {
   globalForAuth.bilanxLab ??= createLabService({ profiles: profiles() });
   return globalForAuth.bilanxLab;
+}
+
+export function insulin(): InsulinService {
+  globalForAuth.bilanxInsulin ??= createInsulinService({ profiles: profiles() });
+  return globalForAuth.bilanxInsulin;
 }
 
 export function documents(): DocumentsService {

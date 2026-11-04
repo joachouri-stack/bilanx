@@ -9,6 +9,7 @@ import { appContext, DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
 import {
   auth,
   documents,
+  insulin,
   lab,
   profiles,
   rememberNext,
@@ -344,4 +345,85 @@ export async function deleteDocumentAction(fd: FormData): Promise<void> {
   const ctx = await appContext();
   if (ctx.active.kind === 'real') await documents().remove(ctx.user, ctx.active.access.profileId, str(fd, 'documentId'));
   redirect('/documents?supprime=1');
+}
+
+// ───────────── Insuline & traitements ─────────────
+async function realInsulinCtx() {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return null;
+  return { ctx, profileId: ctx.active.access.profileId };
+}
+const DEMO_RO = 'Le profil de démonstration est en lecture seule : choisissez votre profil pour noter une injection.';
+
+export async function addDoseAction(_: FormState, fd: FormData): Promise<FormState> {
+  const r0 = await realInsulinCtx();
+  const values = { productId: str(fd, 'productId'), units: str(fd, 'units'), date: str(fd, 'date'), time: str(fd, 'time'), status: str(fd, 'status'), comment: str(fd, 'comment') };
+  if (!r0) return { errors: { form: DEMO_RO }, values };
+  let r;
+  try {
+    r = await insulin().addDose(r0.ctx.user, r0.profileId, { ...values, acceptDuplicate: fd.get('acceptDuplicate') === 'on' });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values };
+    throw e;
+  }
+  if (!r.ok) {
+    if ('duplicate' in r) return { attempt: crypto.randomUUID(), duplicate: true, errors: { form: r.message }, values };
+    return { attempt: crypto.randomUUID(), fieldErrors: r.errors, errors: { form: 'Vérifiez les champs signalés.' }, values };
+  }
+  revalidatePath('/traitements');
+  return { attempt: crypto.randomUUID(), ok: true, message: `Injection notée : ${values.units.replace('.', ',')} U.`, values: { productId: values.productId } };
+}
+
+export async function deleteDoseAction(fd: FormData): Promise<void> {
+  const r0 = await realInsulinCtx();
+  if (r0) await insulin().deleteDose(r0.ctx.user, r0.profileId, str(fd, 'doseId'));
+  redirect(`/traitements?${new URLSearchParams({ periode: str(fd, 'periode') || '7' })}`);
+}
+
+export async function addProductAction(_: FormState, fd: FormData): Promise<FormState> {
+  const r0 = await realInsulinCtx();
+  if (!r0) return { errors: { form: DEMO_RO } };
+  try {
+    const r = await insulin().addProduct(r0.ctx.user, r0.profileId, { name: str(fd, 'name'), type: str(fd, 'type') });
+    if (!r.ok) return { attempt: crypto.randomUUID(), errors: { form: r.error }, values: { name: str(fd, 'name'), type: str(fd, 'type') } };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message } };
+    throw e;
+  }
+  revalidatePath('/traitements');
+  return { attempt: crypto.randomUUID(), ok: true, message: 'Insuline ajoutée.' };
+}
+
+export async function archiveProductAction(fd: FormData): Promise<void> {
+  const r0 = await realInsulinCtx();
+  if (r0) await insulin().archiveProduct(r0.ctx.user, r0.profileId, str(fd, 'productId'));
+  redirect('/traitements');
+}
+
+export async function addChangeAction(_: FormState, fd: FormData): Promise<FormState> {
+  const r0 = await realInsulinCtx();
+  const values = {
+    subject: str(fd, 'subject'),
+    effectiveDate: str(fd, 'effectiveDate'),
+    previousRegimen: str(fd, 'previousRegimen'),
+    newRegimen: str(fd, 'newRegimen'),
+    prescribedBy: str(fd, 'prescribedBy'),
+    goalNote: str(fd, 'goalNote'),
+  };
+  if (!r0) return { errors: { form: DEMO_RO }, values };
+  try {
+    const r = await insulin().addChange(r0.ctx.user, r0.profileId, values);
+    if (!r.ok) return { attempt: crypto.randomUUID(), fieldErrors: r.errors, errors: { form: 'Vérifiez les champs signalés.' }, values };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values };
+    throw e;
+  }
+  revalidatePath('/traitements');
+  return { attempt: crypto.randomUUID(), ok: true, message: 'Modification enregistrée.' };
+}
+
+export async function deleteChangeAction(fd: FormData): Promise<void> {
+  const r0 = await realInsulinCtx();
+  if (r0) await insulin().deleteChange(r0.ctx.user, r0.profileId, str(fd, 'changeId'));
+  redirect('/traitements');
 }

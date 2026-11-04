@@ -22,6 +22,7 @@ import {
 } from '@/lib/demo-data';
 import { appContext, moduleAllowed } from '@/lib/server/context';
 import { glucoseDay, labResults, sensorRange, type LabRow } from '@/lib/server/data';
+import { insulinDoses, toDomainDoses } from '@/lib/server/insulin-data';
 import { ButtonLink, Card, CardLabel, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
 import { CapsuleGauge } from '@/components/capsule-gauge';
 
@@ -48,7 +49,10 @@ export default async function DashboardPage() {
 
   const labs: LabRow[] = showLab ? await labResults(ctx) : [];
   const hba1c = latestEvolution(labs.filter((r) => r.analyteCode === 'hba1c'));
-  const insulinToday = summarizeInsulin('insulin' in todayData ? todayData.insulin : [], DEMO_TIMEZONE);
+  const insulinRows = moduleAllowed(ctx.active, 'insulin') ? await insulinDoses(ctx, today, today, now) : [];
+  const insulinToday = summarizeInsulin(toDomainDoses(insulinRows), DEMO_TIMEZONE);
+  // Carte affichée seulement si le profil utilise ce module (pas de carte insuline pour une personne non concernée).
+  const showInsulin = isDemo || insulinRows.length > 0;
   const profileName = isDemo ? DEMO_PROFILE.displayName : ctx.active.kind === 'real' ? ctx.active.access.displayName : '';
   const isSelf = ctx.active.kind === 'real' && ctx.active.access.relationship === 'self' && ctx.active.access.role === 'owner';
 
@@ -189,8 +193,8 @@ export default async function DashboardPage() {
           </Meta>
         </Card>
 
-{isDemo && (
-        <Card className="md:col-span-3 xl:col-span-3">
+{showInsulin && (
+        <Card href="/traitements" className="md:col-span-3 xl:col-span-3">
           <CardLabel tone="neutral" tag="💉 Insuline">
             Aujourd’hui
           </CardLabel>
@@ -199,7 +203,7 @@ export default async function DashboardPage() {
             <span className="text-sm text-ink-3">U</span>
           </p>
           <Meta>
-            Lente {formatNumberFr(insulinToday.byType.long)} U · rapide {formatNumberFr(insulinToday.byType.rapid)} U · saisie manuelle
+            Lente {formatNumberFr(insulinToday.byType.long)} U · rapide {formatNumberFr(insulinToday.byType.rapid)} U · injections notées comme faites
           </Meta>
         </Card>
         )}

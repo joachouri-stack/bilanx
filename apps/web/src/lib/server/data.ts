@@ -5,7 +5,8 @@
 import type { GlucoseReading, LocalDate } from '@bilanx/domain';
 import { addDays, dayBounds } from '@bilanx/domain';
 import { DEMO_LAB_RESULTS, DEMO_TIMEZONE, demoDay, demoSensorRange, type DemoEvent } from '@/lib/demo-data';
-import { profiles } from './auth';
+import { insulin, profiles } from './auth';
+import { canAccess } from '@bilanx/profiles';
 import type { AppContext } from './context';
 
 export interface LabRow {
@@ -86,7 +87,20 @@ export async function glucoseDay(ctx: AppContext, day: LocalDate, now: Date): Pr
   if (ctx.active.kind === 'demo') return demoDay(day, now);
   const { start, end } = dayBounds(day, TIMEZONE);
   const all = await glucoseBetween(ctx, start, end);
-  return { sensor: all.filter((r) => r.kind === 'sensor'), capillary: all.filter((r) => r.kind === 'capillary'), events: [] };
+  // Injections notées ce jour-là (si l'accès au module Insuline est accordé), sur leur propre piste.
+  const access = ctx.active.access;
+  const events: DemoEvent[] = canAccess(access.role, access.permissions, 'insulin', 'read')
+    ? (await insulin().listDoses(ctx.user, access.profileId, start, end))
+        .filter((d) => d.status === 'taken')
+        .map((d) => ({
+          at: d.at,
+          kind: 'injection' as const,
+          label: d.productName,
+          detail: `${String(d.units).replace('.', ',')} U — effectuée (saisie manuelle)`,
+          units: d.units,
+        }))
+    : [];
+  return { sensor: all.filter((r) => r.kind === 'sensor'), capillary: all.filter((r) => r.kind === 'capillary'), events };
 }
 
 export async function sensorRange(ctx: AppContext, from: LocalDate, to: LocalDate, now: Date): Promise<GlucoseReading[]> {
