@@ -5,7 +5,9 @@
 import type { GlucoseReading, LocalDate } from '@bilanx/domain';
 import { addDays, dayBounds } from '@bilanx/domain';
 import { DEMO_LAB_RESULTS, DEMO_TIMEZONE, demoDay, demoSensorRange, type DemoEvent } from '@/lib/demo-data';
-import { insulin, profiles } from './auth';
+import { insulin, journal, profiles } from './auth';
+import { JOURNAL_KINDS, MEAL_KINDS } from '@bilanx/domain';
+import type { JournalRow } from '@bilanx/records';
 import { canAccess } from '@bilanx/profiles';
 import type { AppContext } from './context';
 
@@ -100,6 +102,9 @@ export async function glucoseDay(ctx: AppContext, day: LocalDate, now: Date): Pr
           units: d.units,
         }))
     : [];
+  if (canAccess(access.role, access.permissions, 'journal', 'read'))
+    events.push(...(await journal().list(ctx.user, access.profileId, start, end)).map(journalToEvent));
+  events.sort((a, b) => a.at.getTime() - b.at.getTime());
   return { sensor: all.filter((r) => r.kind === 'sensor'), capillary: all.filter((r) => r.kind === 'capillary'), events };
 }
 
@@ -107,4 +112,11 @@ export async function sensorRange(ctx: AppContext, from: LocalDate, to: LocalDat
   if (ctx.active.kind === 'demo') return demoSensorRange(from, to, now);
   const all = await glucoseBetween(ctx, dayBounds(from, TIMEZONE).start, dayBounds(addDays(to, 1), TIMEZONE).start);
   return all.filter((r) => r.kind === 'sensor');
+}
+
+/** Entrée du journal → événement affiché sur la courbe (libellé et détail lisibles). */
+export function journalToEvent(r: JournalRow): DemoEvent {
+  const label = r.kind === 'meal' && r.mealKind ? MEAL_KINDS[r.mealKind] : JOURNAL_KINDS[r.kind].label;
+  const parts = [r.description, r.carbsG !== null ? `${String(r.carbsG).replace('.', ',')} g de glucides (indiqués)` : null, r.intensity ? `intensité ${r.intensity}/5` : null, r.comment];
+  return { at: r.at, kind: r.kind, label, detail: parts.filter(Boolean).join(' · ') };
 }

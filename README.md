@@ -44,7 +44,7 @@ Sans `TEST_DATABASE_URL`, les tests d'intégration de l'authentification sont ig
 | `packages/domain` | Calculs de santé testés : unités, HbA1c % ↔ mmol/mol, statistiques glycémiques, jauge de référence, contrôles d'extraction IA, journées et changements d'heure |
 | `packages/auth` | Comptes, vérification e-mail, sessions, double authentification TOTP + codes de secours, réinitialisation, limitation des tentatives, journal d'audit chaîné |
 | `packages/profiles` | Famille : profils de proches, invitations, autorisations par module, révocation, journal d'accès, accès aux données sous Row-Level Security |
-| `packages/records` | Enregistrement des données de santé : saisie manuelle des résultats d'analyses ; module insuline (insulines du profil, injections déclarées, modifications prescrites — aucune dose calculée ni suggérée) |
+| `packages/records` | Enregistrement des données de santé : saisie manuelle des résultats d'analyses ; module insuline (insulines du profil, injections déclarées, modifications prescrites — aucune dose calculée ni suggérée) ; journal des repas et événements |
 | `packages/documents` | Documents chiffrés, lecture du texte (PDF, reconnaissance de caractères en français embarquée), proposition des valeurs et validation humaine |
 | `packages/db` | Client PostgreSQL et outil de migration |
 | `apps/web` | Application Next.js — comptes, famille et accès réels ; saisie manuelle et scanner de bilans avec validation ; import LibreView à venir ; profil de démonstration **fictif** disponible |

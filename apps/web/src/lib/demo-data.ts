@@ -43,7 +43,7 @@ const daySeed = (d: LocalDate) => d.year * 10000 + d.month * 100 + d.day;
 
 export interface DemoEvent {
   at: Date;
-  kind: 'meal' | 'injection' | 'activity' | 'note';
+  kind: 'meal' | 'injection' | 'activity' | 'note' | 'stress' | 'sleep' | 'illness' | 'symptom' | 'medication' | 'other';
   label: string;
   detail: string;
   units?: number;

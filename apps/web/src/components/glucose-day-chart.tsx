@@ -9,7 +9,7 @@ export interface ChartPoint {
 }
 export interface ChartEvent {
   t: number;
-  kind: 'meal' | 'injection' | 'activity' | 'note';
+  kind: 'meal' | 'injection' | 'activity' | 'note' | 'stress' | 'sleep' | 'illness' | 'symptom' | 'medication' | 'other';
   label: string;
   detail: string;
 }
@@ -27,7 +27,18 @@ interface Props {
   veryLow: number;
 }
 
-const EVENT_ICON: Record<ChartEvent['kind'], string> = { meal: '🍽', injection: '💉', activity: '🚶', note: '📝' };
+const EVENT_ICON: Record<ChartEvent['kind'], string> = {
+  meal: '🍽',
+  injection: '💉',
+  activity: '🚶',
+  note: '📝',
+  stress: '😮‍💨',
+  sleep: '😴',
+  illness: '🤒',
+  symptom: '🩺',
+  medication: '💊',
+  other: '📝',
+};
 const H = 400;
 const PAD = { l: 48, r: 16, t: 12, b: 98 };
 const Y_MAX = 300; // mg/dL ; les valeurs supérieures restent tracées en haut (rares)

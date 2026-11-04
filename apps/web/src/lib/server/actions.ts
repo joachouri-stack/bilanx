@@ -10,6 +10,7 @@ import {
   auth,
   documents,
   insulin,
+  journal,
   lab,
   profiles,
   rememberNext,
@@ -426,4 +427,38 @@ export async function deleteChangeAction(fd: FormData): Promise<void> {
   const r0 = await realInsulinCtx();
   if (r0) await insulin().deleteChange(r0.ctx.user, r0.profileId, str(fd, 'changeId'));
   redirect('/traitements');
+}
+
+// ───────────── Journal des repas et événements ─────────────
+export async function addJournalAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  const values = {
+    kind: str(fd, 'kind'),
+    mealKind: str(fd, 'mealKind'),
+    date: str(fd, 'date'),
+    time: str(fd, 'time'),
+    endTime: str(fd, 'endTime'),
+    description: str(fd, 'description'),
+    quantities: str(fd, 'quantities'),
+    carbs: str(fd, 'carbs'),
+    intensity: str(fd, 'intensity'),
+    comment: str(fd, 'comment'),
+  };
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Le profil de démonstration est en lecture seule : choisissez votre profil.' }, values };
+  let r;
+  try {
+    r = await journal().add(ctx.user, ctx.active.access.profileId, values);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values };
+    throw e;
+  }
+  if (!r.ok) return { attempt: crypto.randomUUID(), fieldErrors: r.errors, errors: { form: 'Vérifiez les champs signalés.' }, values };
+  revalidatePath('/journal');
+  return { attempt: crypto.randomUUID(), ok: true, message: 'Ajouté au journal.', values: { kind: values.kind, date: values.date } };
+}
+
+export async function deleteJournalAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await journal().remove(ctx.user, ctx.active.access.profileId, str(fd, 'entryId'));
+  redirect(`/journal?${new URLSearchParams({ jour: str(fd, 'jour') })}`);
 }
