@@ -1,0 +1,11 @@
+{
+  "name": "BILANX",
+  "short_name": "BILANX",
+  "description": "Toute votre santé, en un seul endroit.",
+  "lang": "fr",
+  "start_url": "/tableau-de-bord",
+  "display": "standalone",
+  "background_color": "#F6F5F1",
+  "theme_color": "#0F5562",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

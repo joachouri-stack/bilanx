@@ -1,0 +1,94 @@
+@import 'tailwindcss';
+
+:root {
+  --bg: #f6f5f1;
+  --surface: #ffffff;
+  --surface-2: #f0efea;
+  --line: #e4e2db;
+  --ink: #1b2a30;
+  --ink-2: #4f5e64;
+  --ink-3: #6f7d84;
+  --petrol: #0f5562;
+  --petrol-2: #e3eef0;
+  --sage: #5f8a71;
+  --sage-2: #e7f0ea;
+  --glucose: #2f6fdb;
+  --glucose-2: #e6eefb;
+  --amber: #b86e22;
+  --amber-2: #fbefe2;
+  --red: #c2412d;
+  --red-2: #f9e5e1;
+  --violet: #7a5bb5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0f1719;
+    --surface: #162226;
+    --surface-2: #1c2b30;
+    --line: #26363b;
+    --ink: #e8eeef;
+    --ink-2: #afc0c4;
+    --ink-3: #8a9ca1;
+    --petrol: #5fb3c2;
+    --petrol-2: #173a41;
+    --sage: #8dbfa0;
+    --sage-2: #1c3327;
+    --glucose: #7aa7f2;
+    --glucose-2: #1a2a44;
+    --amber: #e9a462;
+    --amber-2: #3a2a18;
+    --red: #e8705c;
+    --red-2: #3d1e19;
+    --violet: #a78bdb;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-petrol: var(--petrol);
+  --color-petrol-2: var(--petrol-2);
+  --color-sage: var(--sage);
+  --color-sage-2: var(--sage-2);
+  --color-glucose: var(--glucose);
+  --color-glucose-2: var(--glucose-2);
+  --color-amber: var(--amber);
+  --color-amber-2: var(--amber-2);
+  --color-red: var(--red);
+  --color-red-2: var(--red-2);
+  --color-violet: var(--violet);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --radius-card: 18px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 2px rgb(20 40 45 / 0.04), 0 6px 24px rgb(20 40 45 / 0.06);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fade-in {
+    animation: fade-in 0.25s ease;
+  }
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+  }
+}

@@ -11,6 +11,23 @@ et rapports PDF pour la consultation.
 > BILANX n'est **pas** un outil de diagnostic ni de prescription. Aucune intégration externe
 > (Abbott, Apple HealthKit, Health Connect, laboratoires) n'est active à ce jour.
 
+## Démarrer
+
+Prérequis : Node.js 22.
+
+```bash
+npm install
+npm test          # tests des calculs de santé (packages/domain)
+npm run dev       # application web sur http://localhost:3000
+```
+
+| Dossier | Contenu |
+|---|---|
+| `packages/domain` | Calculs de santé testés : unités, HbA1c % ↔ mmol/mol, statistiques glycémiques, jauge de référence, contrôles d'extraction IA, journées et changements d'heure |
+| `apps/web` | Application Next.js (tableau de bord, glycémie jour, analyses) — **données fictives** en attendant les comptes et la base |
+| `db/schema.sql` | Schéma PostgreSQL cible |
+| `design/maquettes.html` | Maquettes de référence |
+
 ## Dossier de conception
 
 | # | Livrable | Fichier |

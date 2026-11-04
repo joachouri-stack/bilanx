@@ -1,0 +1,31 @@
+import { notFound } from 'next/navigation';
+import { PLANNED_DETAILS } from '@/lib/navigation';
+import { Card, Chip, PageHeader } from '@/components/ui';
+
+export function generateStaticParams() {
+  return Object.keys(PLANNED_DETAILS).map((k) => ({ module: k.slice(1) }));
+}
+export const dynamicParams = false;
+
+export default async function PlannedModule({ params }: { params: Promise<{ module: string }> }) {
+  const { module } = await params;
+  const info = PLANNED_DETAILS[`/${module}`];
+  if (!info) notFound();
+  return (
+    <div className="fade-in">
+      <PageHeader title={info.title} subtitle="Ce module n’est pas encore disponible dans cette version." />
+      <Card className="max-w-2xl">
+        <Chip tone="petrol">Prévu : {info.version}</Chip>
+        <h2 className="mt-4 font-semibold">Ce qu’il nécessite</h2>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-ink-2">
+          {info.needs.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+        <p className="mt-4 text-sm text-ink-3">
+          Nous n’affichons pas de fonctionnalité simulée comme si elle était active. Voir <code>docs/09-feuille-de-route.md</code>.
+        </p>
+      </Card>
+    </div>
+  );
+}
