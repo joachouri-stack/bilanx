@@ -11,6 +11,7 @@ import {
   profiles,
   rememberNext,
   takeNext,
+  COOKIE_SECURE,
   clearSessionCookie,
   clientInfo,
   requirePendingMfa,
@@ -135,7 +136,7 @@ export async function switchProfileAction(fd: FormData): Promise<void> {
   const s = await requireUser();
   const id = str(fd, 'profileId');
   if (id !== DEMO_PROFILE_ID && !(await profiles().getAccess(s.accountId, id))) redirect('/famille');
-  (await cookies()).set(PROFILE_COOKIE, id, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 30 * 86400 });
+  (await cookies()).set(PROFILE_COOKIE, id, { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 30 * 86400 });
   redirect('/tableau-de-bord');
 }
 
@@ -226,7 +227,7 @@ export async function respondInvitationAction(_: FormState, fd: FormData): Promi
   const r = await profiles().respondToInvitation(await actorOf(), str(fd, 'token'), accept);
   if (!r.ok) return { errors: { form: r.error } };
   if (accept && r.profileId) {
-    (await cookies()).set(PROFILE_COOKIE, r.profileId, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 30 * 86400 });
+    (await cookies()).set(PROFILE_COOKIE, r.profileId, { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 30 * 86400 });
     redirect('/tableau-de-bord');
   }
   return { ok: true, message: 'Invitation refusée. Aucun accès n’a été créé.' };

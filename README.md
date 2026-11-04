@@ -49,6 +49,11 @@ Sans `TEST_DATABASE_URL`, les tests d'intégration de l'authentification sont ig
 | `db/migrations/` | Migrations PostgreSQL versionnées (`npm run db:migrate`) |
 | `design/maquettes.html` | Maquettes de référence |
 
+## Déployer (démonstration)
+
+Guide pas à pas pour Coolify : [docs/deploiement-coolify.md](docs/deploiement-coolify.md) (image Docker, migrations
+automatiques, protection du site par mot de passe). Aucune vraie donnée de santé hors hébergement certifié HDS.
+
 ## Dossier de conception
 
 | # | Livrable | Fichier |

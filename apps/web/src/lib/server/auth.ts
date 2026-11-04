@@ -26,7 +26,11 @@ export function profiles(): ProfilesService {
 
 export function auth(): AuthService {
   if (!globalForAuth.bilanxAuth) {
-    if (process.env.NODE_ENV === 'production' && !/^https:\/\/|^http:\/\/localhost(:\d+)?$/.test(appUrl())) {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      !/^https:\/\/|^http:\/\/localhost(:\d+)?$/.test(appUrl()) &&
+      process.env.BILANX_ALLOW_INSECURE_HTTP !== 'true'
+    ) {
       throw new Error('BILANX_APP_URL doit être en https en production (seul http://localhost est toléré pour les essais).');
     }
     globalForAuth.bilanxAuth = createAuthService({
@@ -40,14 +44,15 @@ export function auth(): AuthService {
   return globalForAuth.bilanxAuth;
 }
 
-const secure = process.env.NODE_ENV === 'production';
+/** Cookies « Secure » dès que le site est servi en https (toujours le cas en production réelle). */
+export const COOKIE_SECURE = process.env.NODE_ENV === 'production' && !(process.env.BILANX_APP_URL ?? '').startsWith('http://');
 /** Préfixe __Host- en production : cookie lié à l'hôte, Secure, chemin « / ». */
-export const SESSION_COOKIE = secure ? '__Host-bilanx_session' : 'bilanx_session';
+export const SESSION_COOKIE = COOKIE_SECURE ? '__Host-bilanx_session' : 'bilanx_session';
 
 export async function setSessionCookie(token: string): Promise<void> {
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure,
+    secure: COOKIE_SECURE,
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_ABSOLUTE_HOURS * 3600,
@@ -103,7 +108,7 @@ const NEXT_COOKIE = 'bilanx_suite';
 /** Mémorise une page interne à rouvrir après la connexion (ex. lien d'invitation). */
 export async function rememberNext(path: string | null | undefined): Promise<void> {
   if (!path || !path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return;
-  (await cookies()).set(NEXT_COOKIE, path, { httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 15 * 60 });
+  (await cookies()).set(NEXT_COOKIE, path, { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', path: '/', maxAge: 15 * 60 });
 }
 
 export async function takeNext(fallback = '/tableau-de-bord'): Promise<string> {

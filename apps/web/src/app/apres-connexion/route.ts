@@ -1,7 +1,10 @@
-import { NextResponse } from 'next/server';
 import { takeNext } from '@/lib/server/auth';
 
-/** Après l'activation de la MFA : reprend la page demandée avant la connexion (ex. invitation). */
-export async function GET(request: Request) {
-  return NextResponse.redirect(new URL(await takeNext(), request.url));
+/**
+ * Après l'activation de la MFA : reprend la page demandée avant la connexion (ex. invitation).
+ * Redirection relative : derrière un proxy (Coolify, Traefik), l'URL interne de la requête
+ * n'est pas l'adresse publique du site.
+ */
+export async function GET() {
+  return new Response(null, { status: 303, headers: { Location: await takeNext() } });
 }
