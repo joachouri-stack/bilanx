@@ -27,7 +27,9 @@ export type CheckCode =
   | 'value_outside_reference_far'
   | 'sampling_date_missing'
   | 'sampling_date_future'
-  | 'ambiguous_decimal';
+  | 'ambiguous_decimal'
+  | 'low_confidence'
+  | 'unit_ocr_corrected';
 
 export interface CheckResult {
   code: CheckCode;

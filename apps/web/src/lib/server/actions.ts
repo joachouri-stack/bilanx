@@ -8,6 +8,7 @@ import { ForbiddenError, MODULE_KEYS } from '@bilanx/profiles';
 import { appContext, DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
 import {
   auth,
+  documents,
   lab,
   profiles,
   rememberNext,
@@ -271,4 +272,76 @@ export async function deleteLabResultAction(fd: FormData): Promise<void> {
   const code = str(fd, 'analyteCode');
   if (ctx.active.kind === 'real') await lab().remove(ctx.user, ctx.active.access.profileId, str(fd, 'resultId'));
   redirect(`/analyses/${encodeURIComponent(code)}?suppression=1`);
+}
+
+// ───────────── Documents & scanner ─────────────
+export async function uploadDocumentAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Choisissez votre profil (ou celui d’un proche) : le profil de démonstration est en lecture seule.' } };
+  const files = fd.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
+  const payload = await Promise.all(files.map(async (f) => ({ name: f.name || 'document', data: Buffer.from(await f.arrayBuffer()) })));
+  let r;
+  try {
+    r = await documents().upload(ctx.user, ctx.active.access.profileId, payload);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message } };
+    throw e;
+  }
+  if (!r.ok) return { errors: { form: r.error } };
+  redirect(`/documents/${r.documentId}`);
+}
+
+export async function enableAutoReadingAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  const id = str(fd, 'documentId');
+  await documents().giveAutoReadingConsent(ctx.user);
+  if (ctx.active.kind === 'real' && id) await documents().process(ctx.user, ctx.active.access.profileId, id);
+  redirect(id ? `/documents/${id}` : '/documents');
+}
+
+export async function reviewDocumentAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Profil invalide.' } };
+  const documentId = str(fd, 'documentId');
+  let decisions: unknown;
+  try {
+    decisions = JSON.parse(str(fd, 'decisions'));
+  } catch {
+    return { errors: { form: 'Formulaire invalide.' } };
+  }
+  if (!Array.isArray(decisions)) return { errors: { form: 'Formulaire invalide.' } };
+  const clean = decisions
+    .filter((d): d is Record<string, unknown> => typeof d === 'object' && d !== null)
+    .map((d) => ({
+      draftId: String(d.draftId ?? ''),
+      action: d.action === 'confirm' ? ('confirm' as const) : ('ignore' as const),
+      analyteCode: typeof d.analyteCode === 'string' ? d.analyteCode : undefined,
+      value: typeof d.value === 'string' ? d.value : undefined,
+      unit: typeof d.unit === 'string' ? d.unit : undefined,
+      refLow: typeof d.refLow === 'string' ? d.refLow : undefined,
+      refHigh: typeof d.refHigh === 'string' ? d.refHigh : undefined,
+    }));
+  let r;
+  try {
+    r = await documents().review(ctx.user, ctx.active.access.profileId, documentId, {
+      sampledOn: str(fd, 'sampledOn'),
+      laboratory: str(fd, 'laboratory'),
+      decisions: clean,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message } };
+    throw e;
+  }
+  if (!r.ok) {
+    const flat: Record<string, string | undefined> = {};
+    for (const [id, errs] of Object.entries(r.draftErrors ?? {})) flat[id] = Object.values(errs).filter(Boolean).join(' ');
+    return { attempt: crypto.randomUUID(), errors: { form: r.error }, fieldErrors: flat };
+  }
+  redirect(`/documents/${documentId}?valide=${r.saved}`);
+}
+
+export async function deleteDocumentAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await documents().remove(ctx.user, ctx.active.access.profileId, str(fd, 'documentId'));
+  redirect('/documents?supprime=1');
 }

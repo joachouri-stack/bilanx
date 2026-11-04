@@ -1,0 +1,28 @@
+{
+  "name": "@bilanx/documents",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Documents de santé BILANX : stockage chiffré, lecture du texte (PDF, reconnaissance de caractères sur photo), détection des résultats et validation humaine.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bilanx/auth": "0.1.0",
+    "@bilanx/db": "0.1.0",
+    "@bilanx/domain": "0.1.0",
+    "@bilanx/profiles": "0.1.0",
+    "@tesseract.js-data/fra": "1.0.0",
+    "pdfjs-dist": "6.4.299",
+    "tesseract.js": "7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "5.1.0"
+  }
+}

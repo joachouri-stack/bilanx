@@ -7,3 +7,4 @@ export * from './lab-history';
 export * from './extraction-checks';
 export * from './insulin';
 export * from './manual-entry';
+export * from './report-parser';
