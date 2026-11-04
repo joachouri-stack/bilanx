@@ -13,43 +13,47 @@ import {
   summarizeInsulin,
 } from '@bilanx/domain';
 import {
-  DEMO_LAB_RESULTS,
   DEMO_LAST_IMPORT_MINUTES_AGO,
   DEMO_MEDICATIONS,
   DEMO_NEXT_APPOINTMENT,
   DEMO_PROFILE,
   DEMO_TIMEZONE,
-  demoDay,
-  demoSensorRange,
   demoToday,
 } from '@/lib/demo-data';
+import { appContext, moduleAllowed } from '@/lib/server/context';
+import { glucoseDay, labResults, sensorRange, type LabRow } from '@/lib/server/data';
 import { ButtonLink, Card, CardLabel, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
 import { CapsuleGauge } from '@/components/capsule-gauge';
 
-import { requireUser } from '@/lib/server/auth';
 export const metadata: Metadata = { title: 'Tableau de bord' };
 export const dynamic = 'force-dynamic';
 
 const UNIT = 'mg/dL' as const;
 
 export default async function DashboardPage() {
-  await requireUser();
+  const ctx = await appContext();
+  const isDemo = ctx.active.kind === 'demo';
+  const showGlucose = moduleAllowed(ctx.active, 'glucose');
+  const showLab = moduleAllowed(ctx.active, 'lab');
   const now = new Date();
   const today = demoToday(now);
-  const todayData = demoDay(today, now);
+  const todayData = showGlucose ? await glucoseDay(ctx, today, now) : { sensor: [], capillary: [], events: [], insulin: [] };
   const last = todayData.sensor.at(-1);
 
   const from14 = addDays(today, -13);
-  const stats14 = computeGlucoseStats(demoSensorRange(from14, today, now), {
+  const stats14 = computeGlucoseStats(showGlucose ? await sensorRange(ctx, from14, today, now) : [], {
     periodStart: dayBounds(from14, DEMO_TIMEZONE).start,
     periodEnd: now,
   });
 
-  const hba1c = latestEvolution(DEMO_LAB_RESULTS.filter((r) => r.analyteCode === 'hba1c'));
-  const insulinToday = summarizeInsulin(todayData.insulin, DEMO_TIMEZONE);
+  const labs: LabRow[] = showLab ? await labResults(ctx) : [];
+  const hba1c = latestEvolution(labs.filter((r) => r.analyteCode === 'hba1c'));
+  const insulinToday = summarizeInsulin('insulin' in todayData ? todayData.insulin : [], DEMO_TIMEZONE);
+  const profileName = isDemo ? DEMO_PROFILE.displayName : ctx.active.kind === 'real' ? ctx.active.access.displayName : '';
+  const isSelf = ctx.active.kind === 'real' && ctx.active.access.relationship === 'self' && ctx.active.access.role === 'owner';
 
-  const latestByAnalyte = new Map<string, (typeof DEMO_LAB_RESULTS)[number]>();
-  for (const r of DEMO_LAB_RESULTS) {
+  const latestByAnalyte = new Map<string, LabRow>();
+  for (const r of labs) {
     const cur = latestByAnalyte.get(r.analyteCode);
     if (!cur || r.sampledAt > cur.sampledAt) latestByAnalyte.set(r.analyteCode, r);
   }
@@ -65,8 +69,12 @@ export default async function DashboardPage() {
   return (
     <div className="fade-in">
       <PageHeader
-        title={`Bonjour ${DEMO_PROFILE.displayName}`}
-        subtitle={<span className="first-letter:uppercase">{dateFr} · l’essentiel de vos données disponibles.</span>}
+        title={isDemo || isSelf ? `Bonjour ${isDemo ? profileName : (ctx.user.displayName ?? '')}` : `Profil de ${profileName}`}
+        subtitle={
+          <span className="first-letter:uppercase">
+            {dateFr} · {isDemo || isSelf ? 'l’essentiel de vos données disponibles.' : 'données de votre proche auxquelles vous avez accès.'}
+          </span>
+        }
         actions={
           <>
             <ButtonLink href="/parametres">Personnaliser</ButtonLink>
@@ -78,6 +86,7 @@ export default async function DashboardPage() {
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-6 xl:grid-cols-12">
+{showGlucose && (
         <Card href="/glycemie" className="md:col-span-3 xl:col-span-4">
           <CardLabel tone="glucose" tag="Glycémie">
             Dernière mesure du capteur
@@ -93,19 +102,26 @@ export default async function DashboardPage() {
               </p>
               <Sparkline points={todayData.sensor.map((s) => s.mgdl)} />
               <Meta>
-                Source : import de fichier LibreView (démo) · mesure de {timeShort(last.at)} · dernier import il y a{' '}
-                {DEMO_LAST_IMPORT_MINUTES_AGO} min
+                {isDemo
+                  ? `Source : import de fichier LibreView (démo) · mesure de ${timeShort(last.at)} · dernier import il y a ${DEMO_LAST_IMPORT_MINUTES_AGO} min`
+                  : `Source : import de fichier · mesure de ${timeShort(last.at)}`}
               </Meta>
             </>
           ) : (
-            <Empty>Aucune glycémie importée aujourd’hui.</Empty>
+            <Empty>{isDemo ? 'Aucune glycémie importée aujourd’hui.' : 'Aucune glycémie enregistrée aujourd’hui. L’import de fichiers LibreView arrive prochainement.'}</Empty>
           )}
         </Card>
+        )}
 
+{showGlucose && (
         <Card href="/glycemie" className="md:col-span-3 xl:col-span-4">
           <CardLabel tone="glucose" tag="Glycémie">
             14 derniers jours
           </CardLabel>
+          {stats14.count === 0 ? (
+            <Empty>Aucune mesure du capteur sur les 14 derniers jours.</Empty>
+          ) : (
+          <>
           <div className="mt-2.5 flex gap-6">
             <Stat label="Moyenne" value={stats14.mean !== null ? `${glucoseForDisplay(stats14.mean, UNIT)}` : '—'} unit={UNIT} />
             <Stat label="Dans la cible" value={pct(stats14.pctInRange)} />
@@ -122,8 +138,12 @@ export default async function DashboardPage() {
             Sous la cible {pct(stats14.pctVeryLow + stats14.pctLow)} · au-dessus {pct(stats14.pctHigh + stats14.pctVeryHigh)} · plage
             70–180 mg/dL (par défaut, à définir avec l’équipe soignante)
           </Meta>
+          </>
+          )}
         </Card>
+        )}
 
+{showLab && (
         <Card href="/analyses/hba1c" className="md:col-span-6 xl:col-span-4">
           <CardLabel tone="petrol" tag="Laboratoire">
             HbA1c
@@ -143,13 +163,15 @@ export default async function DashboardPage() {
                 </p>
               )}
               <Meta className="mt-2">
-                Prélèvement du {dateShort(hba1c.latest.sampledAt)} · {hba1c.latest.laboratory} · résultat confirmé
+                Prélèvement du {dateShort(hba1c.latest.sampledAt)}
+                {hba1c.latest.laboratory ? ` · ${hba1c.latest.laboratory}` : ''} · résultat confirmé
               </Meta>
             </>
           ) : (
-            <Empty>Aucune HbA1c de laboratoire enregistrée.</Empty>
+            <Empty>Aucune HbA1c de laboratoire enregistrée. La saisie et le scan des bilans arrivent prochainement.</Empty>
           )}
         </Card>
+        )}
 
         <Card className="md:col-span-3 xl:col-span-3">
           <CardLabel tone="sage" tag="Activité">
@@ -162,6 +184,7 @@ export default async function DashboardPage() {
           </Meta>
         </Card>
 
+{isDemo && (
         <Card className="md:col-span-3 xl:col-span-3">
           <CardLabel tone="neutral" tag="💉 Insuline">
             Aujourd’hui
@@ -174,7 +197,9 @@ export default async function DashboardPage() {
             Lente {formatNumberFr(insulinToday.byType.long)} U · rapide {formatNumberFr(insulinToday.byType.rapid)} U · saisie manuelle
           </Meta>
         </Card>
+        )}
 
+{isDemo && (
         <Card className="md:col-span-3 xl:col-span-3">
           <CardLabel tone="neutral" tag="💊 Traitements">
             En cours
@@ -187,7 +212,9 @@ export default async function DashboardPage() {
             ))}
           </ul>
         </Card>
+        )}
 
+{isDemo && (
         <Card className="md:col-span-3 xl:col-span-3">
           <CardLabel tone="neutral" tag="📅 Rendez-vous">
             Prochain
@@ -201,7 +228,9 @@ export default async function DashboardPage() {
           </p>
           <Meta>À préparer : {DEMO_NEXT_APPOINTMENT.toPrepare}</Meta>
         </Card>
+        )}
 
+{showLab && labs.length > 0 && (
         <Card className="md:col-span-6 xl:col-span-8">
           <div className="flex items-center justify-between">
             <CardLabel tone="amber" tag="À surveiller">
@@ -235,15 +264,20 @@ export default async function DashboardPage() {
             <Empty>Tous vos derniers résultats sont dans l’intervalle de leur laboratoire.</Empty>
           )}
         </Card>
+        )}
 
+        {(stats14.count > 0 || labs.length > 0) && (
         <Card className="md:col-span-6 xl:col-span-4">
           <CardLabel tone="neutral" tag="Résumé">
             Données disponibles
           </CardLabel>
           <p className="mt-2.5 text-sm text-ink-2">
-            Sur 14 jours, la moyenne du capteur est de{' '}
-            <strong>{stats14.mean !== null ? `${glucoseForDisplay(stats14.mean, UNIT)} mg/dL` : '—'}</strong> avec{' '}
-            {pct(stats14.coveragePct)} de données disponibles.
+            {stats14.mean !== null && (
+              <>
+                Sur 14 jours, la moyenne du capteur est de <strong>{`${glucoseForDisplay(stats14.mean, UNIT)} mg/dL`}</strong> avec{' '}
+                {pct(stats14.coveragePct)} de données disponibles.
+              </>
+            )}
             {hba1c?.previous && hba1c.delta !== null && (
               <>
                 {' '}
@@ -261,6 +295,7 @@ export default async function DashboardPage() {
           </p>
           <Meta className="mt-2">Résumé descriptif généré à partir de vos données, sans interprétation médicale.</Meta>
         </Card>
+        )}
       </div>
     </div>
   );

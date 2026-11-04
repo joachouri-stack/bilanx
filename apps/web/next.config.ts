@@ -9,7 +9,7 @@ const securityHeaders = [
 ];
 
 const config: NextConfig = {
-  transpilePackages: ['@bilanx/domain', '@bilanx/auth', '@bilanx/db'],
+  transpilePackages: ['@bilanx/domain', '@bilanx/auth', '@bilanx/db', '@bilanx/profiles'],
   serverExternalPackages: ['@node-rs/argon2', 'postgres'],
   poweredByHeader: false,
   async headers() {

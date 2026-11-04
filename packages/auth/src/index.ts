@@ -3,3 +3,4 @@ export * from './mailer';
 export * from './password';
 export * from './totp';
 export * from './service';
+export * from './audit';

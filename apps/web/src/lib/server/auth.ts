@@ -2,26 +2,39 @@ import QRCode from 'qrcode';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ConsoleMailer, createAuthService, parseSecretKey, SESSION_ABSOLUTE_HOURS, type AuthService, type SessionInfo } from '@bilanx/auth';
-import { createSql } from '@bilanx/db';
+import { createSql, type Sql } from '@bilanx/db';
+import { createProfilesService, type ProfilesService } from '@bilanx/profiles';
 
 /**
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql };
+
+function sql(): Sql {
+  globalForAuth.bilanxSql ??= createSql();
+  return globalForAuth.bilanxSql;
+}
+
+const appUrl = () => process.env.BILANX_APP_URL ?? 'http://localhost:3000';
+const mailer = new ConsoleMailer();
+
+export function profiles(): ProfilesService {
+  globalForAuth.bilanxProfiles ??= createProfilesService({ sql: sql(), mailer, appUrl: appUrl() });
+  return globalForAuth.bilanxProfiles;
+}
 
 export function auth(): AuthService {
   if (!globalForAuth.bilanxAuth) {
-    const appUrl = process.env.BILANX_APP_URL ?? 'http://localhost:3000';
-    if (process.env.NODE_ENV === 'production' && !/^https:\/\/|^http:\/\/localhost(:\d+)?$/.test(appUrl)) {
+    if (process.env.NODE_ENV === 'production' && !/^https:\/\/|^http:\/\/localhost(:\d+)?$/.test(appUrl())) {
       throw new Error('BILANX_APP_URL doit être en https en production (seul http://localhost est toléré pour les essais).');
     }
     globalForAuth.bilanxAuth = createAuthService({
-      sql: createSql(),
+      sql: sql(),
       // Aucun prestataire d'e-mail n'est encore branché : les messages s'affichent dans la console du serveur.
-      mailer: new ConsoleMailer(),
+      mailer,
       secretKey: parseSecretKey(process.env.BILANX_SECRET_KEY),
-      appUrl,
+      appUrl: appUrl(),
     });
   }
   return globalForAuth.bilanxAuth;
@@ -84,3 +97,18 @@ export async function startTotpEnrollment(s: SessionInfo): Promise<{ secret: str
   return { secret, qrSvg };
 }
 
+
+const NEXT_COOKIE = 'bilanx_suite';
+
+/** Mémorise une page interne à rouvrir après la connexion (ex. lien d'invitation). */
+export async function rememberNext(path: string | null | undefined): Promise<void> {
+  if (!path || !path.startsWith('/') || path.startsWith('//') || path.includes('\\')) return;
+  (await cookies()).set(NEXT_COOKIE, path, { httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 15 * 60 });
+}
+
+export async function takeNext(fallback = '/tableau-de-bord'): Promise<string> {
+  const jar = await cookies();
+  const v = jar.get(NEXT_COOKIE)?.value;
+  if (v) jar.delete(NEXT_COOKIE);
+  return v && v.startsWith('/') && !v.startsWith('//') ? v : fallback;
+}

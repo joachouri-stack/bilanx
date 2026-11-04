@@ -2,19 +2,22 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatNumberFr, getAnalyte, hba1cPercentToMmolMol, latestEvolution, sortHistory } from '@bilanx/domain';
-import { DEMO_LAB_RESULTS, DEMO_TIMEZONE } from '@/lib/demo-data';
+import { DEMO_TIMEZONE } from '@/lib/demo-data';
+import { appContext, moduleAllowed } from '@/lib/server/context';
+import { labResults, type LabRow } from '@/lib/server/data';
+import { ModuleForbidden } from '@/components/module-forbidden';
 import { CapsuleGauge } from '@/components/capsule-gauge';
 import { Card, Chip, Meta, PageHeader } from '@/components/ui';
 
-import { requireUser } from '@/lib/server/auth';
 // Titre générique : les métadonnées sont calculées avant le contrôle de session.
 export const metadata: Metadata = { title: 'Analyse' };
 
 export default async function AnalytePage({ params }: { params: Promise<{ analyte: string }> }) {
-  await requireUser();
+  const ctx = await appContext();
+  if (!moduleAllowed(ctx.active, 'lab')) return <ModuleForbidden title="Analyses & Bilans" profileName={ctx.active.kind === 'real' ? ctx.active.access.displayName : ''} />;
   const { analyte: code } = await params;
   const analyte = getAnalyte(code);
-  const results = sortHistory(DEMO_LAB_RESULTS.filter((r) => r.analyteCode === code));
+  const results = analyte ? sortHistory(await labResults(ctx, code)) : [];
   if (!analyte || results.length === 0) notFound();
   const ev = latestEvolution(results)!;
   const latest = ev.latest;
@@ -84,7 +87,7 @@ export default async function AnalytePage({ params }: { params: Promise<{ analyt
                             : '—'}
                     </td>
                     <td className="py-2.5">
-                      <Chip tone="petrol">📄 bilan (démo)</Chip>
+                      <Chip tone="petrol">{r.source === 'demo' ? '📄 bilan (démo)' : r.source === 'document' ? '📄 bilan' : '✍️ saisie manuelle'}</Chip>
                     </td>
                   </tr>
                 ))}
@@ -97,7 +100,7 @@ export default async function AnalytePage({ params }: { params: Promise<{ analyt
   );
 }
 
-function HistoryChart({ results }: { results: (typeof DEMO_LAB_RESULTS)[number][] }) {
+function HistoryChart({ results }: { results: LabRow[] }) {
   const W = 640;
   const H = 240;
   const L = 44;

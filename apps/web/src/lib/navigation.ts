@@ -20,7 +20,7 @@ export const NAV: NavItem[] = [
   { href: '/rendez-vous', label: 'Rendez-vous', short: 'RDV', icon: 'M4 6h16v14H4zM4 10h16M9 3v4M15 3v4', status: 'planned', group: 'main' },
   { href: '/rapports', label: 'Rapports PDF', short: 'Rapports', icon: 'M6 2h9l5 5v15H6zM14 2v6h6', status: 'planned', group: 'main' },
   { href: '/assistant', label: 'Assistant IA', short: 'Assistant', icon: 'M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z', status: 'planned', group: 'main' },
-  { href: '/famille', label: 'Famille & Profils', short: 'Famille', icon: 'M9 11a4 4 0 1 0 0-.1M2 21c0-4 3-6 7-6s7 2 7 6M17 11a3 3 0 1 0 0-.1M22 20c0-3-2-5-5-5', status: 'planned', group: 'account' },
+  { href: '/famille', label: 'Famille & Profils', short: 'Famille', icon: 'M9 11a4 4 0 1 0 0-.1M2 21c0-4 3-6 7-6s7 2 7 6M17 11a3 3 0 1 0 0-.1M22 20c0-3-2-5-5-5', status: 'available', group: 'account' },
   { href: '/parametres', label: 'Paramètres', short: 'Paramètres', icon: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2v3M12 19v3M2 12h3M19 12h3', status: 'available', group: 'account' },
 ];
 
@@ -33,5 +33,4 @@ export const PLANNED_DETAILS: Record<string, { title: string; version: string; n
   '/rendez-vous': { title: 'Rendez-vous', version: 'MVP — sprint 11', needs: ['Calendrier, rappels, documents associés'] },
   '/rapports': { title: 'Rapports PDF', version: 'MVP — sprint 12', needs: ['Génération serveur, sources et données manquantes identifiées'] },
   '/assistant': { title: 'Assistant IA', version: 'V2 (bêta)', needs: ['Analyse réglementaire préalable (MDR)', "Réponses limitées aux données enregistrées, avec citations"] },
-  '/famille': { title: 'Famille & Profils', version: 'MVP — sprint 3', needs: ['Invitations, consentement, révocation, journal d’accès'] },
 };

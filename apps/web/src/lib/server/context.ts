@@ -1,0 +1,50 @@
+import { cookies } from 'next/headers';
+import type { SessionInfo } from '@bilanx/auth';
+import { canAccess, type ModuleKey, type ProfileAccess } from '@bilanx/profiles';
+import { profiles, requireUser } from './auth';
+
+export const PROFILE_COOKIE = 'bilanx_profil';
+export const DEMO_PROFILE_ID = 'demo';
+
+export type ActiveProfile =
+  | { kind: 'demo' }
+  | { kind: 'real'; access: ProfileAccess };
+
+export interface AppContext {
+  user: SessionInfo;
+  profiles: ProfileAccess[];
+  active: ActiveProfile;
+}
+
+/**
+ * Session complète + profil affiché. Le choix du profil (cookie) est toujours
+ * revalidé contre les accès actifs : un accès révoqué cesse immédiatement.
+ */
+export async function appContext(): Promise<AppContext> {
+  const user = await requireUser();
+  const list = await profiles().listProfiles(user.accountId);
+  const wanted = (await cookies()).get(PROFILE_COOKIE)?.value;
+  let active: ActiveProfile;
+  if (wanted === DEMO_PROFILE_ID) active = { kind: 'demo' };
+  else {
+    const found = list.find((p) => p.profileId === wanted) ?? list[0];
+    active = found ? { kind: 'real', access: found } : { kind: 'demo' };
+  }
+  return { user, profiles: list, active };
+}
+
+export function moduleAllowed(active: ActiveProfile, module: ModuleKey, mode: 'read' | 'write' = 'read'): boolean {
+  return active.kind === 'demo' || canAccess(active.access.role, active.access.permissions, module, mode);
+}
+
+/** Correspondance des pages de navigation avec les modules de données. */
+export const NAV_MODULES: Record<string, ModuleKey> = {
+  '/glycemie': 'glucose',
+  '/analyses': 'lab',
+  '/traitements': 'insulin',
+  '/activite': 'activity',
+  '/journal': 'journal',
+  '/documents': 'documents',
+  '/rendez-vous': 'appointments',
+  '/rapports': 'reports',
+};

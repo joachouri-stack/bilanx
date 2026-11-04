@@ -78,10 +78,11 @@ export function SignUpForm() {
   );
 }
 
-export function SignInForm() {
+export function SignInForm({ suite }: { suite?: string }) {
   const [state, action] = useActionState(signInAction, initial);
   return (
     <form action={action} className="flex flex-col gap-4">
+      {suite && <input type="hidden" name="suite" value={suite} />}
       {state.errors?.form && <Alert tone="error">{state.errors.form}</Alert>}
       <Field label="Adresse e-mail" name="email" type="email" autoComplete="username" inputMode="email" defaultValue={state.values?.email} autoFocus />
       <Field label="Mot de passe" name="password" type="password" autoComplete="current-password" />
@@ -166,9 +167,9 @@ export function TotpConfirmForm({ alreadyEnrolled }: { alreadyEnrolled: boolean 
         >
           Copier les codes
         </button>
-        <Link href="/tableau-de-bord" className="grid min-h-12 place-items-center rounded-xl bg-petrol px-4 font-semibold text-white">
+        <a href="/apres-connexion" className="grid min-h-12 place-items-center rounded-xl bg-petrol px-4 font-semibold text-white">
           J’ai conservé mes codes — continuer
-        </Link>
+        </a>
       </div>
     );
   }

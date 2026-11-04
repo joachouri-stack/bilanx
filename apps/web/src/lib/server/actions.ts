@@ -2,8 +2,15 @@
 
 import { redirect } from 'next/navigation';
 import type { FieldErrors } from '@bilanx/auth';
+import { cookies } from 'next/headers';
+import { revalidatePath } from 'next/cache';
+import { ForbiddenError, MODULE_KEYS } from '@bilanx/profiles';
+import { DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
 import {
   auth,
+  profiles,
+  rememberNext,
+  takeNext,
   clearSessionCookie,
   clientInfo,
   requirePendingMfa,
@@ -17,6 +24,8 @@ export interface FormState {
   message?: string;
   errors?: FieldErrors;
   values?: Record<string, string>;
+  /** Identifiant de la réponse : force la reconstruction du formulaire avec les valeurs saisies. */
+  attempt?: string;
   /** Codes de secours, affichés une seule fois après l'activation de la MFA. */
   recoveryCodes?: string[];
 }
@@ -65,6 +74,7 @@ export async function signInAction(_: FormState, fd: FormData): Promise<FormStat
       return { errors: { form: 'Confirmez d’abord votre adresse e-mail. Vous pouvez demander un nouveau lien ci-dessous.' }, values: { email } };
     case 'ok':
       await setSessionCookie(r.token);
+      await rememberNext(str(fd, 'suite') || null);
       redirect(r.next === 'mfa_enroll' ? '/mfa/configuration' : '/mfa');
   }
 }
@@ -89,7 +99,7 @@ export async function verifyMfaAction(_: FormState, fd: FormData): Promise<FormS
   const r = await auth().verifyMfa(s, str(fd, 'code'));
   if (!r.ok) return { errors: { form: r.error } };
   await setSessionCookie(r.token);
-  redirect(r.usedRecoveryCode ? `/parametres?codes-restants=${r.recoveryCodesLeft}` : '/tableau-de-bord');
+  redirect(r.usedRecoveryCode ? `/parametres?codes-restants=${r.recoveryCodesLeft}` : await takeNext());
 }
 
 // ───────────── Mot de passe oublié ─────────────
@@ -118,4 +128,106 @@ export async function revokeOtherSessionsAction(): Promise<void> {
   const s = await requireUser();
   await auth().revokeOtherSessions(s.accountId, s.sessionId);
   redirect('/parametres');
+}
+
+// ───────────── Famille & profils ─────────────
+export async function switchProfileAction(fd: FormData): Promise<void> {
+  const s = await requireUser();
+  const id = str(fd, 'profileId');
+  if (id !== DEMO_PROFILE_ID && !(await profiles().getAccess(s.accountId, id))) redirect('/famille');
+  (await cookies()).set(PROFILE_COOKIE, id, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 30 * 86400 });
+  redirect('/tableau-de-bord');
+}
+
+const actorOf = async () => {
+  const s = await requireUser();
+  return { accountId: s.accountId, email: s.email, displayName: s.displayName };
+};
+
+function permissionsFrom(fd: FormData): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of MODULE_KEYS) {
+    const v = fd.get(`perm_${k}`);
+    if (v === 'read' || v === 'write') out[k] = v;
+  }
+  return out;
+}
+
+export async function createRelativeAction(_: FormState, fd: FormData): Promise<FormState> {
+  const r = await profiles().createRelativeProfile(await actorOf(), {
+    displayName: str(fd, 'displayName'),
+    relationship: str(fd, 'relationship'),
+    birthDate: str(fd, 'birthDate') || null,
+    legalBasis: str(fd, 'legalBasis'),
+    attested: fd.get('attested') === 'on',
+  });
+  if (!r.ok)
+    return {
+      attempt: crypto.randomUUID(),
+      errors: { form: r.error },
+      values: {
+        displayName: str(fd, 'displayName'),
+        relationship: str(fd, 'relationship'),
+        birthDate: str(fd, 'birthDate'),
+        legalBasis: str(fd, 'legalBasis'),
+        attested: fd.get('attested') === 'on' ? 'on' : '',
+      },
+    };
+  redirect(`/famille/${r.profileId}`);
+}
+
+export async function inviteAction(_: FormState, fd: FormData): Promise<FormState> {
+  const profileId = str(fd, 'profileId');
+  const days = str(fd, 'accessDays');
+  try {
+    const r = await profiles().invite(await actorOf(), profileId, {
+      email: str(fd, 'email'),
+      role: str(fd, 'role'),
+      permissions: permissionsFrom(fd),
+      accessDays: days ? Number(days) : null,
+    });
+    if (!r.ok) return { attempt: crypto.randomUUID(), errors: { form: r.error }, values: { email: str(fd, 'email'), accessDays: days, ...permissionsFrom(fd) } };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message } };
+    throw e;
+  }
+  revalidatePath(`/famille/${profileId}`);
+  return { ok: true, message: `Invitation envoyée à ${str(fd, 'email').trim()}. Elle est valable 7 jours et ne donne aucun accès avant d’être acceptée.` };
+}
+
+export async function updatePermissionsAction(_: FormState, fd: FormData): Promise<FormState> {
+  const profileId = str(fd, 'profileId');
+  const r = await profiles().updatePermissions(await actorOf(), profileId, str(fd, 'accessId'), permissionsFrom(fd));
+  if (!r.ok) return { errors: { form: r.error } };
+  revalidatePath(`/famille/${profileId}`);
+  return { ok: true, message: 'Autorisations enregistrées.' };
+}
+
+export async function revokeAccessAction(fd: FormData): Promise<void> {
+  const profileId = str(fd, 'profileId');
+  await profiles().revokeAccess(await actorOf(), profileId, str(fd, 'accessId'));
+  redirect(`/famille/${profileId}`);
+}
+
+export async function revokeInvitationAction(fd: FormData): Promise<void> {
+  const profileId = str(fd, 'profileId');
+  await profiles().revokeInvitation(await actorOf(), profileId, str(fd, 'invitationId'));
+  redirect(`/famille/${profileId}`);
+}
+
+export async function leaveProfileAction(fd: FormData): Promise<void> {
+  await profiles().leaveProfile(await actorOf(), str(fd, 'profileId'));
+  (await cookies()).delete(PROFILE_COOKIE);
+  redirect('/famille');
+}
+
+export async function respondInvitationAction(_: FormState, fd: FormData): Promise<FormState> {
+  const accept = str(fd, 'decision') === 'accept';
+  const r = await profiles().respondToInvitation(await actorOf(), str(fd, 'token'), accept);
+  if (!r.ok) return { errors: { form: r.error } };
+  if (accept && r.profileId) {
+    (await cookies()).set(PROFILE_COOKIE, r.profileId, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: 30 * 86400 });
+    redirect('/tableau-de-bord');
+  }
+  return { ok: true, message: 'Invitation refusée. Aucun accès n’a été créé.' };
 }

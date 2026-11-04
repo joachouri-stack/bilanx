@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { Sql, TransactionSql } from '@bilanx/db';
 import { decrypt, deriveKey, encrypt, hmacSha256, randomToken, safeEqual, sha256 } from './crypto';
+import { writeAudit, type AuditEntry } from './audit';
 import type { Mailer } from './mailer';
 import { dummyHash, hashPassword, passwordProblems, verifyPassword } from './password';
 import { base32Encode, generateTotpSecret, otpauthUri, verifyTotp } from './totp';
@@ -80,17 +81,7 @@ export function createAuthService(cfg: AuthConfig) {
   }
 
   // ───────────────────────── Journal d'audit chaîné ─────────────────────────
-  async function audit(tx: TransactionSql, e: { accountId: string | null; action: string; context?: Record<string, unknown> }) {
-    await tx`SELECT pg_advisory_xact_lock(7426001)`;
-    const [prev] = await tx<{ row_hash: Buffer | null }[]>`SELECT row_hash FROM audit_log ORDER BY id DESC LIMIT 1`;
-    const at = now();
-    const ctx = e.context ?? {};
-    const payload = JSON.stringify([at.toISOString(), e.accountId, e.action, 'account', ctx]);
-    const rowHash = sha256(Buffer.concat([prev?.row_hash ?? Buffer.alloc(0), Buffer.from(payload)]));
-    await tx`
-      INSERT INTO audit_log (occurred_at, account_id, action, resource, resource_id, context, prev_hash, row_hash)
-      VALUES (${at}, ${e.accountId}, ${e.action}, 'account', ${e.accountId}, ${tx.json(ctx as never)}, ${prev?.row_hash ?? null}, ${rowHash})`;
-  }
+  const audit = (tx: TransactionSql, e: AuditEntry) => writeAudit(tx, now(), e);
 
   // ───────────────────────── Jetons à usage unique ─────────────────────────
   async function issueToken(tx: TransactionSql | Sql, accountId: string, purpose: 'email_verification' | 'password_reset', minutes: number) {
@@ -149,7 +140,7 @@ export function createAuthService(cfg: AuthConfig) {
           VALUES (${email}, ${passwordHash}, ${now()}, ${now()}) RETURNING id`;
         const accountId = acc!.id;
         const [prof] = await tx<{ id: string }[]>`
-          INSERT INTO profile (display_name, created_by) VALUES (${displayName}, ${accountId}) RETURNING id`;
+          INSERT INTO profile (display_name, created_by, relationship) VALUES (${displayName}, ${accountId}, 'self') RETURNING id`;
         await tx`
           INSERT INTO profile_access (profile_id, account_id, role, legal_basis, granted_by, permissions)
           VALUES (${prof!.id}, ${accountId}, 'owner', 'self', ${accountId}, ${tx.json({ all: 'rw' })})`;

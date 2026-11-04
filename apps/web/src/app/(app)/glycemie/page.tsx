@@ -11,29 +11,34 @@ import {
   parseLocalDate,
   type GlucoseUnit,
 } from '@bilanx/domain';
-import { DEMO_TIMEZONE, demoDay, demoFirstDay, demoToday } from '@/lib/demo-data';
+import { DEMO_TIMEZONE, demoFirstDay, demoToday } from '@/lib/demo-data';
+import { appContext, moduleAllowed } from '@/lib/server/context';
+import { glucoseDay } from '@/lib/server/data';
+import { ModuleForbidden } from '@/components/module-forbidden';
 import { Card, Chip, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
 import { GlucoseDayChart } from '@/components/glucose-day-chart';
 
-import { requireUser } from '@/lib/server/auth';
 export const metadata: Metadata = { title: 'Glycémie' };
 export const dynamic = 'force-dynamic';
 
 const TARGETS = { veryLow: 54, low: 70, high: 180, veryHigh: 250 };
 
 export default async function GlucosePage({ searchParams }: { searchParams: Promise<{ jour?: string; unite?: string }> }) {
-  await requireUser();
+  const ctx = await appContext();
+  if (!moduleAllowed(ctx.active, 'glucose')) return <ModuleForbidden title="Glycémie" profileName={ctx.active.kind === 'real' ? ctx.active.access.displayName : ''} />;
+  const isDemo = ctx.active.kind === 'demo';
   const sp = await searchParams;
   const now = new Date();
   const today = demoToday(now);
-  const first = demoFirstDay(now);
+  // Profil réel : navigation sur un an ; démonstration : 90 jours générés.
+  const first = isDemo ? demoFirstDay(now) : addDays(today, -365);
   let day = (sp.jour && parseLocalDate(sp.jour)) || today;
   if (compareLocalDates(day, today) > 0) day = today;
   const unit: GlucoseUnit = sp.unite === 'mmol' ? 'mmol/L' : 'mg/dL';
   const unitParam = unit === 'mmol/L' ? '&unite=mmol' : '';
   const isToday = compareLocalDates(day, today) === 0;
 
-  const data = demoDay(day, now);
+  const data = await glucoseDay(ctx, day, now);
   const { start, end } = dayBounds(day, DEMO_TIMEZONE);
   const stats = computeGlucoseStats(data.sensor, { periodStart: start, periodEnd: isToday ? now : end });
   const dayLabel = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'full' }).format(start);
@@ -138,12 +143,19 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
               veryLow={TARGETS.veryLow}
             />
           ) : (
-            <p className="rounded-xl border border-dashed border-line p-10 text-center text-ink-3">Aucune mesure disponible pour cette journée.</p>
+            <p className="rounded-xl border border-dashed border-line p-10 text-center text-ink-3">
+              Aucune mesure disponible pour cette journée.
+              {!isDemo && <span className="mt-1 block text-sm">L’import des fichiers LibreView arrive prochainement ; aucune synchronisation n’est active.</span>}
+            </p>
           )}
         </div>
         <div className="mt-2 flex flex-wrap justify-between gap-2">
           <Meta>Molette, pincement ou boutons ＋/－ : zoom · glisser : déplacement · double-clic : journée entière · survol : heure et valeur exactes</Meta>
-          <Meta>Source : import de fichier LibreView — données de démonstration fictives · aucune synchronisation automatique active</Meta>
+          <Meta>
+            {isDemo
+              ? 'Source : import de fichier LibreView — données de démonstration fictives · aucune synchronisation automatique active'
+              : 'Aucune synchronisation automatique active'}
+          </Meta>
         </div>
       </Card>
 
