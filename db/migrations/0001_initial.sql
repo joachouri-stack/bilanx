@@ -1,5 +1,5 @@
 -- =====================================================================
--- BILANX — Schéma PostgreSQL 16 (MVP)
+-- BILANX — Migration 0001 : schéma initial (PostgreSQL 16)
 -- Conventions :
 --   * toutes les données de santé portent profile_id (isolation + RLS)
 --   * toute valeur de santé porte une source (source_type + source_ref)

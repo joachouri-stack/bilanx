@@ -4,14 +4,20 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { NAV } from '@/lib/navigation';
 import { DEMO_PROFILE } from '@/lib/demo-data';
+import { signOutAction } from '@/lib/server/actions';
 import { Icon } from './icon';
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export interface ShellUser {
+  email: string;
+  displayName: string;
+}
+
+export function AppShell({ children, user }: { children: React.ReactNode; user: ShellUser }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const main = NAV.filter((n) => n.group === 'main');
   const account = NAV.filter((n) => n.group === 'account');
-  const mobile = ['/tableau-de-bord', '/glycemie', '/documents', '/analyses'];
+  const mobile = ['/tableau-de-bord', '/glycemie', '/analyses', '/parametres'];
 
   return (
     <div className="min-h-dvh">
@@ -25,6 +31,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             BILANX
           </Link>
           <p className="px-2.5 pb-4 text-xs text-ink-3">Toute votre santé, en un seul endroit.</p>
+          <AccountBox user={user} />
           <ProfileBadge />
           <nav aria-label="Navigation principale" className="mt-4 flex flex-col gap-0.5">
             {main.map((n) => (
@@ -61,6 +68,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AccountBox({ user }: { user: ShellUser }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-line px-3 py-2">
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold">{user.displayName || 'Mon compte'}</span>
+        <span className="block truncate text-xs text-ink-3">{user.email}</span>
+      </span>
+      <form action={signOutAction}>
+        <button type="submit" className="shrink-0 rounded-lg px-2 py-1 text-xs text-ink-2 hover:bg-surface-2">
+          Déconnexion
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function ProfileBadge() {
   return (
     <div className="flex items-center gap-2.5 rounded-2xl bg-surface-2 p-2.5">
@@ -72,7 +95,7 @@ function ProfileBadge() {
           {DEMO_PROFILE.displayName}{' '}
           <span className="rounded-full bg-amber-2 px-1.5 py-px text-[10px] font-medium text-amber">démo</span>
         </span>
-        <span className="block text-xs text-ink-3">Profil affiché</span>
+        <span className="block text-xs text-ink-3">Profil de démonstration affiché</span>
       </span>
     </div>
   );

@@ -6,16 +6,12 @@ import { DEMO_LAB_RESULTS, DEMO_TIMEZONE } from '@/lib/demo-data';
 import { CapsuleGauge } from '@/components/capsule-gauge';
 import { Card, Chip, Meta, PageHeader } from '@/components/ui';
 
-export function generateStaticParams() {
-  return [...new Set(DEMO_LAB_RESULTS.map((r) => r.analyteCode))].map((analyte) => ({ analyte }));
-}
-
-export async function generateMetadata({ params }: { params: Promise<{ analyte: string }> }): Promise<Metadata> {
-  const { analyte } = await params;
-  return { title: getAnalyte(analyte)?.nameFr ?? 'Analyse' };
-}
+import { requireUser } from '@/lib/server/auth';
+// Titre générique : les métadonnées sont calculées avant le contrôle de session.
+export const metadata: Metadata = { title: 'Analyse' };
 
 export default async function AnalytePage({ params }: { params: Promise<{ analyte: string }> }) {
+  await requireUser();
   const { analyte: code } = await params;
   const analyte = getAnalyte(code);
   const results = sortHistory(DEMO_LAB_RESULTS.filter((r) => r.analyteCode === code));

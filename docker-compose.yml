@@ -1,0 +1,15 @@
+# Base de données de DÉVELOPPEMENT uniquement (aucune donnée réelle).
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bilanx
+      POSTGRES_PASSWORD: bilanx
+      POSTGRES_DB: bilanx
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - bilanx-pg:/var/lib/postgresql/data
+      - ./db/dev-init:/docker-entrypoint-initdb.d:ro
+volumes:
+  bilanx-pg:

@@ -1,6 +1,6 @@
 # 03 — Structure de la base de données
 
-Le schéma exécutable se trouve dans [`db/schema.sql`](../db/schema.sql) (PostgreSQL 16, testé : chargement sans
+Le schéma exécutable se trouve dans [`db/migrations/`](../db/migrations/) (fichiers SQL appliqués dans l’ordre) (PostgreSQL 16, testé : chargement sans
 erreur, 35 tables dont la partition par défaut de la glycémie).
 
 ## 3.1 Domaines

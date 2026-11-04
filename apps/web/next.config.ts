@@ -9,7 +9,8 @@ const securityHeaders = [
 ];
 
 const config: NextConfig = {
-  transpilePackages: ['@bilanx/domain'],
+  transpilePackages: ['@bilanx/domain', '@bilanx/auth', '@bilanx/db'],
+  serverExternalPackages: ['@node-rs/argon2', 'postgres'],
   poweredByHeader: false,
   async headers() {
     return [{ source: '/:path*', headers: securityHeaders }];

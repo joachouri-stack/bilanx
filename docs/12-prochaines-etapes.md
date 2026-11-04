@@ -23,7 +23,7 @@
    services/extract Python (OCR + extraction)
    packages/ui     design system (jetons de docs/06)
    packages/domain calculs santé testés (TIR, CV, GMI, conversions)
-   db/             schema.sql + migrations
+   db/migrations/  migrations SQL versionnées
    infra/          Terraform
    ```
 9. Écrire en premier `packages/domain` avec tests unitaires (conversions d'unités, HbA1c % ↔ mmol/mol,
@@ -47,7 +47,7 @@
 ## Ce dépôt contient déjà
 
 - Le dossier de conception complet (`docs/`).
-- Un schéma PostgreSQL exécutable avec isolation par profil (RLS) et journal d'audit immuable (`db/schema.sql`).
+- Un schéma PostgreSQL exécutable avec isolation par profil (RLS) et journal d'audit immuable (`db/migrations/`).
 - Des maquettes interactives de référence (`design/maquettes.html`).
 
 Prochaine étape de code proposée : initialisation du monorepo + `packages/domain` (calculs testés) + authentification.

@@ -1,13 +1,10 @@
 import { notFound } from 'next/navigation';
 import { PLANNED_DETAILS } from '@/lib/navigation';
 import { Card, Chip, PageHeader } from '@/components/ui';
-
-export function generateStaticParams() {
-  return Object.keys(PLANNED_DETAILS).map((k) => ({ module: k.slice(1) }));
-}
-export const dynamicParams = false;
+import { requireUser } from '@/lib/server/auth';
 
 export default async function PlannedModule({ params }: { params: Promise<{ module: string }> }) {
+  await requireUser();
   const { module } = await params;
   const info = PLANNED_DETAILS[`/${module}`];
   if (!info) notFound();

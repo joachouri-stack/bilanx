@@ -5,6 +5,7 @@ import { DEMO_LAB_RESULTS, DEMO_TIMEZONE } from '@/lib/demo-data';
 import { CapsuleGauge } from '@/components/capsule-gauge';
 import { Card, Meta, PageHeader } from '@/components/ui';
 
+import { requireUser } from '@/lib/server/auth';
 export const metadata: Metadata = { title: 'Analyses & Bilans' };
 
 const STATUS = {
@@ -14,7 +15,8 @@ const STATUS = {
   unknown: { label: 'référence absente', cls: 'bg-surface-2 text-ink-2' },
 } as const;
 
-export default function AnalysesPage() {
+export default async function AnalysesPage() {
+  await requireUser();
   const latest = new Map<string, (typeof DEMO_LAB_RESULTS)[number]>();
   for (const r of DEMO_LAB_RESULTS) {
     const cur = latest.get(r.analyteCode);

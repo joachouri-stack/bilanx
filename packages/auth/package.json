@@ -1,0 +1,23 @@
+{
+  "name": "@bilanx/auth",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authentification BILANX : comptes, sessions, vérification e-mail, MFA TOTP, réinitialisation, journal.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bilanx/db": "0.1.0",
+    "@node-rs/argon2": "2.2.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3",
+    "vitest": "5.1.0"
+  }
+}

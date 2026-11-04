@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { Fraunces, Inter } from 'next/font/google';
-import { AppShell } from '@/components/app-shell';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -24,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="fr" className={`${inter.variable} ${fraunces.variable}`}>
       <body className="font-sans text-[15px] leading-normal">
-        <AppShell>{children}</AppShell>
+        {children}
       </body>
     </html>
   );

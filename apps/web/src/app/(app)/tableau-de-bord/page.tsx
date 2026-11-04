@@ -26,12 +26,14 @@ import {
 import { ButtonLink, Card, CardLabel, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
 import { CapsuleGauge } from '@/components/capsule-gauge';
 
+import { requireUser } from '@/lib/server/auth';
 export const metadata: Metadata = { title: 'Tableau de bord' };
 export const dynamic = 'force-dynamic';
 
 const UNIT = 'mg/dL' as const;
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  await requireUser();
   const now = new Date();
   const today = demoToday(now);
   const todayData = demoDay(today, now);

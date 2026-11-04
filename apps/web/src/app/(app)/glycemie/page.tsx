@@ -15,12 +15,14 @@ import { DEMO_TIMEZONE, demoDay, demoFirstDay, demoToday } from '@/lib/demo-data
 import { Card, Chip, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
 import { GlucoseDayChart } from '@/components/glucose-day-chart';
 
+import { requireUser } from '@/lib/server/auth';
 export const metadata: Metadata = { title: 'Glycémie' };
 export const dynamic = 'force-dynamic';
 
 const TARGETS = { veryLow: 54, low: 70, high: 180, veryHigh: 250 };
 
 export default async function GlucosePage({ searchParams }: { searchParams: Promise<{ jour?: string; unite?: string }> }) {
+  await requireUser();
   const sp = await searchParams;
   const now = new Date();
   const today = demoToday(now);
