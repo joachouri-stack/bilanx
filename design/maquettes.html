@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BILANX — Maquettes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F6F5F1; --surface:#FFFFFF; --surface-2:#F0EFEA; --line:#E4E2DB;
+  --ink:#1B2A30; --ink-2:#4F5E64; --ink-3:#86939A;
+  --petrol:#0F5562; --petrol-2:#E3EEF0;
+  --sage:#6F9A80; --sage-2:#E7F0EA;
+  --glucose:#2F6FDB; --glucose-2:#E6EEFB;
+  --amber:#D98A3A; --amber-2:#FBEFE2;
+  --red:#C2412D; --red-2:#F9E5E1;
+  --violet:#7A5BB5;
+  --radius:18px; --shadow:0 1px 2px rgba(20,40,45,.04),0 6px 24px rgba(20,40,45,.06);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1719; --surface:#162226; --surface-2:#1C2B30; --line:#26363B;
+  --ink:#E8EEEF; --ink-2:#AFC0C4; --ink-3:#7D9095;
+  --petrol:#5FB3C2; --petrol-2:#173A41; --sage:#8DBFA0; --sage-2:#1C3327;
+  --glucose:#7AA7F2; --glucose-2:#1A2A44; --amber:#E9A462; --amber-2:#3A2A18; --red:#E8705C; --red-2:#3D1E19;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+}}
+:root[data-theme="dark"]{
+  --bg:#0F1719; --surface:#162226; --surface-2:#1C2B30; --line:#26363B;
+  --ink:#E8EEEF; --ink-2:#AFC0C4; --ink-3:#7D9095;
+  --petrol:#5FB3C2; --petrol-2:#173A41; --sage:#8DBFA0; --sage-2:#1C3327;
+  --glucose:#7AA7F2; --glucose-2:#1A2A44; --amber:#E9A462; --amber-2:#3A2A18; --red:#E8705C; --red-2:#3D1E19;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.demo-banner{background:var(--amber-2);color:var(--ink);text-align:center;font-size:13px;padding:6px 16px;border-bottom:1px solid var(--line)}
+.app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+aside{background:var(--surface);border-right:1px solid var(--line);padding:22px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{font-family:Fraunces,serif;font-size:24px;color:var(--petrol);letter-spacing:.5px;padding:0 10px 2px}
+.tag{font-size:12px;color:var(--ink-3);padding:0 10px 18px}
+.profile-switch{display:flex;align-items:center;gap:10px;background:var(--surface-2);border-radius:14px;padding:10px;margin-bottom:16px;cursor:pointer}
+.av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:600;font-size:13px}
+nav a{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:12px;color:var(--ink-2);text-decoration:none;font-weight:500;cursor:pointer}
+nav a:hover{background:var(--surface-2)}
+nav a.on{background:var(--petrol-2);color:var(--petrol)}
+nav hr{border:0;border-top:1px solid var(--line);margin:10px 4px}
+.ic{width:18px;height:18px;flex:none}
+main{padding:28px 36px 80px;max-width:1240px;width:100%}
+h1{font-family:Fraunces,serif;font-weight:600;font-size:28px;margin:0}
+.sub{color:var(--ink-3);margin:2px 0 22px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 14px;border-radius:12px;font:inherit;font-weight:500;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
+.btn.primary{background:var(--petrol);border-color:var(--petrol);color:#fff}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px;min-width:0}
+.card.click{cursor:pointer;transition:transform .15s ease, box-shadow .15s}
+.card.click:hover{transform:translateY(-2px)}
+.c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+.k{font-size:12.5px;color:var(--ink-3);font-weight:500;display:flex;align-items:center;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3px 9px;border-radius:999px;font-weight:500}
+.chip.g{background:var(--glucose-2);color:var(--glucose)}
+.chip.s{background:var(--sage-2);color:var(--sage)}
+.chip.a{background:var(--amber-2);color:var(--amber)}
+.chip.r{background:var(--red-2);color:var(--red)}
+.chip.p{background:var(--petrol-2);color:var(--petrol)}
+.chip.n{background:var(--surface-2);color:var(--ink-2)}
+.big{font-size:34px;font-weight:600;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.unit{font-size:14px;color:var(--ink-3);font-weight:500;margin-left:4px}
+.meta{font-size:12px;color:var(--ink-3)}
+.screen{display:none}.screen.on{display:block;animation:f .25s ease}
+@keyframes f{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:12px;padding:3px}
+.seg button{border:0;background:transparent;padding:6px 12px;border-radius:9px;font:inherit;font-size:13px;color:var(--ink-2);cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+svg text{font-family:Inter,system-ui,sans-serif}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);padding:6px 10px;border-radius:10px;font-size:12.5px;opacity:0;transition:opacity .1s;z-index:9}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat b{font-size:20px;font-variant-numeric:tabular-nums}
+.bar3{display:flex;height:12px;border-radius:999px;overflow:hidden;margin:8px 0}
+.gauges{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.gauge{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px}
+table{width:100%;border-collapse:collapse}
+td,th{padding:10px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:14px;vertical-align:middle}
+th{font-size:12px;color:var(--ink-3);font-weight:500}
+.doc{background:#fff;color:#222;border:1px solid var(--line);border-radius:12px;padding:22px;font:12.5px/1.6 "Courier New",monospace;position:relative}
+.doc .hl{background:rgba(47,111,219,.18);outline:2px solid var(--glucose);border-radius:3px}
+.empty{border:1.5px dashed var(--line);border-radius:14px;padding:18px;color:var(--ink-3);font-size:13.5px;text-align:center}
+.mobile-wrap{display:flex;gap:28px;flex-wrap:wrap}
+.phone{width:360px;max-width:100%;border:10px solid #111;border-radius:38px;background:var(--bg);overflow:hidden;box-shadow:var(--shadow)}
+.phone .ph{padding:14px 16px;height:640px;overflow:auto}
+.tabbar{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:var(--surface);padding:8px 0 12px;font-size:10.5px;color:var(--ink-3);text-align:center}
+.tabbar .plus{width:46px;height:46px;border-radius:50%;background:var(--petrol);color:#fff;display:grid;place-items:center;margin:-18px auto 0;font-size:26px;box-shadow:var(--shadow)}
+.note{font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border-radius:12px;padding:10px 12px}
+.screen-nav{display:none}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr} aside{position:static;height:auto;display:none}
+  .screen-nav{display:flex;gap:6px;overflow:auto;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+  main{padding:18px 16px 60px}
+  .c3,.c4,.c5,.c6,.c7,.c8{grid-column:span 12}
+}
+</style>
+</head>
+<body>
+<div class="demo-banner">⚠️ Maquette de conception — <b>toutes les données affichées sont fictives</b> et générées pour la démonstration. Prototype non validé réglementairement.</div>
+<div class="screen-nav" id="mnav"></div>
+<div class="app">
+<aside>
+  <div class="brand">BILANX</div>
+  <div class="tag">Toute votre santé, en un seul endroit.</div>
+  <div class="profile-switch"><div class="av" style="background:var(--petrol)">CM</div><div><div style="font-weight:600;font-size:14px">Claire M. <span class="chip a" style="font-size:10px;padding:1px 6px">démo</span></div><div class="meta">Mon profil · changer ▾</div></div></div>
+  <nav id="nav"></nav>
+</aside>
+<main>
+
+<!-- ============ TABLEAU DE BORD ============ -->
+<section class="screen on" id="s-dash">
+  <div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:22px">
+    <div><h1>Bonjour Claire</h1><div class="sub" style="margin:2px 0 0">Mercredi 4 novembre 2026 · voici l'essentiel de vos données disponibles.</div></div>
+    <div class="row"><button class="btn ghost">⚙︎ Personnaliser</button><button class="btn primary" onclick="go('scan')">⌁ Scanner un document</button></div>
+  </div>
+  <div class="grid">
+    <div class="card c4 click" onclick="go('gly')">
+      <div class="k"><span class="chip g">Glycémie</span> Dernière mesure capteur</div>
+      <div style="margin:10px 0 2px"><span class="big" style="color:var(--glucose)">132</span><span class="unit">mg/dL</span> <span class="chip s" style="margin-left:6px">dans la cible</span></div>
+      <svg id="spark" width="100%" height="46" viewBox="0 0 300 46" preserveAspectRatio="none"></svg>
+      <div class="meta">Source : import fichier LibreView · données jusqu'au 04/11 à 20:45 · dernier import il y a 32 min</div>
+    </div>
+    <div class="card c4 click" onclick="go('gly')">
+      <div class="k"><span class="chip g">Glycémie</span> 14 derniers jours</div>
+      <div class="row" style="gap:22px;margin-top:10px">
+        <div class="stat"><span class="meta">Moyenne</span><b>148 <span class="unit">mg/dL</span></b></div>
+        <div class="stat"><span class="meta">Dans la cible</span><b>68 %</b></div>
+      </div>
+      <div class="bar3"><div style="width:4%;background:var(--red)"></div><div style="width:68%;background:var(--sage)"></div><div style="width:22%;background:var(--amber)"></div><div style="width:6%;background:#B5552F"></div></div>
+      <div class="meta">Sous 4 % · cible 68 % · au-dessus 28 % · plage 70–180 définie avec l'équipe soignante</div>
+    </div>
+    <div class="card c4 click" onclick="go('bio')">
+      <div class="k"><span class="chip p">Laboratoire</span> HbA1c</div>
+      <div style="margin:10px 0 2px"><span class="big">7,2</span><span class="unit">%</span> <span class="meta" style="margin-left:6px">soit 55 mmol/mol</span></div>
+      <div class="row" style="gap:8px"><span class="chip s">−0,4 pt vs 12/05/2026 (7,6 %)</span></div>
+      <div class="meta" style="margin-top:8px">Prélèvement du 03/09/2026 · Laboratoire Exemple (fictif) · résultat confirmé</div>
+    </div>
+
+    <div class="card c3 click" onclick="go('act')">
+      <div class="k"><span class="chip s">Activité</span> Pas aujourd'hui</div>
+      <div style="margin:10px 0 6px"><span class="big">6 412</span></div>
+      <div style="height:8px;background:var(--surface-2);border-radius:99px"><div style="width:80%;height:100%;background:var(--sage);border-radius:99px"></div></div>
+      <div class="meta" style="margin-top:6px">Objectif 8 000 · 80 %<br>Source : Apple Santé (V2 — non connecté dans ce prototype)</div>
+    </div>
+    <div class="card c3 click" onclick="go('ins')">
+      <div class="k"><span class="chip n">💉 Insuline</span> Aujourd'hui</div>
+      <div style="margin:10px 0 2px"><span class="big">26</span><span class="unit">U</span></div>
+      <div class="meta">Lente 16 U · rapide 10 U (3 injections)<br>Saisie manuelle</div>
+    </div>
+    <div class="card c3">
+      <div class="k"><span class="chip n">💊 Traitements</span> En cours</div>
+      <div style="margin-top:10px;font-size:14px;line-height:1.9">Metformine 1000 mg · matin et soir<br>Vitamine D3 · 1/mois</div>
+      <div class="meta">2 traitements actifs</div>
+    </div>
+    <div class="card c3">
+      <div class="k"><span class="chip n">📅 Rendez-vous</span> Prochain</div>
+      <div style="margin-top:10px;font-weight:600">Endocrinologue</div>
+      <div style="font-size:14px">Mar. 17 novembre · 10:30</div>
+      <div class="meta">À préparer : rapport 90 jours, dernier bilan</div>
+    </div>
+
+    <div class="card c8">
+      <div class="row" style="justify-content:space-between"><div class="k"><span class="chip a">À surveiller</span> Indicateurs biologiques hors intervalle du laboratoire</div><a class="meta" style="cursor:pointer" onclick="go('bio')">Tout voir →</a></div>
+      <div class="gauges" id="dashGauges" style="margin-top:12px"></div>
+    </div>
+    <div class="card c4">
+      <div class="k"><span class="chip n">📄 Documents</span> Dernier import</div>
+      <div style="margin-top:10px;font-weight:600">Bilan sanguin — 03/09/2026</div>
+      <div class="meta">PDF · 2 pages · 4 valeurs confirmées</div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+      <div class="k">Résumé des données disponibles</div>
+      <p style="font-size:13.5px;margin:6px 0 0;color:var(--ink-2)">Sur 14 jours, la moyenne capteur est de 148 mg/dL avec 92 % de données disponibles. Votre dernière HbA1c de laboratoire (7,2 %) est inférieure à la précédente. La ferritine et la vitamine D sont en dessous des intervalles de leur laboratoire : <b>à évoquer avec votre médecin</b>.</p>
+      <div class="meta" style="margin-top:6px">Résumé descriptif, sans interprétation médicale.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ GLYCÉMIE ============ -->
+<section class="screen" id="s-gly">
+  <div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:18px">
+    <div><h1>Glycémie</h1><div class="sub" style="margin:0">Mesures du capteur · ne pas confondre avec les glycémies capillaires ni l'HbA1c de laboratoire</div></div>
+    <div class="seg" id="glySeg"><button class="on">Jour</button><button>7 j</button><button>14 j</button><button>30 j</button><button>90 j</button><button>Période…</button></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="row" style="justify-content:space-between">
+      <div class="row">
+        <button class="btn" id="prevDay" aria-label="Jour précédent">←</button>
+        <div style="font-weight:600;min-width:220px;text-align:center" id="dayLabel"></div>
+        <button class="btn" id="nextDay" aria-label="Jour suivant">→</button>
+        <input type="date" class="btn" id="dayPick" style="padding:7px 10px">
+        <button class="btn ghost" id="today">Aujourd'hui</button>
+      </div>
+      <div class="row" style="gap:8px">
+        <span class="chip g">● Capteur</span><span class="chip n">◆ Capillaire</span>
+        <div class="seg" id="unitSeg"><button class="on">mg/dL</button><button>mmol/L</button></div>
+      </div>
+    </div>
+    <svg id="dayChart" width="100%" height="400" style="margin-top:14px;touch-action:none;cursor:crosshair"></svg>
+    <div class="row" style="justify-content:space-between">
+      <div class="meta">Molette / pincement : zoom · glisser : déplacement · double-clic : réinitialiser · survol/toucher : heure et valeur exactes</div>
+      <div class="meta" id="srcLabel">Source : import fichier LibreView (FreeStyle Libre 2) · dernier import 04/11/2026 21:12</div>
+    </div>
+  </div>
+  <div class="grid">
+    <div class="card c8"><div class="k">Statistiques de la journée</div><div class="row" id="dayStats" style="gap:28px;margin-top:10px"></div>
+      <div class="bar3" id="dayBar"></div><div class="meta" id="dayBarL"></div></div>
+    <div class="card c4"><div class="k">Plage cible</div><div style="margin-top:8px;font-size:20px;font-weight:600">70 – 180 <span class="unit">mg/dL</span></div><div class="meta">Définie avec : équipe soignante (déclaratif) · modifiable dans Paramètres</div></div>
+  </div>
+</section>
+
+<!-- ============ ANALYSES ============ -->
+<section class="screen" id="s-bio">
+  <h1>Analyses & Bilans</h1><div class="sub">Position de chaque résultat par rapport à l'intervalle de référence <b>de son laboratoire</b>.</div>
+  <div class="grid">
+    <div class="card c7">
+      <div class="row" style="justify-content:space-between"><div class="k">Derniers résultats</div><div class="seg"><button class="on">Tous</button><button>Fer</button><button>Vitamines</button><button>Minéraux</button></div></div>
+      <div class="gauges" id="bioGauges" style="margin-top:16px"></div>
+      <div class="note" style="margin-top:16px"><b>Comment lire la jauge ?</b> La zone centrale verte correspond à l'intervalle de référence du laboratoire. Le niveau indique la <b>position</b> du résultat dans cet intervalle — pas un « taux de remplissage » de vos réserves. Une jauge à moitié pleine ne signifie pas une carence à 50 %.</div>
+    </div>
+    <div class="card c5">
+      <div class="k" id="histTitle">Historique — HbA1c (laboratoire)</div>
+      <svg id="histChart" width="100%" height="260" style="margin-top:10px"></svg>
+      <div class="meta">Points uniquement aux dates réelles de prélèvement. Aucune valeur interpolée.</div>
+      <table style="margin-top:10px" id="histTable"></table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCANNER / VALIDATION ============ -->
+<section class="screen" id="s-scan">
+  <h1>Valider les valeurs extraites</h1>
+  <div class="sub">Bilan sanguin importé le 04/11/2026 · <b>aucune valeur n'est enregistrée avant votre confirmation</b>.</div>
+  <div class="grid">
+    <div class="card c5">
+      <div class="k">Document original (page 1/2)</div>
+      <div class="doc" style="margin-top:10px">
+        <div style="font-weight:700">LABORATOIRE EXEMPLE — DOCUMENT FICTIF</div>
+        <div>Prélevé le : 03/09/2026 à 08:12</div><div>Patient : DEMO Claire</div><br>
+        <div>BIOCHIMIE&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Résultat&nbsp;&nbsp;&nbsp;Réf.</div>
+        <div id="l0">Hémoglobine glyquée&nbsp;&nbsp;7,2 %&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(4,0-6,0)</div>
+        <div id="l1">Ferritine&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;25 µg/L&nbsp;&nbsp;&nbsp;(30-300)</div>
+        <div id="l2">25-OH Vitamine D&nbsp;&nbsp;&nbsp;&nbsp;18 ng/mL&nbsp;&nbsp;(30-100)</div>
+        <div id="l3">Magnésium&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;0,75 mmol/L (0,70-1,05)</div>
+      </div>
+      <div class="meta" style="margin-top:8px">Cliquez sur une ligne à droite pour voir sa zone source.</div>
+    </div>
+    <div class="card c7">
+      <div class="row" style="justify-content:space-between"><div class="k">4 valeurs détectées · Laboratoire Exemple · prélèvement 03/09/2026</div><span class="chip a" id="pend">1 à vérifier</span></div>
+      <table style="margin-top:8px"><thead><tr><th>Analyse</th><th>Valeur</th><th>Référence labo</th><th>Contrôle</th><th></th></tr></thead><tbody id="vtab"></tbody></table>
+      <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn ghost">Annuler</button><button class="btn primary" id="confirmAll" disabled>Enregistrer les valeurs confirmées</button></div>
+      <div class="note" style="margin-top:12px">Extraction automatique : texte lu → analyses reconnues → contrôles de cohérence. Une valeur absente du document n'est jamais complétée. Le document original est conservé et chaque résultat y reste relié.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INSULINE ============ -->
+<section class="screen" id="s-ins">
+  <h1>Vue combinée</h1><div class="sub">Glycémie, insuline, repas et activité — axes et unités distincts.</div>
+  <div class="card"><svg id="combo" width="100%" height="430"></svg>
+  <div class="meta">Insuline en unités (U) sur une piste séparée — jamais sur l'axe de la glycémie. BILANX n'effectue aucun calcul ni recommandation de dose.</div></div>
+</section>
+
+<!-- ============ ACTIVITÉ ============ -->
+<section class="screen" id="s-act">
+  <div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:18px">
+    <div><h1>Activité & Pas</h1><div class="sub" style="margin:0">Semaine du 26 octobre au 1er novembre 2026</div></div>
+    <div class="row"><button class="btn">←</button><div class="seg" id="actSeg"><button>Jour</button><button class="on">Semaine</button><button>Mois</button><button>Année</button></div><button class="btn">→</button></div>
+  </div>
+  <div class="card"><svg id="steps" width="100%" height="320"></svg>
+  <div class="row" style="justify-content:space-between"><div class="meta">Moyenne quotidienne : <b id="stepAvg"></b> · objectif 8 000 (ligne pointillée)</div><div class="meta"><span class="chip n">Non connecté</span> Apple Santé nécessite l'app iOS BILANX (V2). Valeurs fictives.</div></div></div>
+</section>
+
+<!-- ============ MOBILE ============ -->
+<section class="screen" id="s-mob">
+  <h1>Version mobile</h1><div class="sub">Navigation simplifiée, action rapide centrale.</div>
+  <div class="mobile-wrap">
+    <div class="phone"><div class="ph">
+      <div class="row" style="justify-content:space-between"><div class="brand" style="padding:0;font-size:20px">BILANX</div><div class="av" style="background:var(--petrol)">CM</div></div>
+      <div style="font-weight:600;margin:12px 0 10px">Bonjour Claire</div>
+      <div class="card" style="padding:14px;margin-bottom:10px"><div class="k"><span class="chip g">Glycémie</span></div><span class="big" style="font-size:28px;color:var(--glucose)">132</span><span class="unit">mg/dL</span><div class="meta">Import LibreView · 04/11 20:45</div></div>
+      <div class="row" style="gap:10px;flex-wrap:nowrap">
+        <div class="card" style="padding:14px;flex:1"><div class="k">HbA1c labo</div><b style="font-size:22px">7,2 %</b><div class="meta">03/09/2026</div></div>
+        <div class="card" style="padding:14px;flex:1"><div class="k">Pas</div><b style="font-size:22px">6 412</b><div class="meta">80 % objectif</div></div>
+      </div>
+      <div class="card" style="padding:14px;margin-top:10px"><div class="k"><span class="chip a">À surveiller</span></div><div style="font-size:14px;margin-top:6px">Ferritine 25 µg/L · Vitamine D 18 ng/mL<br><span class="meta">sous l'intervalle de leur laboratoire</span></div></div>
+      <div class="card" style="padding:14px;margin-top:10px"><div class="k">📅 Prochain RDV</div><div style="font-size:14px">Endocrinologue · 17/11 10:30</div></div>
+    </div>
+    <div class="tabbar"><div>⌂<br>Accueil</div><div>▤<br>Données</div><div><div class="plus">＋</div></div><div>⎙<br>Documents</div><div>◉<br>Profil</div></div></div>
+    <div class="phone"><div class="ph">
+      <div style="font-weight:600;margin-bottom:12px">Action rapide</div>
+      <div style="display:grid;gap:10px">
+        <div class="card" style="padding:14px">⌁ <b>Scanner un document</b><div class="meta">Photo multipage ou fichier</div></div>
+        <div class="card" style="padding:14px">🍽 <b>Noter un repas</b><div class="meta">Heure, description, photo, glucides si connus</div></div>
+        <div class="card" style="padding:14px">💉 <b>Noter une injection</b><div class="meta">Insuline, dose, heure — sans suggestion</div></div>
+        <div class="card" style="padding:14px">📝 <b>Ajouter un événement</b><div class="meta">Activité, stress, sommeil, symptôme…</div></div>
+        <div class="card" style="padding:14px">🧪 <b>Ajouter un résultat</b><div class="meta">Saisie manuelle d'une analyse</div></div>
+      </div>
+    </div>
+    <div class="tabbar"><div>⌂<br>Accueil</div><div>▤<br>Données</div><div><div class="plus">×</div></div><div>⎙<br>Documents</div><div>◉<br>Profil</div></div></div>
+  </div>
+</section>
+
+</main>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+// ---------- Générateur pseudo-aléatoire déterministe (données fictives) ----------
+let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return (seed-1)/2147483646};
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const NS='http://www.w3.org/2000/svg';
+const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e};
+const fmt=n=>n.toLocaleString('fr-FR');
+const tip=document.getElementById('tip');
+const showTip=(x,y,h)=>{tip.innerHTML=h;tip.style.left=(x+14)+'px';tip.style.top=(y-34)+'px';tip.style.opacity=1};
+const hideTip=()=>tip.style.opacity=0;
+
+// ---------- Navigation ----------
+const SCREENS=[['dash','Tableau de bord','M3 12l9-8 9 8v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z'],
+ ['gly','Glycémie','M3 17l5-6 4 3 5-8 4 5'],['bio','Analyses & Bilans','M9 3v6l-5 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-5-9V3M8 3h8'],
+ ['ins','Insuline & Traitements','M18 2l4 4M17 7l-9 9-4 1 1-4 9-9z'],['act','Activité & Pas','M13 4a2 2 0 1 0 0 .1M9 21l3-7 3 3v5M6 12l3-4 4 1 3 3'],
+ ['ins','Journal & Repas','M4 4h16v16H4zM8 9h8M8 13h8M8 17h5'],['scan','Documents & Scanner','M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M4 12h16'],
+ ['dash','Rendez-vous','M4 6h16v14H4zM4 10h16M9 3v4M15 3v4'],['dash','Rapports PDF','M6 2h9l5 5v15H6zM14 2v6h6'],
+ ['dash','Assistant IA','M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z'],['sep'],['mob','Famille & Profils','M9 11a4 4 0 1 0 0-.1M2 21c0-4 3-6 7-6s7 2 7 6M17 11a3 3 0 1 0 0-.1M22 20c0-3-2-5-5-5'],
+ ['mob','Paramètres','M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2v3M12 19v3M2 12h3M19 12h3']];
+const nav=document.getElementById('nav'),mnav=document.getElementById('mnav');
+SCREENS.forEach(([id,label,d],i)=>{
+  if(id==='sep'){nav.appendChild(document.createElement('hr'));return}
+  const a=document.createElement('a');a.dataset.s=id;a.dataset.i=i;
+  a.innerHTML=`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>${label}`;
+  a.onclick=()=>go(id,i);nav.appendChild(a);
+});
+[['dash','Accueil'],['gly','Glycémie'],['bio','Analyses'],['scan','Scanner'],['ins','Vue combinée'],['act','Pas'],['mob','Mobile']].forEach(([id,l])=>{const b=document.createElement('button');b.className='btn';b.textContent=l;b.onclick=()=>go(id);mnav.appendChild(b)});
+function go(id,i){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id==='s-'+id));
+  nav.querySelectorAll('a').forEach(a=>a.classList.toggle('on',i!==undefined?a.dataset.i==i:a.dataset.s===id&&!nav.querySelector('a.on[data-s="'+id+'"]')));
+  if(i===undefined){nav.querySelectorAll('a').forEach(a=>a.classList.remove('on'));const f=nav.querySelector('a[data-s="'+id+'"]');f&&f.classList.add('on')}
+  window.scrollTo(0,0);render();}
+nav.querySelector('a').classList.add('on');
+
+// ---------- Données glycémiques fictives : 96 mesures/jour (15 min) + capillaires ----------
+const TODAY=new Date(2026,10,4);
+const dayCache={};
+function dayData(d){const k=d.toDateString();if(dayCache[k])return dayCache[k];
+  seed=d.getDate()*97+d.getMonth()*13+5;const pts=[];let base=115+rnd()*25;
+  const meals=[[7.5,55+rnd()*40],[12.75,60+rnd()*50],[19.75,50+rnd()*60]];
+  for(let i=0;i<96;i++){const h=i/4;let v=base+12*Math.sin(h/3.2)+(rnd()-.5)*10;
+    meals.forEach(([mh,a])=>{const dt=h-mh;if(dt>0)v+=a*Math.exp(-((dt-1)**2)/1.1)});
+    if(h>3&&h<4.5&&d.getDate()%3===0)v-=48*Math.sin((h-3)/1.5*Math.PI);
+    if(d.toDateString()===TODAY.toDateString()&&h>20.75)break;
+    pts.push({h,v:Math.max(45,Math.round(v))})}
+  const cap=[{h:7.2,v:pts[29]?pts[29].v+6:120},{h:12.6,v:pts[50]?pts[50].v-4:130}];
+  const ev=[{h:7.5,t:'🍽',l:'Petit-déjeuner',d:'Pain complet, yaourt — ~45 g glucides (saisi)'},{h:12.75,t:'🍽',l:'Déjeuner',d:'Salade de lentilles, poisson'},{h:19.75,t:'🍽',l:'Dîner',d:'Pâtes, légumes'},
+   {h:7.4,t:'💉',l:'Insuline rapide',d:'4 U — effectuée',u:4},{h:12.6,t:'💉',l:'Insuline rapide',d:'3 U — effectuée',u:3},{h:19.6,t:'💉',l:'Insuline rapide',d:'3 U — effectuée',u:3},{h:22,t:'💉',l:'Insuline lente',d:'16 U — effectuée',u:16,slow:1},
+   {h:17,t:'🚶',l:'Marche',d:'40 min, intensité modérée'},{h:15,t:'📝',l:'Commentaire',d:'Journée stressante au travail'}];
+  return dayCache[k]={pts,cap,ev}}
+
+// ---------- Graphique 24 h : zoom, pan, infobulle ----------
+let curDay=new Date(TODAY),unit='mg/dL',view=[0,24];
+const conv=v=>unit==='mg/dL'?v:+(v/18.016).toFixed(1);
+const fmtH=h=>`${String(Math.floor(h)).padStart(2,'0')}:${String(Math.round((h%1)*60)).padStart(2,'0')}`;
+function drawDay(){const svg=document.getElementById('dayChart');if(!svg.clientWidth)return;svg.innerHTML='';
+  const W=svg.clientWidth,H=400,L=48,R=16,T=12,B=98,ph=H-T-B;const {pts,cap,ev}=dayData(curDay);
+  const ymax=unit==='mg/dL'?300:16.7, y=v=>T+ph-(conv(v)/ymax)*ph, x=h=>L+(h-view[0])/(view[1]-view[0])*(W-L-R);
+  const defs=el('defs',{},svg);const cp=el('clipPath',{id:'cp'},defs);el('rect',{x:L,y:0,width:W-L-R,height:H},cp);
+  el('rect',{x:L,y:y(180),width:W-L-R,height:y(70)-y(180),fill:css('--sage-2')},svg);
+  [70,180].forEach(v=>el('line',{x1:L,x2:W-R,y1:y(v),y2:y(v),stroke:css('--sage'),'stroke-dasharray':'4 4'},svg));
+  el('line',{x1:L,x2:W-R,y1:y(54),y2:y(54),stroke:css('--red'),'stroke-dasharray':'2 4','stroke-opacity':.6},svg);
+  const ticks=unit==='mg/dL'?[0,54,70,100,140,180,250,300]:[0,3,3.9,5.5,7.8,10,13.9,16.7];
+  ticks.forEach(t=>{const yy=T+ph-(t/ymax)*ph;el('text',{x:L-8,y:yy+4,'text-anchor':'end','font-size':11,fill:css('--ink-3')},svg).textContent=String(t).replace('.',',')});
+  const span=view[1]-view[0],step=span>12?3:span>6?1:span>2?.5:.25;
+  for(let h=Math.ceil(view[0]/step)*step;h<=view[1];h+=step){el('line',{x1:x(h),x2:x(h),y1:T,y2:T+ph,stroke:css('--line')},svg);
+    el('text',{x:x(h),y:T+ph+16,'text-anchor':'middle','font-size':11,fill:css('--ink-3')},svg).textContent=fmtH(h)}
+  const g=el('g',{'clip-path':'url(#cp)'},svg);
+  // segments interrompus si trou de données > 30 min
+  let d='';pts.forEach((p,i)=>{const gap=i&&p.h-pts[i-1].h>0.5;d+=(i===0||gap?'M':'L')+x(p.h).toFixed(1)+','+y(p.v).toFixed(1)});
+  el('path',{d,fill:'none',stroke:css('--glucose'),'stroke-width':2.2,'stroke-linejoin':'round'},g);
+  if(span<8)pts.forEach(p=>el('circle',{cx:x(p.h),cy:y(p.v),r:2.4,fill:css('--glucose')},g));
+  cap.forEach(c=>el('rect',{x:x(c.h)-5,y:y(c.v)-5,width:10,height:10,transform:`rotate(45 ${x(c.h)} ${y(c.v)})`,fill:css('--surface'),stroke:css('--ink-2'),'stroke-width':1.8},g));
+  // piste événements
+  const ey=T+ph+40,iy=ey+28;[[ey,'Journal'],[iy,'Insuline']].forEach(([yy,l])=>{el('text',{x:L-8,y:yy+4,'text-anchor':'end','font-size':10.5,fill:css('--ink-3')},svg).textContent=l;
+  el('line',{x1:L,x2:W-R,y1:yy,y2:yy,stroke:css('--line')},svg)});
+  ev.forEach(e=>{if(e.h<view[0]||e.h>view[1])return;const t=el('text',{x:x(e.h),y:(e.u?iy:ey)+6,'text-anchor':'middle','font-size':16,style:'cursor:pointer'},svg);t.textContent=e.t;
+    t.addEventListener('mousemove',m=>showTip(m.clientX,m.clientY,`<b>${fmtH(e.h)} · ${e.l}</b><br>${e.d}`));t.addEventListener('mouseleave',hideTip)});
+  // curseur
+  const vline=el('line',{y1:T,y2:T+ph,stroke:css('--ink-3'),'stroke-width':1,opacity:0},svg);const dot=el('circle',{r:5,fill:css('--glucose'),stroke:css('--surface'),'stroke-width':2,opacity:0},svg);
+  svg.onmousemove=m=>{const r=svg.getBoundingClientRect(),mx=m.clientX-r.left;if(mx<L||m.clientY-r.top>T+ph){vline.setAttribute('opacity',0);dot.setAttribute('opacity',0);return}
+    const h=view[0]+(mx-L)/(W-L-R)*span;let best=pts[0];pts.forEach(p=>{if(Math.abs(p.h-h)<Math.abs(best.h-h))best=p});
+    vline.setAttribute('x1',x(best.h));vline.setAttribute('x2',x(best.h));vline.setAttribute('opacity',.6);dot.setAttribute('cx',x(best.h));dot.setAttribute('cy',y(best.v));dot.setAttribute('opacity',1);
+    showTip(m.clientX,m.clientY,`<b>${fmtH(best.h)}</b> · ${String(conv(best.v)).replace('.',',')} ${unit}<br><span style="opacity:.7">Capteur</span>`)};
+  svg.onmouseleave=()=>{hideTip();vline.setAttribute('opacity',0);dot.setAttribute('opacity',0)};
+  // stats
+  const vs=pts.map(p=>p.v),n=vs.length,mean=vs.reduce((a,b)=>a+b,0)/n,sd=Math.sqrt(vs.reduce((a,b)=>a+(b-mean)**2,0)/n);
+  const pc=f=>Math.round(vs.filter(f).length/n*100);const vl=pc(v=>v<54),lo=pc(v=>v>=54&&v<70),hi=pc(v=>v>180&&v<=250),vh=pc(v=>v>250),inr=100-vl-lo-hi-vh;
+  const U=unit;document.getElementById('dayStats').innerHTML=[['Moyenne',conv(Math.round(mean))+' '+U],['Min / max',conv(Math.min(...vs))+' / '+conv(Math.max(...vs))],['Variabilité (CV)',Math.round(sd/mean*100)+' %'],['Mesures',n],['Données disponibles',Math.round(n/96*100)+' %']]
+    .map(([k,v])=>`<div class="stat"><span class="meta">${k}</span><b>${String(v).replace(/\./g,',')}</b></div>`).join('');
+  document.getElementById('dayBar').innerHTML=`<div style="width:${vl}%;background:#9E2A1C"></div><div style="width:${lo}%;background:var(--red)"></div><div style="width:${inr}%;background:var(--sage)"></div><div style="width:${hi}%;background:var(--amber)"></div><div style="width:${vh}%;background:#B5552F"></div>`;
+  document.getElementById('dayBarL').textContent=`Très bas ${vl} % · bas ${lo} % · dans la cible ${inr} % · élevé ${hi} % · très élevé ${vh} %`;
+  document.getElementById('dayLabel').textContent=curDay.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('dayPick').value=curDay.toISOString().slice(0,10);
+  document.getElementById('nextDay').disabled=curDay.toDateString()===TODAY.toDateString();}
+(function(){const svg=document.getElementById('dayChart');let drag=null;
+  svg.addEventListener('wheel',e=>{e.preventDefault();const r=svg.getBoundingClientRect(),f=(e.clientX-r.left-48)/(r.width-64),span=view[1]-view[0],c=view[0]+f*span;
+    let ns=Math.min(24,Math.max(1,span*(e.deltaY>0?1.2:1/1.2)));let a=c-f*ns;a=Math.max(0,Math.min(24-ns,a));view=[a,a+ns];drawDay()},{passive:false});
+  svg.addEventListener('pointerdown',e=>{drag={x:e.clientX,v:[...view]}});window.addEventListener('pointerup',()=>drag=null);
+  svg.addEventListener('pointermove',e=>{if(!drag||e.buttons!==1)return;const span=drag.v[1]-drag.v[0],dh=-(e.clientX-drag.x)/(svg.clientWidth-64)*span;let a=Math.max(0,Math.min(24-span,drag.v[0]+dh));view=[a,a+span];drawDay()});
+  svg.addEventListener('dblclick',()=>{view=[0,24];drawDay()});
+  const shift=n=>{curDay=new Date(curDay.getFullYear(),curDay.getMonth(),curDay.getDate()+n);if(curDay>TODAY)curDay=new Date(TODAY);view=[0,24];drawDay()};
+  document.getElementById('prevDay').onclick=()=>shift(-1);document.getElementById('nextDay').onclick=()=>shift(1);
+  document.getElementById('today').onclick=()=>{curDay=new Date(TODAY);view=[0,24];drawDay()};
+  document.getElementById('dayPick').onchange=e=>{const [y,m,d]=e.target.value.split('-').map(Number);curDay=new Date(y,m-1,d);if(curDay>TODAY)curDay=new Date(TODAY);drawDay()};
+  document.querySelectorAll('#unitSeg button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#unitSeg button').forEach(x=>x.classList.remove('on'));b.classList.add('on');unit=b.textContent;drawDay()});
+  document.querySelectorAll('.seg').forEach(s=>{if(s.id==='unitSeg')return;s.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{s.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on')}))});
+})();
+
+// ---------- Sparkline ----------
+function drawSpark(){const s=document.getElementById('spark');s.innerHTML='';const p=dayData(TODAY).pts;const x=h=>h/24*300,y=v=>44-(v-40)/260*42;
+  el('rect',{x:0,y:y(180),width:300,height:y(70)-y(180),fill:css('--sage-2')},s);
+  el('path',{d:p.map((q,i)=>(i?'L':'M')+x(q.h)+','+y(q.v)).join(''),fill:'none',stroke:css('--glucose'),'stroke-width':1.8,'vector-effect':'non-scaling-stroke'},s)}
+
+// ---------- Jauge capsule : position par rapport à l'intervalle de référence du labo ----------
+const BIO=[
+ {k:'hba1c',n:'HbA1c',v:7.2,u:'%',lo:4,hi:6,lab:'Labo Exemple',d:'03/09/2026',hist:[['14/11/2025',8.1],['17/02/2026',7.9],['12/05/2026',7.6],['03/09/2026',7.2]]},
+ {k:'fer',n:'Ferritine',v:25,u:'µg/L',lo:30,hi:300,lab:'Labo Exemple',d:'03/09/2026',hist:[['17/02/2026',19],['03/09/2026',25]]},
+ {k:'vitd',n:'Vitamine D',v:18,u:'ng/mL',lo:30,hi:100,lab:'Labo Exemple',d:'03/09/2026',hist:[['17/02/2026',14],['03/09/2026',18]]},
+ {k:'mg',n:'Magnésium',v:0.75,u:'mmol/L',lo:0.70,hi:1.05,lab:'Labo Exemple',d:'03/09/2026',hist:[['03/09/2026',0.75]]},
+ {k:'b12',n:'Vitamine B12',v:310,u:'pmol/L',lo:145,hi:569,lab:'Labo Exemple',d:'12/05/2026',hist:[['12/05/2026',310]]},
+ {k:'tsh',n:'TSH',v:2.1,u:'mUI/L',lo:0.4,hi:4,lab:'Labo Exemple',d:'12/05/2026',hist:[['12/05/2026',2.1]]},
+];
+// Échelle : intervalle de référence = 30 %→70 % de la capsule ; extensions linéaires de part et d'autre, bornées.
+function capsule(b,w=104,h=150){const s=document.createElementNS(NS,'svg');s.setAttribute('width',w);s.setAttribute('height',h+6);s.setAttribute('viewBox',`0 0 ${w} ${h+6}`);
+  const r=(b.hi-b.lo);const pos=Math.max(0.03,Math.min(0.97,0.3+(b.v-b.lo)/r*0.4));const st=b.v<b.lo?'low':b.v>b.hi?'high':'in';
+  const col=st==='in'?css('--sage'):css('--amber');const cx=w/2,cw=34,x0=cx-cw/2,top=3;
+  const cp='c'+b.k+Math.random().toString(36).slice(2,6);const d=el('defs',{},s);const c=el('clipPath',{id:cp},d);el('rect',{x:x0,y:top,width:cw,height:h,rx:cw/2},c);
+  el('rect',{x:x0,y:top,width:cw,height:h,rx:cw/2,fill:css('--surface-2'),stroke:css('--line')},s);
+  el('rect',{x:x0,y:top+h*(1-0.7),width:cw,height:h*0.4,fill:css('--sage-2'),'clip-path':`url(#${cp})`},s);
+  el('rect',{x:x0,y:top+h*(1-pos),width:cw,height:h*pos,fill:col,opacity:.85,'clip-path':`url(#${cp})`},s);
+  [[.7,b.hi],[.3,b.lo]].forEach(([p,v])=>{el('line',{x1:x0-4,x2:x0+cw+4,y1:top+h*(1-p),y2:top+h*(1-p),stroke:css('--ink-3'),'stroke-width':1},s);
+    el('text',{x:x0+cw+6,y:top+h*(1-p)+4,'font-size':9.5,fill:css('--ink-3')},s).textContent=String(v).replace('.',',')});
+  el('path',{d:`M${x0-8},${top+h*(1-pos)-5} l7,5 l-7,5z`,fill:css('--ink')},s);
+  return {svg:s,st}}
+function gaugeCard(b,host){const {svg,st}=capsule(b);const dv=document.createElement('div');dv.className='gauge card click';dv.style.padding='14px 8px';
+  dv.appendChild(svg);dv.insertAdjacentHTML('beforeend',`<div style="font-weight:600;font-size:14px">${b.n}</div><div><b style="font-size:18px">${String(b.v).replace('.',',')}</b> <span class="meta">${b.u}</span></div>
+   <span class="chip ${st==='in'?'s':'a'}">${st==='in'?'dans l\'intervalle':st==='low'?'sous l\'intervalle':'au-dessus'}</span><div class="meta">${b.d}</div>`);
+  dv.onclick=()=>{go('bio');drawHist(b)};host.appendChild(dv)}
+function drawGauges(){const a=document.getElementById('bioGauges'),dg=document.getElementById('dashGauges');a.innerHTML='';dg.innerHTML='';
+  BIO.forEach(b=>gaugeCard(b,a));BIO.filter(b=>b.v<b.lo||b.v>b.hi).forEach(b=>gaugeCard(b,dg))}
+
+// ---------- Historique : uniquement les dates réelles ----------
+let histB=BIO[0];
+function drawHist(b){histB=b||histB;b=histB;const s=document.getElementById('histChart');if(!s.clientWidth)return;s.innerHTML='';
+  document.getElementById('histTitle').textContent=`Historique — ${b.n} (laboratoire)`;
+  const W=s.clientWidth,H=260,L=40,R=20,T=16,B=30;const P=b.hist.map(([d,v])=>{const [dd,mm,yy]=d.split('/').map(Number);return{t:new Date(yy,mm-1,dd).getTime(),v,d}});
+  const t0=new Date(2025,9,1).getTime(),t1=new Date(2026,10,30).getTime();const vals=P.map(p=>p.v).concat([b.lo,b.hi]);const ymin=Math.min(...vals)*0.85,ymax=Math.max(...vals)*1.1;
+  const x=t=>L+(t-t0)/(t1-t0)*(W-L-R),y=v=>T+(H-T-B)*(1-(v-ymin)/(ymax-ymin));
+  el('rect',{x:L,y:y(b.hi),width:W-L-R,height:y(b.lo)-y(b.hi),fill:css('--sage-2')},s);
+  el('text',{x:W-R,y:y(b.hi)-4,'text-anchor':'end','font-size':10,fill:css('--sage')},s).textContent='intervalle de référence du laboratoire';
+  for(let m=0;m<14;m+=2){const t=new Date(2025,9+m,1);el('text',{x:x(t.getTime()),y:H-8,'font-size':10.5,'text-anchor':'middle',fill:css('--ink-3')},s).textContent=t.toLocaleDateString('fr-FR',{month:'short',year:'2-digit'})}
+  if(P.length>1)el('path',{d:P.map((p,i)=>(i?'L':'M')+x(p.t)+','+y(p.v)).join(''),stroke:css('--petrol'),'stroke-width':2,fill:'none','stroke-dasharray':'1 0'},s);
+  P.forEach(p=>{el('circle',{cx:x(p.t),cy:y(p.v),r:5.5,fill:css('--surface'),stroke:css('--petrol'),'stroke-width':2.5},s);
+    el('text',{x:x(p.t),y:y(p.v)-11,'text-anchor':'middle','font-size':12,'font-weight':600,fill:css('--ink')},s).textContent=String(p.v).replace('.',',')});
+  const tb=document.getElementById('histTable');tb.innerHTML='<tr><th>Prélèvement</th><th>Valeur</th><th>Réf.</th><th>Source</th></tr>'+P.slice().reverse().map(p=>`<tr><td>${p.d}</td><td><b>${String(p.v).replace('.',',')}</b> ${b.u}${b.k==='hba1c'?` <span class="meta">(${Math.round((p.v-2.15)*10.929)} mmol/mol)</span>`:''}</td><td class="meta">${String(b.lo).replace('.',',')}–${String(b.hi).replace('.',',')}</td><td><span class="chip p">📄 bilan</span></td></tr>`).join('')}
+
+// ---------- Validation extraction ----------
+const EX=[{n:'HbA1c',raw:'Hémoglobine glyquée',v:'7,2',u:'%',r:'4,0 – 6,0',c:'ok'},{n:'Ferritine',raw:'Ferritine',v:'25',u:'µg/L',r:'30 – 300',c:'ok'},
+ {n:'Vitamine D (25-OH)',raw:'25-OH Vitamine D',v:'18',u:'ng/mL',r:'30 – 100',c:'ok'},{n:'Magnésium',raw:'Magnésium',v:'0,75',u:'mmol/L',r:'0,70 – 1,05',c:'warn',w:'Unité lue avec une confiance moyenne : vérifiez « mmol/L ».'}];
+const state=EX.map(e=>e.c==='ok'?'proposed':'check');
+function drawVal(){const tb=document.getElementById('vtab');tb.innerHTML='';EX.forEach((e,i)=>{const tr=document.createElement('tr');tr.style.cursor='pointer';
+  const st=state[i];tr.innerHTML=`<td><b>${e.n}</b><div class="meta">lu : « ${e.raw} »</div></td><td><b>${e.v}</b> ${e.u}</td><td class="meta">${e.r}</td>
+  <td>${e.c==='ok'?'<span class="chip s">✓ cohérent</span>':`<span class="chip a">⚠ à vérifier</span><div class="meta" style="max-width:190px">${e.w}</div>`}</td>
+  <td style="white-space:nowrap">${st==='confirmed'?'<span class="chip p">Confirmé</span>':st==='rejected'?'<span class="chip n">Ignoré</span>':`<button class="btn" data-a="ok">Confirmer</button> <button class="btn ghost" data-a="no">Ignorer</button>`}</td>`;
+  tr.onclick=ev=>{document.querySelectorAll('.doc .hl').forEach(x=>x.classList.remove('hl'));document.getElementById('l'+i).classList.add('hl');
+    const a=ev.target.dataset&&ev.target.dataset.a;if(a){state[i]=a==='ok'?'confirmed':'rejected';drawVal()}};tb.appendChild(tr)});
+  const pend=state.filter(s=>s==='check').length;document.getElementById('pend').textContent=pend?pend+' à vérifier':'Tout est vérifié';document.getElementById('pend').className='chip '+(pend?'a':'s');
+  const n=state.filter(s=>s==='confirmed').length;const b=document.getElementById('confirmAll');b.disabled=pend>0||n===0;b.textContent=`Enregistrer ${n} valeur${n>1?'s':''} confirmée${n>1?'s':''}`}
+
+// ---------- Vue combinée ----------
+function drawCombo(){const s=document.getElementById('combo');if(!s.clientWidth)return;s.innerHTML='';const W=s.clientWidth,L=60,R=16;const {pts,ev}=dayData(new Date(2026,10,3));
+  const x=h=>L+h/24*(W-L-R);const lanes=[['Glycémie (mg/dL)',10,200],['Insuline (U)',230,70],['Journal',320,40],['Pas / heure',380,40]];
+  lanes.forEach(([l,y0,h])=>{el('text',{x:4,y:y0+14,'font-size':11,fill:css('--ink-3')},s).textContent=l;el('line',{x1:L,x2:W-R,y1:y0+h,y2:y0+h,stroke:css('--line')},s)});
+  const gy=v=>10+200-(v/300)*200;el('rect',{x:L,y:gy(180),width:W-L-R,height:gy(70)-gy(180),fill:css('--sage-2')},s);
+  el('path',{d:pts.map((p,i)=>(i?'L':'M')+x(p.h)+','+gy(p.v)).join(''),fill:'none',stroke:css('--glucose'),'stroke-width':2},s);
+  ev.filter(e=>e.u).forEach(e=>{const hh=e.u/20*60;el('rect',{x:x(e.h)-5,y:300-hh,width:10,height:hh,rx:3,fill:e.slow?css('--petrol'):css('--violet')},s);
+    el('text',{x:x(e.h),y:300-hh-4,'text-anchor':'middle','font-size':11,'font-weight':600,fill:css('--ink')},s).textContent=e.u+' U'});
+  ev.filter(e=>!e.u).forEach(e=>{const t=el('text',{x:x(e.h),y:346,'text-anchor':'middle','font-size':16},s);t.textContent=e.t;t.addEventListener('mousemove',m=>showTip(m.clientX,m.clientY,`<b>${fmtH(e.h)} · ${e.l}</b><br>${e.d}`));t.addEventListener('mouseleave',hideTip)});
+  seed=11;for(let h=0;h<24;h++){const st=h<7||h>22?0:Math.round(rnd()*900+(h===17?2600:0));el('rect',{x:x(h)+1,y:420-st/3500*40,width:(W-L-R)/24-2,height:st/3500*40,fill:css('--sage'),rx:2},s)}
+  for(let h=0;h<=24;h+=3)el('text',{x:x(h),y:430,'text-anchor':'middle','font-size':10.5,fill:css('--ink-3')},s).textContent=fmtH(h);
+  [70,180,250].forEach(v=>el('text',{x:L-6,y:gy(v)+4,'text-anchor':'end','font-size':10.5,fill:css('--ink-3')},s).textContent=v);
+  [['Rapide',css('--violet')],['Lente',css('--petrol')]].forEach(([l,c],i)=>{el('rect',{x:x(0.3)+i*70,y:242,width:10,height:10,rx:2,fill:c},s);el('text',{x:x(0.3)+i*70+14,y:251,'font-size':10.5,fill:css('--ink-2')},s).textContent=l});}
+
+// ---------- Pas : valeur exacte au-dessus des barres ----------
+function drawSteps(){const s=document.getElementById('steps');if(!s.clientWidth)return;s.innerHTML='';const W=s.clientWidth,H=320,L=20,R=20,T=30,B=40;
+  const days=['Lun 26','Mar 27','Mer 28','Jeu 29','Ven 30','Sam 31','Dim 1'];const v=[7840,9215,5310,11408,8032,12950,4120];const max=14000;
+  const bw=(W-L-R)/7,y=n=>T+(H-T-B)*(1-n/max);
+  el('line',{x1:L,x2:W-R,y1:y(8000),y2:y(8000),stroke:css('--sage'),'stroke-dasharray':'5 5'},s);
+  v.forEach((n,i)=>{const bx=L+i*bw+bw*0.2;el('rect',{x:bx,y:y(n),width:bw*0.6,height:H-B-y(n),rx:8,fill:n>=8000?css('--sage'):css('--petrol'),opacity:n>=8000?1:.55},s);
+    if(bw>46)el('text',{x:bx+bw*0.3,y:y(n)-8,'text-anchor':'middle','font-size':bw>70?13:11,'font-weight':600,fill:css('--ink')},s).textContent=fmt(n);
+    el('text',{x:bx+bw*0.3,y:H-14,'text-anchor':'middle','font-size':12,fill:css('--ink-3')},s).textContent=days[i]});
+  document.getElementById('stepAvg').textContent=fmt(Math.round(v.reduce((a,b)=>a+b)/7))+' pas'}
+
+function render(){drawSpark();drawGauges();drawDay();drawHist();drawVal();drawCombo();drawSteps()}
+window.addEventListener('resize',render);render();
+</script>
+</body>
+</html>
