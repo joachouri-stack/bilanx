@@ -23,6 +23,7 @@ import {
 import { appContext, moduleAllowed } from '@/lib/server/context';
 import { glucoseDay, labResults, sensorRange, type LabRow } from '@/lib/server/data';
 import { insulinDoses, toDomainDoses } from '@/lib/server/insulin-data';
+import { appointments } from '@/lib/server/auth';
 import { ButtonLink, Card, CardLabel, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
 import { CapsuleGauge } from '@/components/capsule-gauge';
 
@@ -53,6 +54,10 @@ export default async function DashboardPage() {
   const insulinToday = summarizeInsulin(toDomainDoses(insulinRows), DEMO_TIMEZONE);
   // Carte affichée seulement si le profil utilise ce module (pas de carte insuline pour une personne non concernée).
   const showInsulin = isDemo || insulinRows.length > 0;
+  const nextAppointment =
+    ctx.active.kind === 'real' && moduleAllowed(ctx.active, 'appointments')
+      ? ((await appointments().list(ctx.user, ctx.active.access.profileId)).upcoming[0] ?? null)
+      : null;
   const profileName = isDemo ? DEMO_PROFILE.displayName : ctx.active.kind === 'real' ? ctx.active.access.displayName : '';
   const isSelf = ctx.active.kind === 'real' && ctx.active.access.relationship === 'self' && ctx.active.access.role === 'owner';
 
@@ -223,7 +228,19 @@ export default async function DashboardPage() {
         </Card>
         )}
 
-{isDemo && (
+{nextAppointment && (
+        <Card href={`/rendez-vous/${nextAppointment.id}`} className="md:col-span-3 xl:col-span-3">
+          <CardLabel tone="neutral" tag="📅 Rendez-vous">
+            Prochain
+          </CardLabel>
+          <p className="mt-2.5 font-semibold">{[nextAppointment.specialty, nextAppointment.practitioner].filter(Boolean).join(' — ')}</p>
+          <p className="text-sm first-letter:uppercase">
+            {new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' }).format(nextAppointment.startsAt)}
+          </p>
+          {nextAppointment.toPrepare && <Meta>À préparer : {nextAppointment.toPrepare}</Meta>}
+        </Card>
+        )}
+        {isDemo && (
         <Card className="md:col-span-3 xl:col-span-3">
           <CardLabel tone="neutral" tag="📅 Rendez-vous">
             Prochain

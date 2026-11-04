@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { ForbiddenError, MODULE_KEYS } from '@bilanx/profiles';
 import { appContext, DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
 import {
+  appointments,
   auth,
   documents,
   insulin,
@@ -461,4 +462,54 @@ export async function deleteJournalAction(fd: FormData): Promise<void> {
   const ctx = await appContext();
   if (ctx.active.kind === 'real') await journal().remove(ctx.user, ctx.active.access.profileId, str(fd, 'entryId'));
   redirect(`/journal?${new URLSearchParams({ jour: str(fd, 'jour') })}`);
+}
+
+// ───────────── Rendez-vous ─────────────
+export async function saveAppointmentAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  const values = {
+    date: str(fd, 'date'),
+    time: str(fd, 'time'),
+    specialty: str(fd, 'specialty'),
+    practitioner: str(fd, 'practitioner'),
+    location: str(fd, 'location'),
+    reason: str(fd, 'reason'),
+    toPrepare: str(fd, 'toPrepare'),
+    reminder: str(fd, 'reminder'),
+    notesAfter: str(fd, 'notesAfter'),
+  };
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Le profil de démonstration est en lecture seule : choisissez votre profil.' }, values };
+  const id = str(fd, 'id') || undefined;
+  let r;
+  try {
+    r = await appointments().save(ctx.user, ctx.active.access.profileId, values, id);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values };
+    throw e;
+  }
+  if (!r.ok) return { attempt: crypto.randomUUID(), fieldErrors: r.errors, errors: { form: 'Vérifiez les champs signalés.' }, values };
+  redirect(`/rendez-vous/${r.id}?${id ? 'modifie' : 'cree'}=1`);
+}
+
+export async function deleteAppointmentAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await appointments().remove(ctx.user, ctx.active.access.profileId, str(fd, 'id'));
+  redirect('/rendez-vous?supprime=1');
+}
+
+export async function linkAppointmentAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  const id = str(fd, 'id');
+  const target = str(fd, 'target'); // « doc:<uuid> » ou « lab:<uuid> »
+  if (ctx.active.kind === 'real' && target) {
+    const [kind, ref] = target.split(':');
+    await appointments().link(ctx.user, ctx.active.access.profileId, id, kind === 'doc' ? { documentId: ref } : { labResultId: ref });
+  }
+  redirect(`/rendez-vous/${id}`);
+}
+
+export async function unlinkAppointmentAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await appointments().unlink(ctx.user, ctx.active.access.profileId, str(fd, 'linkId'));
+  redirect(`/rendez-vous/${str(fd, 'id')}`);
 }

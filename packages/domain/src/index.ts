@@ -10,3 +10,4 @@ export * from './manual-entry';
 export * from './report-parser';
 export * from './insulin-entry';
 export * from './journal-entry';
+export * from './appointment';
