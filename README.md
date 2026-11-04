@@ -44,8 +44,9 @@ Sans `TEST_DATABASE_URL`, les tests d'intégration de l'authentification sont ig
 | `packages/domain` | Calculs de santé testés : unités, HbA1c % ↔ mmol/mol, statistiques glycémiques, jauge de référence, contrôles d'extraction IA, journées et changements d'heure |
 | `packages/auth` | Comptes, vérification e-mail, sessions, double authentification TOTP + codes de secours, réinitialisation, limitation des tentatives, journal d'audit chaîné |
 | `packages/profiles` | Famille : profils de proches, invitations, autorisations par module, révocation, journal d'accès, accès aux données sous Row-Level Security |
+| `packages/records` | Enregistrement des données de santé : saisie manuelle des résultats d'analyses (validation, doublons, suppression tracée) |
 | `packages/db` | Client PostgreSQL et outil de migration |
-| `apps/web` | Application Next.js — comptes, famille et accès réels ; profils réels vides tant que les imports ne sont pas développés ; profil de démonstration **fictif** disponible |
+| `apps/web` | Application Next.js — comptes, famille et accès réels ; saisie manuelle des analyses ; imports à venir ; profil de démonstration **fictif** disponible |
 | `db/migrations/` | Migrations PostgreSQL versionnées (`npm run db:migrate`) |
 | `design/maquettes.html` | Maquettes de référence |
 

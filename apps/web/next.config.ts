@@ -13,7 +13,7 @@ const config: NextConfig = {
   // Image Docker autonome (monorepo : suivi des fichiers depuis la racine du dépôt).
   output: 'standalone',
   outputFileTracingRoot: fileURLToPath(new URL('../../', import.meta.url)),
-  transpilePackages: ['@bilanx/domain', '@bilanx/auth', '@bilanx/db', '@bilanx/profiles'],
+  transpilePackages: ['@bilanx/domain', '@bilanx/auth', '@bilanx/db', '@bilanx/profiles', '@bilanx/records'],
   serverExternalPackages: ['@node-rs/argon2', 'postgres'],
   poweredByHeader: false,
   async headers() {

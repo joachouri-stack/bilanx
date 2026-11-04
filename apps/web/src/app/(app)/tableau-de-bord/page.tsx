@@ -168,7 +168,12 @@ export default async function DashboardPage() {
               </Meta>
             </>
           ) : (
-            <Empty>Aucune HbA1c de laboratoire enregistrée. La saisie et le scan des bilans arrivent prochainement.</Empty>
+            <Empty>
+              Aucune HbA1c de laboratoire enregistrée.
+              {!isDemo && moduleAllowed(ctx.active, 'lab', 'write') && (
+                <span className="mt-1 block font-medium text-petrol">Ajoutez un résultat depuis « Analyses & Bilans ».</span>
+              )}
+            </Empty>
           )}
         </Card>
         )}

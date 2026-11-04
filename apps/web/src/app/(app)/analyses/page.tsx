@@ -6,7 +6,7 @@ import { appContext, moduleAllowed } from '@/lib/server/context';
 import { labResults, type LabRow } from '@/lib/server/data';
 import { ModuleForbidden } from '@/components/module-forbidden';
 import { CapsuleGauge } from '@/components/capsule-gauge';
-import { Card, Meta, PageHeader } from '@/components/ui';
+import { ButtonLink, Card, Meta, PageHeader } from '@/components/ui';
 
 export const metadata: Metadata = { title: 'Analyses & Bilans' };
 
@@ -37,12 +37,19 @@ export default async function AnalysesPage() {
             Position de chaque résultat par rapport à l’intervalle de référence <strong>de son laboratoire</strong>.
           </>
         }
+        actions={
+          ctx.active.kind === 'real' && moduleAllowed(ctx.active, 'lab', 'write') ? (
+            <ButtonLink href="/analyses/ajouter" primary>
+              ＋ Ajouter un résultat
+            </ButtonLink>
+          ) : undefined
+        }
       />
       <Card>
         {results.length === 0 && (
           <p className="rounded-xl border border-dashed border-line p-8 text-center text-ink-3">
-            Aucun résultat d’analyse enregistré pour ce profil. Le scan des bilans (avec validation de chaque valeur) et la saisie
-            manuelle arrivent prochainement.
+            Aucun résultat d’analyse enregistré pour ce profil. Ajoutez-en un à partir d’un compte rendu de laboratoire ; le scan
+            des bilans (avec validation de chaque valeur) arrive prochainement.
           </p>
         )}
         <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-3.5">

@@ -4,12 +4,13 @@ import { redirect } from 'next/navigation';
 import { ConsoleMailer, createAuthService, parseSecretKey, SESSION_ABSOLUTE_HOURS, type AuthService, type SessionInfo } from '@bilanx/auth';
 import { createSql, type Sql } from '@bilanx/db';
 import { createProfilesService, type ProfilesService } from '@bilanx/profiles';
+import { createLabService, type LabService } from '@bilanx/records';
 
 /**
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createSql();
@@ -22,6 +23,11 @@ const mailer = new ConsoleMailer();
 export function profiles(): ProfilesService {
   globalForAuth.bilanxProfiles ??= createProfilesService({ sql: sql(), mailer, appUrl: appUrl() });
   return globalForAuth.bilanxProfiles;
+}
+
+export function lab(): LabService {
+  globalForAuth.bilanxLab ??= createLabService({ profiles: profiles() });
+  return globalForAuth.bilanxLab;
 }
 
 export function auth(): AuthService {

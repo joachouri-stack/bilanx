@@ -9,7 +9,11 @@ import { profiles } from './auth';
 import type { AppContext } from './context';
 
 export interface LabRow {
+  /** Identifiant en base (absent pour la démonstration). */
+  id: string | null;
   analyteCode: string;
+  comparator: string | null;
+  note: string | null;
   value: number;
   unit: string;
   sampledAt: Date;
@@ -30,6 +34,9 @@ export const TIMEZONE = DEMO_TIMEZONE;
 export async function labResults(ctx: AppContext, analyteCode?: string): Promise<LabRow[]> {
   if (ctx.active.kind === 'demo') {
     return DEMO_LAB_RESULTS.filter((r) => !analyteCode || r.analyteCode === analyteCode).map((r) => ({
+      id: null,
+      comparator: null,
+      note: null,
       analyteCode: r.analyteCode,
       value: r.value,
       unit: r.unit,
@@ -42,13 +49,16 @@ export async function labResults(ctx: AppContext, analyteCode?: string): Promise
   }
   const profileId = ctx.active.access.profileId;
   const rows = await profiles().withProfileData(ctx.user, profileId, 'lab', 'read', (tx) =>
-    tx<{ analyte_code: string; value: string; unit: string; sampled_at: Date; ref_low: string | null; ref_high: string | null; laboratory: string | null; source_type: string }[]>`
-      SELECT analyte_code, value, unit, sampled_at, ref_low, ref_high, laboratory, source_type
+    tx<{ id: string; analyte_code: string; value: string; unit: string; sampled_at: Date; ref_low: string | null; ref_high: string | null; laboratory: string | null; source_type: string; comparator: string | null; note: string | null }[]>`
+      SELECT id, analyte_code, value, unit, sampled_at, ref_low, ref_high, laboratory, source_type, comparator, note
       FROM lab_result
       WHERE profile_id = ${profileId} AND deleted_at IS NULL ${analyteCode ? tx`AND analyte_code = ${analyteCode}` : tx``}
       ORDER BY sampled_at`,
   );
   return rows.map((r) => ({
+    id: r.id,
+    comparator: r.comparator,
+    note: r.note,
     analyteCode: r.analyte_code,
     value: Number(r.value),
     unit: r.unit,

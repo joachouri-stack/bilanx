@@ -5,9 +5,10 @@ import type { FieldErrors } from '@bilanx/auth';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { ForbiddenError, MODULE_KEYS } from '@bilanx/profiles';
-import { DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
+import { appContext, DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
 import {
   auth,
+  lab,
   profiles,
   rememberNext,
   takeNext,
@@ -25,6 +26,10 @@ export interface FormState {
   message?: string;
   errors?: FieldErrors;
   values?: Record<string, string>;
+  /** Erreurs par champ (formulaires détaillés). */
+  fieldErrors?: Record<string, string | undefined>;
+  /** Doublon détecté : confirmation explicite demandée. */
+  duplicate?: boolean;
   /** Identifiant de la réponse : force la reconstruction du formulaire avec les valeurs saisies. */
   attempt?: string;
   /** Codes de secours, affichés une seule fois après l'activation de la MFA. */
@@ -231,4 +236,39 @@ export async function respondInvitationAction(_: FormState, fd: FormData): Promi
     redirect('/tableau-de-bord');
   }
   return { ok: true, message: 'Invitation refusée. Aucun accès n’a été créé.' };
+}
+
+// ───────────── Analyses : saisie manuelle ─────────────
+export async function addLabResultAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Le profil de démonstration ne peut pas être modifié.' } };
+  const input = {
+    analyteCode: str(fd, 'analyteCode'),
+    value: str(fd, 'value'),
+    unit: str(fd, 'unit'),
+    sampledOn: str(fd, 'sampledOn'),
+    laboratory: str(fd, 'laboratory'),
+    refLow: str(fd, 'refLow'),
+    refHigh: str(fd, 'refHigh'),
+    note: str(fd, 'note'),
+  };
+  let r;
+  try {
+    r = await lab().addManual(ctx.user, ctx.active.access.profileId, { ...input, acceptDuplicate: fd.get('acceptDuplicate') === 'on' });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values: input };
+    throw e;
+  }
+  if (!r.ok) {
+    if ('duplicate' in r) return { attempt: crypto.randomUUID(), duplicate: true, errors: { form: r.message }, values: input };
+    return { attempt: crypto.randomUUID(), fieldErrors: r.errors, errors: { form: 'Vérifiez les champs signalés.' }, values: input };
+  }
+  redirect(`/analyses/${r.analyteCode}?ajout=1`);
+}
+
+export async function deleteLabResultAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  const code = str(fd, 'analyteCode');
+  if (ctx.active.kind === 'real') await lab().remove(ctx.user, ctx.active.access.profileId, str(fd, 'resultId'));
+  redirect(`/analyses/${encodeURIComponent(code)}?suppression=1`);
 }
