@@ -12,7 +12,7 @@ const config: NextConfig = {
   // Image Docker autonome (monorepo : suivi des fichiers depuis la racine du dépôt).
   output: 'standalone',
   outputFileTracingRoot: fileURLToPath(new URL('../../', import.meta.url)),
-  transpilePackages: ['@bilanx/domain', '@bilanx/auth', '@bilanx/db', '@bilanx/profiles', '@bilanx/records', '@bilanx/documents', '@bilanx/reports'],
+  transpilePackages: ['@bilanx/domain', '@bilanx/auth', '@bilanx/db', '@bilanx/profiles', '@bilanx/records', '@bilanx/documents', '@bilanx/reports', '@bilanx/privacy'],
   serverExternalPackages: ['@node-rs/argon2', 'postgres', 'tesseract.js', 'tesseract.js-core', 'pdfjs-dist', 'pdfkit'],
   // Fichiers chargés dynamiquement (données de langue, moteur WebAssembly, fil d'exécution) :
   // à inclure explicitement dans l'image autonome.

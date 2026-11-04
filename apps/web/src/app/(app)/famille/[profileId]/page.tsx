@@ -7,6 +7,7 @@ import { appContext } from '@/lib/server/context';
 import { leaveProfileAction, revokeAccessAction, revokeInvitationAction } from '@/lib/server/actions';
 import { Card, Chip, Meta, PageHeader } from '@/components/ui';
 import { InviteForm, PermissionsEditor } from '@/components/family-forms';
+import { DeleteProfileForm } from '@/components/privacy-forms';
 
 export const metadata: Metadata = { title: 'Accès au profil' };
 
@@ -155,11 +156,27 @@ export default async function ProfileAccessPage({ params }: { params: Promise<{ 
           </Card>
         </div>
 
+        <div className="flex flex-col gap-4">
         <Card>
           <h2 className="font-semibold">Inviter une personne</h2>
           <p className="mb-4 mt-1 text-sm text-ink-3">L’invitation ne donne aucun accès tant qu’elle n’est pas acceptée par cette personne, connectée avec cette adresse.</p>
           <InviteForm profileId={profileId} />
         </Card>
+        {me.relationship !== 'self' && (
+          <Card>
+            <details>
+              <summary className="cursor-pointer font-semibold text-red">Supprimer ce profil</summary>
+              <p className="mt-2 text-sm text-ink-2">
+                Le profil et ses données deviennent immédiatement invisibles et les accès accordés prennent fin. L’effacement définitif a lieu
+                30 jours plus tard. Exportez d’abord les données si nécessaire (Paramètres › Mes données).
+              </p>
+              <div className="mt-3">
+                <DeleteProfileForm profileId={profileId} name={me.displayName} />
+              </div>
+            </details>
+          </Card>
+        )}
+        </div>
       </div>
     </div>
   );

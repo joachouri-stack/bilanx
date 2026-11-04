@@ -7,8 +7,9 @@ import { CreateRelativeForm } from '@/components/family-forms';
 
 export const metadata: Metadata = { title: 'Famille & Profils' };
 
-export default async function FamilyPage() {
+export default async function FamilyPage({ searchParams }: { searchParams: Promise<{ 'profil-supprime'?: string }> }) {
   const ctx = await appContext();
+  const sp = await searchParams;
   const managed = ctx.profiles.filter((p) => p.role === 'owner');
   const shared = ctx.profiles.filter((p) => p.role !== 'owner');
   const fmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'Europe/Paris' });
@@ -16,6 +17,11 @@ export default async function FamilyPage() {
   return (
     <div className="fade-in">
       <PageHeader title="Famille & Profils" subtitle="Chaque profil a des données entièrement séparées. Vous décidez qui y accède, module par module." />
+      {sp['profil-supprime'] && (
+        <p role="status" className="mb-4 rounded-xl bg-sage-2 px-4 py-3 text-sm">
+          Profil supprimé. Ses données seront effacées définitivement dans 30 jours.
+        </p>
+      )}
       <div className="grid gap-4 lg:grid-cols-[1fr_420px]">
         <div className="flex flex-col gap-4">
           <Card>

@@ -9,6 +9,7 @@ import { appContext, DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
 import {
   appointments,
   auth,
+  privacy,
   documents,
   insulin,
   journal,
@@ -512,4 +513,45 @@ export async function unlinkAppointmentAction(fd: FormData): Promise<void> {
   const ctx = await appContext();
   if (ctx.active.kind === 'real') await appointments().unlink(ctx.user, ctx.active.access.profileId, str(fd, 'linkId'));
   redirect(`/rendez-vous/${str(fd, 'id')}`);
+}
+
+// ───────────── Droits RGPD ─────────────
+export async function withdrawAutoReadingAction(): Promise<void> {
+  const s = await requireUser();
+  await privacy().withdrawAutoReading(s);
+  redirect('/parametres?consentement=retire');
+}
+
+export async function giveAutoReadingAction(): Promise<void> {
+  const s = await requireUser();
+  await documents().giveAutoReadingConsent(s);
+  redirect('/parametres?consentement=donne');
+}
+
+export async function requestAccountDeletionAction(_: FormState, fd: FormData): Promise<FormState> {
+  const s = await requireUser();
+  if (str(fd, 'confirm').trim().toUpperCase() !== 'SUPPRIMER') return { errors: { form: 'Saisissez SUPPRIMER pour confirmer.' } };
+  const r = await privacy().requestAccountDeletion(s, str(fd, 'password'));
+  if (!r.ok) return { errors: { form: r.error } };
+  redirect('/parametres?suppression=programmee');
+}
+
+export async function cancelAccountDeletionAction(): Promise<void> {
+  const s = await requireUser();
+  await privacy().cancelAccountDeletion(s);
+  redirect('/parametres?suppression=annulee');
+}
+
+export async function deleteProfileAction(_: FormState, fd: FormData): Promise<FormState> {
+  const s = await requireUser();
+  const profileId = str(fd, 'profileId');
+  try {
+    const r = await privacy().deleteProfile(s, profileId, str(fd, 'confirmName'));
+    if (!r.ok) return { errors: { form: r.error } };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message } };
+    throw e;
+  }
+  (await cookies()).delete(PROFILE_COOKIE);
+  redirect('/famille?profil-supprime=1');
 }

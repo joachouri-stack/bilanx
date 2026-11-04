@@ -57,6 +57,11 @@ ignorées (« Base à jour. »).
 Pour redéployer après une mise à jour du dépôt : bouton **Redeploy**, ou activez le déploiement automatique sur la
 branche `main` (*Webhooks* / *Auto Deploy*).
 
+## Tâches automatiques
+
+L'application efface d'elle-même les comptes dont la suppression est arrivée à échéance (7 jours) et les profils
+supprimés depuis plus de 30 jours : 1 minute après chaque démarrage, puis toutes les 6 heures. Rien à configurer.
+
 ## 5. Créer votre compte
 
 Aucun service d'envoi d'e-mails n'est encore branché : **les e-mails s'affichent dans les journaux de l'application**.

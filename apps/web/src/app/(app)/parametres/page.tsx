@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
-import { auth, requireUser } from '@/lib/server/auth';
-import { revokeOtherSessionsAction, revokeSessionAction, signOutAction } from '@/lib/server/actions';
+import { auth, privacy, requireUser } from '@/lib/server/auth';
+import { DeleteAccountForm } from '@/components/privacy-forms';
+import {
+  cancelAccountDeletionAction,
+  giveAutoReadingAction,
+  revokeOtherSessionsAction,
+  revokeSessionAction,
+  signOutAction,
+  withdrawAutoReadingAction,
+} from '@/lib/server/actions';
 import { Card, Chip, Meta, PageHeader } from '@/components/ui';
 
 export const metadata: Metadata = { title: 'Paramètres et sécurité' };
@@ -20,10 +28,21 @@ function deviceLabel(ua: string | null): string {
   return `${br} · ${os}`;
 }
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ 'codes-restants'?: string }> }) {
+export default async function SettingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ 'codes-restants'?: string; consentement?: string; suppression?: string }>;
+}) {
   const user = await requireUser();
   const sp = await searchParams;
-  const [sessions, events] = await Promise.all([auth().listSessions(user.accountId), auth().listLoginEvents(user.accountId, 15)]);
+  const [sessions, events, consents, deletionAt] = await Promise.all([
+    auth().listSessions(user.accountId),
+    auth().listLoginEvents(user.accountId, 15),
+    privacy().listConsents(user.accountId),
+    privacy().deletionStatus(user.accountId),
+  ]);
+  const autoReading = consents.some((c) => c.purpose === 'ai_extraction' && !c.withdrawn_at);
+  const fmtLong = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' });
   const fmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Paris' });
   const left = sp['codes-restants'];
 
@@ -34,6 +53,23 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         <p role="status" className="mb-4 rounded-xl bg-amber-2 px-4 py-3 text-sm">
           Vous vous êtes connecté avec un code de secours. Il vous en reste <strong>{left}</strong>. Pensez à reconfigurer votre
           application d’authentification si vous avez perdu votre téléphone (fonction à venir).
+        </p>
+      )}
+      {deletionAt && (
+        <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red bg-red-2 px-4 py-3 text-sm">
+          <span>
+            <strong>Suppression du compte programmée le {fmtLong.format(deletionAt)}.</strong> Vos profils gérés et leurs données seront alors effacés.
+          </span>
+          <form action={cancelAccountDeletionAction}>
+            <button type="submit" className="min-h-10 rounded-lg bg-surface px-3 font-medium">
+              Annuler la suppression
+            </button>
+          </form>
+        </div>
+      )}
+      {sp.suppression === 'annulee' && (
+        <p role="status" className="mb-4 rounded-xl bg-sage-2 px-4 py-3 text-sm">
+          Suppression annulée : votre compte est conservé.
         </p>
       )}
       <div className="grid gap-4 lg:grid-cols-2">
@@ -57,7 +93,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             </button>
           </form>
           <Meta className="mt-4">
-            À venir : passkeys, changement d’e-mail et de mot de passe, gestion des consentements, export et suppression des données.
+            À venir : passkeys, changement d’e-mail et de mot de passe.
           </Meta>
         </Card>
 
@@ -122,6 +158,67 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </div>
           <Meta className="mt-2">Une connexion que vous ne reconnaissez pas ? Changez votre mot de passe et déconnectez les autres appareils.</Meta>
         </Card>
+        <Card>
+          <h2 className="font-semibold">Mes données</h2>
+          <p className="mt-1 text-sm text-ink-2">
+            Téléchargez une archive de toutes vos données et de celles des profils que vous gérez : résultats, glycémie, insuline, journal,
+            rendez-vous, documents originaux, journal d’accès (fichiers CSV et JSON).
+          </p>
+          <a href="/api/export" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-petrol px-4 font-medium text-white">
+            Exporter mes données (.zip)
+          </a>
+          <Meta className="mt-2">Archive produite à la demande et non conservée par BILANX. Conservez-la en lieu sûr.</Meta>
+        </Card>
+
+        <Card>
+          <h2 className="font-semibold">Consentements</h2>
+          {sp.consentement && (
+            <p role="status" className="mt-2 rounded-lg bg-sage-2 px-3 py-2 text-sm">
+              {sp.consentement === 'retire' ? 'Consentement retiré.' : 'Consentement enregistré.'}
+            </p>
+          )}
+          <ul className="mt-2 divide-y divide-line text-sm">
+            <li className="py-2.5">
+              <span className="font-medium">Traitement de mes données de santé</span> <Chip tone="sage">donné</Chip>
+              <Meta>Nécessaire au fonctionnement de BILANX. Pour le retirer, supprimez votre compte (ci-dessous).</Meta>
+            </li>
+            <li className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+              <span>
+                <span className="font-medium">Lecture automatique des documents</span>{' '}
+                {autoReading ? <Chip tone="sage">donné</Chip> : <Chip tone="neutral">non donné</Chip>}
+                <Meta>Les valeurs lues sont toujours soumises à votre validation. Sans ce consentement, la saisie reste manuelle.</Meta>
+              </span>
+              <form action={autoReading ? withdrawAutoReadingAction : giveAutoReadingAction}>
+                <button type="submit" className="min-h-10 rounded-lg border border-line px-3 text-sm hover:bg-surface-2">
+                  {autoReading ? 'Retirer' : 'Donner'}
+                </button>
+              </form>
+            </li>
+          </ul>
+          <Meta>Historique : {consents.map((c) => `${c.purpose === 'ai_extraction' ? 'lecture automatique' : 'données de santé'} ${c.withdrawn_at ? 'retiré' : 'donné'} le ${fmt.format(c.withdrawn_at ?? c.given_at)}`).join(' · ')}</Meta>
+        </Card>
+
+        {!deletionAt && (
+          <Card className="lg:col-span-2">
+            <details>
+              <summary className="cursor-pointer font-semibold text-red">Supprimer mon compte</summary>
+              <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                <div className="text-sm text-ink-2">
+                  <p>
+                    La suppression est effective <strong>7 jours</strong> après votre demande. Jusque-là, vous pouvez l’annuler en vous connectant.
+                  </p>
+                  <p className="mt-2">
+                    Seront alors effacés : vos profils gérés (y compris ceux de vos proches) et toutes leurs données, vos documents, vos
+                    sessions, vos facteurs de double authentification et votre historique de connexion. Votre adresse e-mail est retirée du compte.
+                    Les accès que vous aviez sur les profils d’autres personnes prennent fin.
+                  </p>
+                  <p className="mt-2">Exportez d’abord vos données si vous souhaitez les conserver.</p>
+                </div>
+                <DeleteAccountForm />
+              </div>
+            </details>
+          </Card>
+        )}
       </div>
     </div>
   );

@@ -15,12 +15,13 @@ import {
   type LabService,
 } from '@bilanx/records';
 import { createDocumentsService, type DocumentsService } from '@bilanx/documents';
+import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
 
 /**
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createSql();
@@ -58,6 +59,11 @@ export function appointments(): AppointmentsService {
 export function documents(): DocumentsService {
   globalForAuth.bilanxDocs ??= createDocumentsService({ sql: sql(), profiles: profiles(), secretKey: parseSecretKey(process.env.BILANX_SECRET_KEY) });
   return globalForAuth.bilanxDocs;
+}
+
+export function privacy(): PrivacyService {
+  globalForAuth.bilanxPrivacy ??= createPrivacyService({ sql: sql(), profiles: profiles(), documents: documents(), mailer, appUrl: appUrl() });
+  return globalForAuth.bilanxPrivacy;
 }
 
 export function auth(): AuthService {
