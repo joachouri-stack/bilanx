@@ -46,6 +46,7 @@ Sans `TEST_DATABASE_URL`, les tests d'intégration de l'authentification sont ig
 | `packages/profiles` | Famille : profils de proches, invitations, autorisations par module, révocation, journal d'accès, accès aux données sous Row-Level Security |
 | `packages/records` | Enregistrement des données de santé : saisie manuelle des résultats d'analyses ; module insuline (insulines du profil, injections déclarées, modifications prescrites — aucune dose calculée ni suggérée) ; journal des repas et événements ; rendez-vous (export agenda .ics) |
 | `packages/documents` | Documents chiffrés, lecture du texte (PDF, reconnaissance de caractères en français embarquée), proposition des valeurs et validation humaine |
+| `packages/reports` | Rapport PDF pour la consultation (PDFKit, graphiques vectoriels, sources, saisies manuelles et données manquantes signalées) |
 | `packages/db` | Client PostgreSQL et outil de migration |
 | `apps/web` | Application Next.js — comptes, famille et accès réels ; saisie manuelle et scanner de bilans avec validation ; import LibreView à venir ; profil de démonstration **fictif** disponible |
 | `db/migrations/` | Migrations PostgreSQL versionnées (`npm run db:migrate`) |

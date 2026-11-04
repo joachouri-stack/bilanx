@@ -12,8 +12,8 @@ const config: NextConfig = {
   // Image Docker autonome (monorepo : suivi des fichiers depuis la racine du dépôt).
   output: 'standalone',
   outputFileTracingRoot: fileURLToPath(new URL('../../', import.meta.url)),
-  transpilePackages: ['@bilanx/domain', '@bilanx/auth', '@bilanx/db', '@bilanx/profiles', '@bilanx/records', '@bilanx/documents'],
-  serverExternalPackages: ['@node-rs/argon2', 'postgres', 'tesseract.js', 'tesseract.js-core', 'pdfjs-dist'],
+  transpilePackages: ['@bilanx/domain', '@bilanx/auth', '@bilanx/db', '@bilanx/profiles', '@bilanx/records', '@bilanx/documents', '@bilanx/reports'],
+  serverExternalPackages: ['@node-rs/argon2', 'postgres', 'tesseract.js', 'tesseract.js-core', 'pdfjs-dist', 'pdfkit'],
   // Fichiers chargés dynamiquement (données de langue, moteur WebAssembly, fil d'exécution) :
   // à inclure explicitement dans l'image autonome.
   outputFileTracingIncludes: {
@@ -24,6 +24,9 @@ const config: NextConfig = {
         'webidl-conversions', 'opencollective-postinstall', 'regenerator-runtime', 'wasm-feature-detect', 'zlibjs',
       ].map((p) => `../../node_modules/${p}/**`),
       '../../node_modules/pdfjs-dist/legacy/build/**',
+      // Polices standard et données de césure lues à l'exécution par PDFKit.
+      '../../node_modules/pdfkit/js/**',
+      '../../node_modules/linebreak/**',
     ],
   },
   experimental: {

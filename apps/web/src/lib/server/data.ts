@@ -120,3 +120,16 @@ export function journalToEvent(r: JournalRow): DemoEvent {
   const parts = [r.description, r.carbsG !== null ? `${String(r.carbsG).replace('.', ',')} g de glucides (indiqués)` : null, r.intensity ? `intensité ${r.intensity}/5` : null, r.comment];
   return { at: r.at, kind: r.kind, label, detail: parts.filter(Boolean).join(' · ') };
 }
+
+/** Toutes les mesures (capteur et capillaires) d'une période, pour le rapport. */
+export async function glucoseRangeAll(ctx: AppContext, from: LocalDate, to: LocalDate, now: Date): Promise<GlucoseReading[]> {
+  if (ctx.active.kind === 'demo') {
+    const out: GlucoseReading[] = [];
+    for (let d = from; d.year * 10000 + d.month * 100 + d.day <= to.year * 10000 + to.month * 100 + to.day; d = addDays(d, 1)) {
+      const day = demoDay(d, now);
+      out.push(...day.sensor, ...day.capillary);
+    }
+    return out;
+  }
+  return glucoseBetween(ctx, dayBounds(from, TIMEZONE).start, dayBounds(addDays(to, 1), TIMEZONE).start);
+}

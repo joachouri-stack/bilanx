@@ -1,0 +1,25 @@
+{
+  "name": "@bilanx/reports",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Rapport PDF de suivi pour la consultation (PDFKit, graphiques vectoriels, sources et données manquantes signalées).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bilanx/domain": "0.1.0",
+    "pdfkit": "0.20.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/pdfkit": "0.17.7",
+    "pdfjs-dist": "6.4.299",
+    "typescript": "5.9.3",
+    "vitest": "5.1.0"
+  }
+}

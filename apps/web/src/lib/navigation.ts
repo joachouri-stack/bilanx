@@ -18,7 +18,7 @@ export const NAV: NavItem[] = [
   { href: '/journal', label: 'Journal & Repas', short: 'Journal', icon: 'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5', status: 'available', group: 'main' },
   { href: '/documents', label: 'Documents & Scanner', short: 'Documents', icon: 'M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M4 12h16', status: 'available', group: 'main' },
   { href: '/rendez-vous', label: 'Rendez-vous', short: 'RDV', icon: 'M4 6h16v14H4zM4 10h16M9 3v4M15 3v4', status: 'available', group: 'main' },
-  { href: '/rapports', label: 'Rapports PDF', short: 'Rapports', icon: 'M6 2h9l5 5v15H6zM14 2v6h6', status: 'planned', group: 'main' },
+  { href: '/rapports', label: 'Rapports PDF', short: 'Rapports', icon: 'M6 2h9l5 5v15H6zM14 2v6h6', status: 'available', group: 'main' },
   { href: '/assistant', label: 'Assistant IA', short: 'Assistant', icon: 'M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z', status: 'planned', group: 'main' },
   { href: '/famille', label: 'Famille & Profils', short: 'Famille', icon: 'M9 11a4 4 0 1 0 0-.1M2 21c0-4 3-6 7-6s7 2 7 6M17 11a3 3 0 1 0 0-.1M22 20c0-3-2-5-5-5', status: 'available', group: 'account' },
   { href: '/parametres', label: 'Paramètres', short: 'Paramètres', icon: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2v3M12 19v3M2 12h3M19 12h3', status: 'available', group: 'account' },
@@ -27,6 +27,5 @@ export const NAV: NavItem[] = [
 /** Ce que chaque module « prévu » nécessitera — affiché honnêtement sur sa page. */
 export const PLANNED_DETAILS: Record<string, { title: string; version: string; needs: string[] }> = {
   '/activite': { title: 'Activité & Pas', version: 'V2', needs: ["Application iOS compagnon (HealthKit) — une PWA ne peut pas lire Apple Santé", 'Android : Health Connect via application native'] },
-  '/rapports': { title: 'Rapports PDF', version: 'MVP — sprint 12', needs: ['Génération serveur, sources et données manquantes identifiées'] },
   '/assistant': { title: 'Assistant IA', version: 'V2 (bêta)', needs: ['Analyse réglementaire préalable (MDR)', "Réponses limitées aux données enregistrées, avec citations"] },
 };

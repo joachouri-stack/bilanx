@@ -19,7 +19,8 @@
     "qrcode": "1.5.4",
     "@bilanx/profiles": "0.1.0",
     "@bilanx/records": "0.1.0",
-    "@bilanx/documents": "0.1.0"
+    "@bilanx/documents": "0.1.0",
+    "@bilanx/reports": "0.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.4",
