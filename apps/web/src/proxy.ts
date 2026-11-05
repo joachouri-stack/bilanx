@@ -2,13 +2,21 @@ import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 
 /**
+ * Fichiers publics de l'application installable, sans aucune donnée : le navigateur les télécharge
+ * SANS identifiants (manifeste, icônes, service worker) ; protégés, l'installation échouerait.
+ */
+const PUBLIC_FILES = new Set(['/api/sante', '/manifest.webmanifest', '/sw.js', '/hors-ligne.html', '/icon.svg']);
+
+/**
  * Protection optionnelle de tout le site par mot de passe (authentification HTTP « Basic »),
  * utile pour un site de démonstration : définir BILANX_BASIC_AUTH="utilisateur:motdepasse".
- * Sans cette variable, rien n'est bloqué. Le contrôle de santé reste accessible à l'hébergeur.
+ * Sans cette variable, rien n'est bloqué. Le contrôle de santé reste accessible à l'hébergeur, ainsi que les
+ * fichiers publics de l'application installable (`PUBLIC_FILES`).
  */
 export function proxy(request: NextRequest) {
   const expected = process.env.BILANX_BASIC_AUTH;
-  if (!expected || request.nextUrl.pathname === '/api/sante') return NextResponse.next();
+  const path = request.nextUrl.pathname;
+  if (!expected || PUBLIC_FILES.has(path) || path.startsWith('/icons/')) return NextResponse.next();
   const header = request.headers.get('authorization') ?? '';
   const given = header.startsWith('Basic ') ? Buffer.from(header.slice(6), 'base64').toString('utf8') : '';
   const a = Buffer.from(given);

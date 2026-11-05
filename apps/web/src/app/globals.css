@@ -7,18 +7,20 @@
   --line: #e4e2db;
   --ink: #1b2a30;
   --ink-2: #4f5e64;
-  --ink-3: #6f7d84;
+  --ink-3: #616d73;
   --petrol: #0f5562;
   --petrol-2: #e3eef0;
-  --sage: #5f8a71;
+  --sage: #4f725e;
   --sage-2: #e7f0ea;
-  --glucose: #2f6fdb;
+  --glucose: #2565d3;
   --glucose-2: #e6eefb;
-  --amber: #b86e22;
+  --amber: #9c5d1d;
   --amber-2: #fbefe2;
-  --red: #c2412d;
+  --red: #b83e2b;
   --red-2: #f9e5e1;
   --violet: #7a5bb5;
+  /* Texte sur fond d'accent (boutons pleins) : contraste AA garanti dans les deux thèmes. */
+  --on-accent: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
@@ -40,6 +42,7 @@
     --red: #e8705c;
     --red-2: #3d1e19;
     --violet: #a78bdb;
+    --on-accent: #0f1719;
   }
 }
 
@@ -62,6 +65,7 @@
   --color-red: var(--red);
   --color-red-2: var(--red-2);
   --color-violet: var(--violet);
+  --color-on-accent: var(--on-accent);
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, serif;
   --radius-card: 18px;
@@ -90,5 +94,13 @@ body {
   }
   @keyframes fade-in {
     from { opacity: 0; transform: translateY(4px); }
+  }
+}
+
+/* Focus clavier toujours visible, aux couleurs de BILANX (les champs ont leur propre anneau). */
+@layer base {
+  :where(a, button, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--petrol);
+    outline-offset: 2px;
   }
 }

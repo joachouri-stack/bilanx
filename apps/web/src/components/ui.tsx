@@ -55,6 +55,18 @@ export function CardLabel({ tone, tag, children }: { tone: Tone; tag: string; ch
   );
 }
 
+/**
+ * Zone à défilement (tableau large, liste longue) : atteignable au clavier et annoncée par son nom
+ * (WCAG 2.1.1 : sinon le contenu masqué est inaccessible sans souris).
+ */
+export function ScrollRegion({ label, className = '', children }: { label: string; className?: string; children: React.ReactNode }) {
+  return (
+    <div role="region" aria-label={label} tabIndex={0} className={`rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-petrol ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 export function Meta({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return <p className={`text-xs text-ink-3 ${className}`}>{children}</p>;
 }
@@ -64,7 +76,7 @@ export function ButtonLink({ href, children, primary = false }: { href: string; 
     <Link
       href={href}
       className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3.5 font-medium ${
-        primary ? 'border-petrol bg-petrol text-white' : 'border-line bg-surface text-ink hover:bg-surface-2'
+        primary ? 'border-petrol bg-petrol text-on-accent' : 'border-line bg-surface text-ink hover:bg-surface-2'
       }`}
     >
       {children}

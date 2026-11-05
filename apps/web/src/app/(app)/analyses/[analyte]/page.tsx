@@ -7,7 +7,7 @@ import { appContext, moduleAllowed } from '@/lib/server/context';
 import { labResults, type LabRow } from '@/lib/server/data';
 import { ModuleForbidden } from '@/components/module-forbidden';
 import { CapsuleGauge } from '@/components/capsule-gauge';
-import { ButtonLink, Card, Chip, Meta, PageHeader } from '@/components/ui';
+import { ButtonLink, Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
 import { deleteLabResultAction } from '@/lib/server/actions';
 
 // Titre générique : les métadonnées sont calculées avant le contrôle de session.
@@ -107,7 +107,7 @@ export default async function AnalytePage({
           <p className="text-[12.5px] font-medium text-ink-3">Historique</p>
           <HistoryChart results={results} analyte={analyte} />
           <Meta>Points uniquement aux dates réelles de prélèvement. Aucune valeur interpolée.</Meta>
-          <div className="mt-3 overflow-x-auto">
+          <ScrollRegion label="Historique des résultats" className="mt-3 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-ink-3">
@@ -163,7 +163,7 @@ export default async function AnalytePage({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         </Card>
       </div>
     </div>

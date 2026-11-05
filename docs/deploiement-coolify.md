@@ -93,6 +93,17 @@ noté dans le journal (adresse masquée, sans le contenu) ; l'utilisateur peut r
 n'arrivent pas en indésirables, déclarez chez le prestataire votre domaine d'envoi (enregistrements SPF et DKIM dans
 la zone DNS, par ex. chez Hostinger).
 
+## Installer BILANX sur votre téléphone
+
+Ouvrez le site sur le téléphone, puis **Paramètres → Installer BILANX sur votre téléphone** : la page indique la
+marche à suivre (iPhone : Safari → Partager → **Sur l'écran d'accueil** ; Android : bouton **Installer**).
+
+- Le site doit être en **https** : sans certificat, le navigateur refuse le service worker (pas de page hors ligne, et
+  pas de bouton d'installation sur Android). L'ajout à l'écran d'accueil de l'iPhone fonctionne malgré tout.
+- Avec `BILANX_BASIC_AUTH`, le mot de passe de démonstration est demandé à la première ouverture de l'application
+  installée.
+- Aucune donnée de santé n'est conservée sur le téléphone : une connexion internet reste nécessaire.
+
 ## Sauvegardes
 
 Toutes les données sont dans PostgreSQL, documents scannés compris (chiffrés). Une sauvegarde de la base suffit donc,

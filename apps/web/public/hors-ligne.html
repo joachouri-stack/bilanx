@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0F5562">
+<title>Hors ligne · BILANX</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: #F6F5F1; color: #1C2B2E;
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 24px; box-sizing: border-box; }
+  main { max-width: 420px; text-align: center; }
+  img { width: 72px; height: 72px; }
+  h1 { font-size: 1.4rem; margin: 16px 0 8px; }
+  p { color: #4A5A5D; margin: 0 0 12px; }
+  button { min-height: 44px; padding: 0 20px; border: 0; border-radius: 12px; background: #0F5562; color: #fff; font: inherit; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <img src="/icons/icon-192.png" alt="">
+  <h1>Vous êtes hors ligne</h1>
+  <p>BILANX a besoin d’une connexion pour afficher vos données. Par sécurité, aucune donnée de santé n’est conservée sur cet appareil.</p>
+  <p>En cas d’urgence : 15 ou 112.</p>
+  <button type="button" onclick="location.reload()">Réessayer</button>
+</main>
+</body>
+</html>

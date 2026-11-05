@@ -1,7 +1,13 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PLANNED_DETAILS } from '@/lib/navigation';
 import { Card, Chip, PageHeader } from '@/components/ui';
 import { requireUser } from '@/lib/server/auth';
+
+export async function generateMetadata({ params }: { params: Promise<{ module: string }> }): Promise<Metadata> {
+  const { module } = await params;
+  return { title: PLANNED_DETAILS[`/${module}`]?.title ?? 'Page introuvable' };
+}
 
 export default async function PlannedModule({ params }: { params: Promise<{ module: string }> }) {
   await requireUser();

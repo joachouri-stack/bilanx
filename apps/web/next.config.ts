@@ -41,6 +41,14 @@ const config: NextConfig = {
       // Intégration interdite partout, sauf les originaux affichés dans BILANX même.
       { source: '/((?!api/documents/).*)', headers: [{ key: 'X-Frame-Options', value: 'DENY' }] },
       { source: '/api/documents/:path*', headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }] },
+      // Service worker : toujours revalidé, pour que les mises à jour soient prises en compte.
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+          { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
+        ],
+      },
     ];
   },
 };

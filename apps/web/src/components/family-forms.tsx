@@ -1,4 +1,5 @@
 'use client';
+import { ScrollRegion } from './ui';
 
 import { useActionState, useState } from 'react';
 import { LEGAL_BASES, MODULES, RELATIONSHIPS, type Permissions } from '@bilanx/profiles/modules';
@@ -71,7 +72,7 @@ export function CreateRelativeForm() {
 
 function PermissionGrid({ initialPerms, readOnly }: { initialPerms?: Permissions; readOnly: boolean }) {
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Autorisations par module" className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs text-ink-3">
@@ -104,7 +105,7 @@ function PermissionGrid({ initialPerms, readOnly }: { initialPerms?: Permissions
           })}
         </tbody>
       </table>
-    </div>
+    </ScrollRegion>
   );
 }
 
@@ -180,7 +181,7 @@ export function RespondInvitationForm({ token }: { token: string }) {
     <form action={action} className="flex flex-col gap-3">
       {state.errors?.form && <Alert tone="error">{state.errors.form}</Alert>}
       <input type="hidden" name="token" value={token} />
-      <button type="submit" name="decision" value="accept" className="min-h-12 rounded-xl bg-petrol px-4 font-semibold text-white">
+      <button type="submit" name="decision" value="accept" className="min-h-12 rounded-xl bg-petrol px-4 font-semibold text-on-accent">
         Accepter l’invitation
       </button>
       <button type="submit" name="decision" value="decline" className="min-h-12 rounded-xl border border-line px-4 font-medium">

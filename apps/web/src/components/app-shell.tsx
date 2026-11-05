@@ -41,6 +41,13 @@ export function AppShell({
 
   return (
     <div className="min-h-dvh">
+      {/* Premier élément au clavier : évite de parcourir tout le menu à chaque page (WCAG 2.4.1). */}
+      <a
+        href="#contenu"
+        className="sr-only z-50 rounded-xl bg-petrol px-4 py-2 font-medium text-on-accent focus:not-sr-only focus:fixed focus:left-3 focus:top-3"
+      >
+        Aller au contenu
+      </a>
       <p role="note" className="border-b border-line bg-amber-2 px-4 py-1.5 text-center text-[13px] text-ink">
         {active.isDemo ? (
           <>
@@ -72,7 +79,7 @@ export function AppShell({
             ))}
           </nav>
         </aside>
-        <main className="mx-auto w-full max-w-[1240px] px-4 pb-28 pt-5 sm:px-8 lg:pb-16 lg:pt-7">
+        <main id="contenu" tabIndex={-1} className="mx-auto w-full max-w-[1240px] px-4 pb-28 pt-5 outline-none sm:px-8 lg:pb-16 lg:pt-7">
           <div className="mb-4 lg:hidden">
             <ProfileSwitcher profiles={profiles} active={active} />
           </div>
@@ -90,7 +97,7 @@ export function AppShell({
         <Link
           href="/documents"
           aria-label="Action rapide : scanner un document"
-          className="mx-auto -mt-5 grid size-12 place-items-center rounded-full bg-petrol text-2xl text-white shadow-lg"
+          className="mx-auto -mt-5 grid size-12 place-items-center rounded-full bg-petrol text-2xl text-on-accent shadow-lg"
         >
           ＋
         </Link>
@@ -130,7 +137,7 @@ function initials(name: string): string {
 function Avatar({ p }: { p: ShellProfile }) {
   return (
     <span
-      className={`grid size-8 shrink-0 place-items-center rounded-full text-[13px] font-semibold text-white ${p.isDemo ? 'bg-amber' : 'bg-petrol'}`}
+      className={`grid size-8 shrink-0 place-items-center rounded-full text-[13px] font-semibold text-on-accent ${p.isDemo ? 'bg-amber' : 'bg-petrol'}`}
       aria-hidden
     >
       {initials(p.name)}

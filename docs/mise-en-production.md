@@ -16,6 +16,8 @@
 | E-mails | Envoi réel par SMTP (`BILANX_SMTP_URL`), chiffrement exigé, aucun contenu ni adresse complète dans les journaux en cas d'échec ; aucune donnée de santé dans les e-mails |
 | Sauvegardes | Contrôle d'une sauvegarde restaurée avec la clé (`npm run sauvegarde:verifier`) ; planification via Coolify |
 | Droits RGPD | Export complet (ZIP), retrait de consentement, suppression de profil et de compte (délai de grâce, effacement différé) |
+| Application installable | Icône sur l'écran d'accueil (iPhone, Android, ordinateur), page hors ligne ; aucune donnée de santé stockée sur l'appareil |
+| Accessibilité | Audit automatisé WCAG 2.2 AA sans violation (clair/sombre, ordinateur/téléphone), navigation au clavier |
 | Honnêteté des données | Données fictives signalées partout, valeurs manquantes jamais complétées, extractions IA validées par un humain, aucune dose proposée |
 
 ## Bloquant avant toute vraie donnée de santé
@@ -40,6 +42,8 @@
 - Test de restauration planifié (par ex. mensuel) avec `npm run sauvegarde:verifier`, résultat consigné.
 - Politique de conservation des journaux d'application (ils peuvent contenir des adresses IP).
 - Procédure de violation de données (notification CNIL sous 72 h) et contact DPO.
+- Audit d'accessibilité manuel (lecteurs d'écran VoiceOver et NVDA, zoom 200 %, utilisateurs) : l'audit automatisé
+  ne couvre qu'une partie du RGAA.
 - Retrait de `BILANX_BASIC_AUTH` et de la bannière « prototype » uniquement une fois les points bloquants réglés.
 
 ## Modules restants

@@ -167,7 +167,7 @@ export function TotpConfirmForm({ alreadyEnrolled }: { alreadyEnrolled: boolean 
         >
           Copier les codes
         </button>
-        <a href="/apres-connexion" className="grid min-h-12 place-items-center rounded-xl bg-petrol px-4 font-semibold text-white">
+        <a href="/apres-connexion" className="grid min-h-12 place-items-center rounded-xl bg-petrol px-4 font-semibold text-on-accent">
           J’ai conservé mes codes — continuer
         </a>
       </div>

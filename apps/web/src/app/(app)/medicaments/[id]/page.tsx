@@ -122,7 +122,7 @@ export default async function MedicationPage({
               ) : (
                 <>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <a href={`/api/medicaments/${m.id}/ics`} className="inline-flex min-h-11 items-center rounded-xl bg-petrol px-4 font-medium text-white">
+                    <a href={`/api/medicaments/${m.id}/ics`} className="inline-flex min-h-11 items-center rounded-xl bg-petrol px-4 font-medium text-on-accent">
                       ⏰ Ajouter les rappels à mon agenda
                     </a>
                     <a href={`/api/medicaments/${m.id}/ics?details=1`} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm">

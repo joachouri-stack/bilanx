@@ -19,6 +19,7 @@
     "sauvegarde:verifier": "tsx --env-file-if-exists=apps/web/.env.local packages/privacy/src/verifier-sauvegarde.ts"
   },
   "devDependencies": {
+    "axe-core": "4.14.0",
     "tsx": "4.23.15"
   }
 }

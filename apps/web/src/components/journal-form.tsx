@@ -116,7 +116,7 @@ export function JournalForm({ date, defaultTime }: { date: string; defaultTime: 
           </legend>
           <div className="flex gap-1.5">
             {[1, 2, 3, 4, 5].map((n) => (
-              <label key={n} className="flex min-h-10 min-w-10 cursor-pointer items-center justify-center rounded-lg border border-line text-sm has-[:checked]:border-petrol has-[:checked]:bg-petrol-2 has-[:checked]:font-semibold">
+              <label key={n} className="flex min-h-10 min-w-10 cursor-pointer items-center justify-center rounded-lg border border-line text-sm has-[:checked]:border-petrol has-[:checked]:bg-petrol-2 has-[:checked]:font-semibold has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-petrol">
                 <input type="radio" name="intensity" value={n} defaultChecked={v.intensity === String(n)} className="sr-only" />
                 {n}
               </label>

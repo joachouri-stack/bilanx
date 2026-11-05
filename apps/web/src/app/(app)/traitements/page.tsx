@@ -6,7 +6,7 @@ import { appContext, moduleAllowed } from '@/lib/server/context';
 import { insulin } from '@/lib/server/auth';
 import { insulinDoses, insulinProducts, toDomainDoses } from '@/lib/server/insulin-data';
 import { archiveProductAction, deleteChangeAction, deleteDoseAction } from '@/lib/server/actions';
-import { Card, Chip, Meta, PageHeader } from '@/components/ui';
+import { Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
 import { InsulinBars } from '@/components/insulin-bars';
 import { ChangeForm, DoseForm, ProductForm } from '@/components/insulin-forms';
 import { ModuleForbidden } from '@/components/module-forbidden';
@@ -141,7 +141,8 @@ export default async function TreatmentsPage({ searchParams }: { searchParams: P
             {rows.length === 0 ? (
               <p className="mt-2 text-sm text-ink-3">Aucune injection notée sur cette période.</p>
             ) : (
-              <ul className="mt-2 max-h-[420px] divide-y divide-line overflow-y-auto">
+              <ScrollRegion label="Journal des injections" className="mt-2 max-h-[420px] overflow-y-auto">
+                <ul className="divide-y divide-line">
                 {rows.slice(0, 200).map((d) => (
                   <li key={d.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
                     <span className="min-w-0">
@@ -169,6 +170,7 @@ export default async function TreatmentsPage({ searchParams }: { searchParams: P
                   </li>
                 ))}
               </ul>
+              </ScrollRegion>
             )}
           </Card>
 

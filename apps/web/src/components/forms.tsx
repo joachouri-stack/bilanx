@@ -84,7 +84,7 @@ export function SubmitButton({ children, pendingLabel = 'Patientez…' }: { chil
     <button
       type="submit"
       disabled={pending}
-      className="min-h-12 w-full rounded-xl bg-petrol px-4 font-semibold text-white transition-opacity disabled:opacity-60"
+      className="min-h-12 w-full rounded-xl bg-petrol px-4 font-semibold text-on-accent transition-opacity disabled:opacity-60"
     >
       {pending ? pendingLabel : children}
     </button>

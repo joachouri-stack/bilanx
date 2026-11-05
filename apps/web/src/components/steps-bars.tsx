@@ -1,4 +1,5 @@
 import { formatNumberFr } from '@bilanx/domain';
+import { ScrollRegion } from './ui';
 
 export interface Bar {
   label: string;
@@ -26,7 +27,7 @@ export function StepsBars({ bars, goal, minWidth = 0, labelEvery = 1 }: { bars: 
   // Le graphique est réduit à l'affichage : polices plus grandes pour rester lisibles.
   const fs = bw >= 60 ? 15 : bw >= 34 ? 12.5 : 11;
   return (
-    <div className="overflow-x-auto" style={minWidth ? { WebkitOverflowScrolling: 'touch' } : undefined}>
+    <ScrollRegion label="Nombre de pas par période (défilement horizontal)" className="overflow-x-auto">
       <svg viewBox={`0 0 ${W} ${H}`} style={{ minWidth: minWidth || undefined }} className="w-full" role="img" aria-label="Nombre de pas">
         {[0, top / 2, top].map((t) => (
           <g key={t}>
@@ -66,6 +67,6 @@ export function StepsBars({ bars, goal, minWidth = 0, labelEvery = 1 }: { bars: 
           );
         })}
       </svg>
-    </div>
+    </ScrollRegion>
   );
 }

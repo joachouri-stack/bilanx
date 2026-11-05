@@ -30,7 +30,7 @@ export function AppleHealthImport() {
       {state.error && <Alert tone="error">{state.error}</Alert>}
       {state.ok && <Alert tone="success">{state.ok}</Alert>}
       <input ref={input} type="file" accept=".zip,.xml,application/zip,text/xml" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-      <button type="button" disabled={state.busy} onClick={() => input.current?.click()} className="min-h-12 rounded-xl bg-petrol px-4 font-semibold text-white disabled:opacity-60">
+      <button type="button" disabled={state.busy} onClick={() => input.current?.click()} className="min-h-12 rounded-xl bg-petrol px-4 font-semibold text-on-accent disabled:opacity-60">
         {state.busy ? 'Import en cours… (plusieurs minutes pour un gros export)' : 'Importer l’export Apple Santé (export.zip)'}
       </button>
       <details className="text-sm text-ink-2">

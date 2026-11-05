@@ -81,7 +81,7 @@ export function ReportForm({ sections, today, minDate }: { sections: { key: stri
           aria-disabled={invalid}
           target="_blank"
           rel="noopener"
-          className={`inline-flex min-h-12 items-center rounded-xl bg-petrol px-5 font-semibold text-white ${invalid ? 'pointer-events-none opacity-50' : ''}`}
+          className={`inline-flex min-h-12 items-center rounded-xl bg-petrol px-5 font-semibold text-on-accent ${invalid ? 'pointer-events-none opacity-50' : ''}`}
         >
           Ouvrir le rapport PDF
         </a>

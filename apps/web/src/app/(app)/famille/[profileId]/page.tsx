@@ -5,7 +5,7 @@ import { MODULES, ROLE_LABELS, type Permissions } from '@bilanx/profiles';
 import { profiles } from '@/lib/server/auth';
 import { appContext } from '@/lib/server/context';
 import { leaveProfileAction, revokeAccessAction, revokeInvitationAction } from '@/lib/server/actions';
-import { Card, Chip, Meta, PageHeader } from '@/components/ui';
+import { Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
 import { InviteForm, PermissionsEditor } from '@/components/family-forms';
 import { DeleteProfileForm } from '@/components/privacy-forms';
 
@@ -130,7 +130,7 @@ export default async function ProfileAccessPage({ params }: { params: Promise<{ 
           <Card>
             <h2 className="font-semibold">Journal d’accès</h2>
             <p className="mt-1 text-sm text-ink-3">Chaque consultation et chaque changement d’autorisation sont enregistrés et ne peuvent pas être modifiés.</p>
-            <div className="mt-3 overflow-x-auto">
+            <ScrollRegion label="Journal d’accès" className="mt-3 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-line text-left text-xs text-ink-3">
@@ -152,7 +152,7 @@ export default async function ProfileAccessPage({ params }: { params: Promise<{ 
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollRegion>
           </Card>
         </div>
 

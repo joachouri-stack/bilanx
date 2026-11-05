@@ -9,7 +9,8 @@ import {
   signOutAction,
   withdrawAutoReadingAction,
 } from '@/lib/server/actions';
-import { Card, Chip, Meta, PageHeader } from '@/components/ui';
+import { Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
+import { InstallApp } from '@/components/install-app';
 
 export const metadata: Metadata = { title: 'Paramètres et sécurité' };
 
@@ -98,6 +99,15 @@ export default async function SettingsPage({
         </Card>
 
         <Card>
+          <h2 className="font-semibold">Installer BILANX sur votre téléphone</h2>
+          <p className="mt-1 text-sm text-ink-3">
+            Une icône sur l’écran d’accueil, l’ouverture en plein écran, sans passer par un magasin d’applications. Par sécurité, vos données
+            de santé ne sont jamais conservées sur l’appareil : une connexion internet reste nécessaire.
+          </p>
+          <InstallApp />
+        </Card>
+
+        <Card>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold">Sessions actives</h2>
             {sessions.length > 1 && (
@@ -134,7 +144,7 @@ export default async function SettingsPage({
 
         <Card className="lg:col-span-2">
           <h2 className="font-semibold">Historique des connexions</h2>
-          <div className="mt-3 overflow-x-auto">
+          <ScrollRegion label="Historique des connexions" className="mt-3 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs text-ink-3">
@@ -155,7 +165,7 @@ export default async function SettingsPage({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
           <Meta className="mt-2">Une connexion que vous ne reconnaissez pas ? Changez votre mot de passe et déconnectez les autres appareils.</Meta>
         </Card>
         <Card>
@@ -164,7 +174,7 @@ export default async function SettingsPage({
             Téléchargez une archive de toutes vos données et de celles des profils que vous gérez : résultats, glycémie, insuline, journal,
             rendez-vous, documents originaux, journal d’accès (fichiers CSV et JSON).
           </p>
-          <a href="/api/export" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-petrol px-4 font-medium text-white">
+          <a href="/api/export" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-petrol px-4 font-medium text-on-accent">
             Exporter mes données (.zip)
           </a>
           <Meta className="mt-2">Archive produite à la demande et non conservée par BILANX. Conservez-la en lieu sûr.</Meta>

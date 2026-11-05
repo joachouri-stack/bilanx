@@ -5,7 +5,7 @@ import { getAnalyte } from '@bilanx/domain';
 import { appContext, moduleAllowed } from '@/lib/server/context';
 import { documents } from '@/lib/server/auth';
 import { deleteDocumentAction, enableAutoReadingAction } from '@/lib/server/actions';
-import { ButtonLink, Card, Chip, Meta, PageHeader } from '@/components/ui';
+import { ButtonLink, Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
 import { ReviewForm } from '@/components/document-forms';
 import { ModuleForbidden } from '@/components/module-forbidden';
 
@@ -66,12 +66,12 @@ export default async function DocumentPage({ params, searchParams }: { params: P
           {isPdf ? (
             <iframe src={`/api/documents/${doc.id}/pages/1`} title="Document original" className="h-[70vh] w-full rounded-xl border border-line bg-white" />
           ) : (
-            <div className="flex max-h-[75vh] flex-col gap-3 overflow-auto">
+            <ScrollRegion label="Pages du document" className="flex max-h-[75vh] flex-col gap-3 overflow-auto">
               {pages.map((p) => (
                 // eslint-disable-next-line @next/next/no-img-element -- original déchiffré servi par une route authentifiée
                 <img key={p} src={`/api/documents/${doc.id}/pages/${p}`} alt={`Page ${p} du document`} className="w-full rounded-xl border border-line bg-white" />
               ))}
-            </div>
+            </ScrollRegion>
           )}
         </Card>
 
@@ -91,7 +91,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
                   <div className="mt-3 flex flex-wrap gap-2">
                     <form action={enableAutoReadingAction}>
                       <input type="hidden" name="documentId" value={doc.id} />
-                      <button type="submit" className="min-h-11 rounded-xl bg-petrol px-4 font-medium text-white">
+                      <button type="submit" className="min-h-11 rounded-xl bg-petrol px-4 font-medium text-on-accent">
                         Autoriser la lecture automatique
                       </button>
                     </form>

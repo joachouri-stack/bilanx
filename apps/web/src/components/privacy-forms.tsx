@@ -10,7 +10,7 @@ const input = 'min-h-11 w-full rounded-xl border border-line bg-surface px-3 tex
 function DangerButton({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className="min-h-11 rounded-xl bg-red px-4 font-semibold text-white disabled:opacity-60">
+    <button type="submit" disabled={pending} className="min-h-11 rounded-xl bg-red px-4 font-semibold text-on-accent disabled:opacity-60">
       {pending ? 'Patientez…' : children}
     </button>
   );

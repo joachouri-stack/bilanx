@@ -9,7 +9,7 @@ import { useFormStatus } from 'react-dom';
 function Submit({ children, pending, disabled }: { children: React.ReactNode; pending: string; disabled?: boolean }) {
   const s = useFormStatus();
   return (
-    <button type="submit" disabled={s.pending || disabled} className="min-h-12 w-full rounded-xl bg-petrol px-4 font-semibold text-white disabled:opacity-50">
+    <button type="submit" disabled={s.pending || disabled} className="min-h-12 w-full rounded-xl bg-petrol px-4 font-semibold text-on-accent disabled:opacity-50">
       {s.pending ? pending : children}
     </button>
   );
@@ -184,7 +184,7 @@ export function ReviewForm({
                     role="radio"
                     aria-checked={r.action === 'confirm'}
                     onClick={() => set(d.id, { action: 'confirm' })}
-                    className={`min-h-10 rounded-lg px-3 text-sm font-medium ${r.action === 'confirm' ? 'bg-sage text-white' : 'border border-line'}`}
+                    className={`min-h-10 rounded-lg px-3 text-sm font-medium ${r.action === 'confirm' ? 'bg-sage text-on-accent' : 'border border-line'}`}
                   >
                     Confirmer
                   </button>
@@ -193,7 +193,7 @@ export function ReviewForm({
                     role="radio"
                     aria-checked={r.action === 'ignore'}
                     onClick={() => set(d.id, { action: 'ignore' })}
-                    className={`min-h-10 rounded-lg px-3 text-sm ${r.action === 'ignore' ? 'bg-ink-3 text-white' : 'border border-line'}`}
+                    className={`min-h-10 rounded-lg px-3 text-sm ${r.action === 'ignore' ? 'bg-ink-3 text-on-accent' : 'border border-line'}`}
                   >
                     Ignorer
                   </button>
