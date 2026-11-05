@@ -107,7 +107,20 @@ export default async function MedicationPage({
               <dt className="text-ink-3">Prescrit par</dt>
               <dd>{m.prescriber ?? 'Non précisé'}</dd>
             </dl>
-            <Meta className="mt-3">Traitement recopié de l’ordonnance par l’utilisateur. BILANX ne le modifie jamais et ne propose aucune dose.</Meta>
+            <Meta className="mt-3">
+              {m.documentId ? (
+                <>
+                  Lu sur une{' '}
+                  <Link href={`/documents/${m.documentId}`} className="text-petrol underline">
+                    ordonnance déposée
+                  </Link>{' '}
+                  puis vérifié et confirmé par l’utilisateur.
+                </>
+              ) : (
+                'Traitement recopié de l’ordonnance par l’utilisateur.'
+              )}{' '}
+              BILANX ne le modifie jamais et ne propose aucune dose.
+            </Meta>
           </Card>
 
           {active && m.schedule.length > 0 && (

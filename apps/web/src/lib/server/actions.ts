@@ -348,6 +348,47 @@ export async function enableAutoReadingAction(fd: FormData): Promise<void> {
   redirect(id ? `/documents/${id}` : '/documents');
 }
 
+export async function reviewPrescriptionAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Profil invalide.' } };
+  const documentId = str(fd, 'documentId');
+  let decisions: unknown;
+  try {
+    decisions = JSON.parse(str(fd, 'decisions'));
+  } catch {
+    return { errors: { form: 'Formulaire invalide.' } };
+  }
+  if (!Array.isArray(decisions)) return { errors: { form: 'Formulaire invalide.' } };
+  const text = (v: unknown) => (typeof v === 'string' ? v : undefined);
+  const list = (v: unknown) => (Array.isArray(v) ? v.map(String).slice(0, 12) : undefined);
+  const clean = decisions
+    .filter((d): d is Record<string, unknown> => typeof d === 'object' && d !== null)
+    .map((d) => ({
+      draftId: String(d.draftId ?? ''),
+      action: d.action === 'confirm' ? ('confirm' as const) : ('ignore' as const),
+      name: text(d.name),
+      strength: text(d.strength),
+      posology: text(d.posology),
+      times: list(d.times),
+      qty: list(d.qty),
+      startDate: text(d.startDate),
+      endDate: text(d.endDate),
+    }));
+  let r;
+  try {
+    r = await documents().reviewPrescription(ctx.user, ctx.active.access.profileId, documentId, { prescriber: str(fd, 'prescriber'), decisions: clean });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message } };
+    throw e;
+  }
+  if (!r.ok) {
+    const flat: Record<string, string | undefined> = {};
+    for (const [id, errs] of Object.entries(r.draftErrors ?? {})) flat[id] = Object.values(errs).filter(Boolean).join(' ');
+    return { attempt: crypto.randomUUID(), errors: { form: r.error }, fieldErrors: flat };
+  }
+  redirect(`/documents/${documentId}?traitements=${r.saved}`);
+}
+
 export async function reviewDocumentAction(_: FormState, fd: FormData): Promise<FormState> {
   const ctx = await appContext();
   if (ctx.active.kind !== 'real') return { errors: { form: 'Profil invalide.' } };

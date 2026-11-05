@@ -4,7 +4,12 @@ import type { Sql, TransactionSql } from '@bilanx/db';
 import {
   assessDraft,
   getAnalyte,
+  looksLikePrescription,
   parseLabReport,
+  parsePrescription,
+  validateMedication,
+  type MedicationErrors,
+  type PrescriptionCheck,
   parseReference,
   validateManualLab,
   zonedTimeToUtc,
@@ -62,6 +67,35 @@ export interface Decision {
   unit?: string;
   refLow?: string;
   refHigh?: string;
+}
+
+export interface MedicationDraftView {
+  id: string;
+  lineText: string;
+  page: number | null;
+  name: string;
+  strength: string | null;
+  posology: string;
+  times: string[];
+  qty: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  confidence: number | null;
+  checks: PrescriptionCheck[];
+  status: 'proposed' | 'confirmed' | 'corrected' | 'rejected';
+  medicationId: string | null;
+}
+
+export interface MedicationDecision {
+  draftId: string;
+  action: 'confirm' | 'ignore';
+  name?: string;
+  strength?: string;
+  posology?: string;
+  times?: string[];
+  qty?: string[];
+  startDate?: string;
+  endDate?: string;
 }
 
 const defaultReadText = (mime: AcceptedMime, files: Buffer[]) => (mime === 'application/pdf' ? pdfText(files[0]!) : imageText(files));
@@ -143,6 +177,10 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     }
     const report = parseLabReport(text.lines);
     const source = text.lines.map((l) => l.text).join('\n');
+    // Ordonnance : un document qui en a l'allure, et où le lecteur de bilans ne reconnaît AUCUNE analyse
+    // (sinon « METFORMINE 1000 mg » serait proposé comme un résultat).
+    if (looksLikePrescription(text.lines) && !report.drafts.some((d) => assessDraft(d, source, now()).analyteCode))
+      return extractPrescription(actor, profileId, documentId, text);
 
     return profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
       const status = report.drafts.length ? 'to_review' : 'reviewed';
@@ -174,6 +212,28 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     });
   }
 
+  /** Ordonnance : traitements proposés (brouillons), jamais enregistrés sans validation. */
+  async function extractPrescription(actor: Actor, profileId: string, documentId: string, text: ExtractedText) {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now());
+    const p = parsePrescription(text.lines, today);
+    return profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
+      const [job] = await tx<{ id: string }[]>`
+        INSERT INTO extraction_job (document_id, profile_id, status, detected_kind, ocr_engine, method, detected_sampling_date, warnings, created_at, finished_at)
+        VALUES (${documentId}, ${profileId}, ${p.items.length ? 'to_review' : 'reviewed'}, 'prescription',
+                ${text.method === 'ocr' ? 'tesseract-fra' : 'pdfjs'}, ${text.method}, ${p.date},
+                ${tx.json(text.emptyPages.length ? [{ code: 'empty_pages', pages: text.emptyPages }] : [])}, ${now()}, ${now()})
+        RETURNING id`;
+      for (const it of p.items) {
+        await tx`
+          INSERT INTO medication_draft (job_id, profile_id, line_text, line_index, page, name, strength, posology, times, qty, start_date, end_date, confidence, checks)
+          VALUES (${job!.id}, ${profileId}, ${it.lineText}, ${it.lineIndex}, ${it.page}, ${it.name}, ${it.strength}, ${it.posology}, ${it.times}, ${it.qty},
+                  ${it.startDate}, ${it.endDate}, ${it.confidence}, ${tx.json(it.checks as never)})`;
+      }
+      await tx`UPDATE document SET kind = 'prescription', issuer = ${p.prescriber}, document_date = ${p.date} WHERE id = ${documentId}`;
+      return { status: p.items.length ? ('to_review' as const) : ('no_values' as const), drafts: p.items.length };
+    });
+  }
+
   /** Relance la lecture d'un document déposé avant le consentement. */
   async function process(actor: Actor, profileId: string, documentId: string) {
     if (!(await hasAutoReadingConsent(actor.accountId))) throw new ForbiddenError('Lecture automatique non autorisée.');
@@ -188,7 +248,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
       tx<{ id: string; title: string; kind: string; mime_type: string; page_count: number; uploaded_at: Date; document_date: string | null; issuer: string | null; job_status: string | null; pending: number }[]>`
         SELECT d.id, d.title, d.kind, d.mime_type, d.page_count, d.uploaded_at, to_char(d.document_date, 'YYYY-MM-DD') AS document_date, d.issuer,
                j.status AS job_status,
-               (SELECT count(*)::int FROM extracted_value_draft v WHERE v.job_id = j.id AND v.status = 'proposed') AS pending
+               (SELECT count(*)::int FROM extracted_value_draft v WHERE v.job_id = j.id AND v.status = 'proposed')
+                 + (SELECT count(*)::int FROM medication_draft m WHERE m.job_id = j.id AND m.status = 'proposed') AS pending
         FROM document d
         LEFT JOIN LATERAL (SELECT * FROM extraction_job j WHERE j.document_id = d.id ORDER BY j.created_at DESC LIMIT 1) j ON true
         WHERE d.profile_id = ${profileId} AND d.deleted_at IS NULL
@@ -229,7 +290,30 @@ export function createDocumentsService(cfg: DocumentsConfig) {
             }),
           )
         : [];
-      return { document: doc, job: job ?? null, drafts };
+      const medicationDrafts: MedicationDraftView[] = job
+        ? (
+            await tx<{ id: string; line_text: string; page: number | null; name: string; strength: string | null; posology: string; times: string[]; qty: string | null; start_date: string | null; end_date: string | null; confidence: string | null; checks: PrescriptionCheck[]; status: MedicationDraftView['status']; medication_id: string | null }[]>`
+              SELECT id, line_text, page, name, strength, posology, times, qty, to_char(start_date, 'YYYY-MM-DD') AS start_date,
+                     to_char(end_date, 'YYYY-MM-DD') AS end_date, confidence, checks, status, medication_id
+              FROM medication_draft WHERE job_id = ${job.id} ORDER BY line_index`
+          ).map((d) => ({
+            id: d.id,
+            lineText: d.line_text,
+            page: d.page,
+            name: d.name,
+            strength: d.strength,
+            posology: d.posology,
+            times: d.times,
+            qty: d.qty,
+            startDate: d.start_date,
+            endDate: d.end_date,
+            confidence: d.confidence === null ? null : Number(d.confidence),
+            checks: d.checks ?? [],
+            status: d.status,
+            medicationId: d.medication_id,
+          }))
+        : [];
+      return { document: doc, job: job ?? null, drafts, medicationDrafts };
     });
   }
 
@@ -323,6 +407,79 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     return { ok: true, saved };
   }
 
+  /**
+   * Validation d'une ordonnance : chaque traitement proposé est confirmé (éventuellement corrigé) ou
+   * ignoré. Tout ou rien ; les traitements sont créés dans la même transaction, sous la RLS du
+   * module Médicaments, rattachés au document.
+   */
+  async function reviewPrescription(
+    actor: Actor,
+    profileId: string,
+    documentId: string,
+    input: { prescriber?: string; decisions: MedicationDecision[] },
+  ): Promise<{ ok: true; saved: number } | { ok: false; error: string; draftErrors?: Record<string, MedicationErrors> }> {
+    const access = await profiles.getAccess(actor.accountId, profileId);
+    if (!access) throw new ForbiddenError();
+    const current = await get(actor, profileId, documentId);
+    if (!current?.job || current.job.status !== 'to_review' || !current.medicationDrafts.length) return { ok: false, error: 'Cette ordonnance n’a pas de traitement à valider.' };
+    const pending = current.medicationDrafts.filter((d) => d.status === 'proposed');
+    const byId = new Map(input.decisions.map((d) => [d.draftId, d]));
+    if (pending.some((d) => !byId.has(d.id))) return { ok: false, error: 'Confirmez ou ignorez chaque traitement avant d’enregistrer.' };
+    if (input.decisions.some((d) => d.action === 'confirm') && !(access.role === 'owner' || access.permissions.medications === 'write'))
+      throw new ForbiddenError('Vous n’avez pas le droit d’ajouter des traitements à ce profil.');
+
+    const prescriber = input.prescriber?.trim() || null;
+    const draftErrors: Record<string, MedicationErrors> = {};
+    const toSave: { draft: MedicationDraftView; corrected: boolean; v: Extract<ReturnType<typeof validateMedication>, { ok: true }>['value'] }[] = [];
+    for (const d of pending) {
+      const dec = byId.get(d.id)!;
+      if (dec.action === 'ignore') continue;
+      const values = {
+        name: dec.name ?? d.name,
+        strength: dec.strength ?? d.strength ?? '',
+        posology: dec.posology ?? d.posology,
+        times: dec.times ?? d.times,
+        qty: dec.qty ?? d.times.map(() => d.qty ?? ''),
+        startDate: dec.startDate ?? d.startDate ?? '',
+        endDate: dec.endDate ?? d.endDate ?? '',
+        prescriber: prescriber ?? '',
+      };
+      const v = validateMedication(values);
+      if (!v.ok) {
+        draftErrors[d.id] = v.errors;
+        continue;
+      }
+      const corrected =
+        values.name !== d.name || (values.strength || null) !== d.strength || values.posology !== d.posology ||
+        v.value.schedule.map((x) => x.time).join() !== [...d.times].sort().join() || (values.endDate || null) !== d.endDate || (values.startDate || null) !== d.startDate;
+      toSave.push({ draft: d, corrected, v: v.value });
+    }
+    if (Object.keys(draftErrors).length) return { ok: false, error: 'Certains traitements confirmés sont incomplets : corrigez-les ou ignorez-les.', draftErrors };
+
+    const saved = await profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx: TransactionSql) => {
+      let n = 0;
+      for (const s of toSave) {
+        // Création du traitement : RLS du module Médicaments.
+        const [row] = await tx<{ id: string }[]>`
+          INSERT INTO medication (profile_id, name, strength, posology_text, schedule, start_date, end_date, prescriber, status, source_type,
+                                  document_id, confirmed_by, confirmed_at, created_by, created_at)
+          VALUES (${profileId}, ${s.v.name}, ${s.v.strength}, ${s.v.posology}, ${tx.json(s.v.schedule as never)}, ${s.v.startDate}, ${s.v.endDate},
+                  ${s.v.prescriber}, 'active', 'document_extraction', ${documentId}, ${actor.accountId}, ${now()}, ${actor.accountId}, ${now()})
+          RETURNING id`;
+        await tx`UPDATE medication_draft SET status = ${s.corrected ? 'corrected' : 'confirmed'}, medication_id = ${row!.id},
+                   reviewed_by = ${actor.accountId}, reviewed_at = ${now()} WHERE id = ${s.draft.id}`;
+        n++;
+      }
+      const ignored = pending.filter((d) => byId.get(d.id)!.action === 'ignore').map((d) => d.id);
+      if (ignored.length)
+        await tx`UPDATE medication_draft SET status = 'rejected', reviewed_by = ${actor.accountId}, reviewed_at = ${now()} WHERE id = ANY(${ignored})`;
+      await tx`UPDATE extraction_job SET status = 'reviewed', reviewed_by = ${actor.accountId}, reviewed_at = ${now()} WHERE id = ${current.job!.id}`;
+      await tx`UPDATE document SET issuer = ${prescriber} WHERE id = ${documentId}`;
+      return n;
+    });
+    return { ok: true, saved };
+  }
+
   async function remove(actor: Actor, profileId: string, documentId: string): Promise<boolean> {
     return profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
       const r = await tx`UPDATE document SET deleted_at = ${now()} WHERE id = ${documentId} AND profile_id = ${profileId} AND deleted_at IS NULL RETURNING id`;
@@ -331,7 +488,7 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     });
   }
 
-  return { hasAutoReadingConsent, giveAutoReadingConsent, upload, process, list, get, readFiles, review, remove, analyteName: (c: string) => getAnalyte(c)?.nameFr };
+  return { hasAutoReadingConsent, giveAutoReadingConsent, upload, process, list, get, readFiles, review, reviewPrescription, remove, analyteName: (c: string) => getAnalyte(c)?.nameFr };
 }
 
 export type DocumentsService = ReturnType<typeof createDocumentsService>;

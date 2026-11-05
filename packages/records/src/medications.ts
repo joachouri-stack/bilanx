@@ -39,6 +39,8 @@ export interface MedicationRow {
   stopReason: string | null;
   replacesId: string | null;
   createdAt: Date;
+  /** Ordonnance d'origine (traitement lu puis confirmé), sinon null. */
+  documentId: string | null;
 }
 
 export interface DoseOfDay {
@@ -68,8 +70,9 @@ type Row = {
   stop_reason: string | null;
   replaces_id: string | null;
   created_at: Date;
+  document_id: string | null;
 };
-const COLS = 'id, name, strength, posology_text, schedule, start_date::text, end_date::text, prescriber, status, stopped_on::text, stop_reason, replaces_id, created_at';
+const COLS = 'id, name, strength, posology_text, schedule, start_date::text, end_date::text, prescriber, status, stopped_on::text, stop_reason, replaces_id, created_at, document_id';
 const toRow = (r: Row): MedicationRow => ({
   id: r.id,
   name: r.name,
@@ -84,6 +87,7 @@ const toRow = (r: Row): MedicationRow => ({
   stopReason: r.stop_reason,
   replacesId: r.replaces_id,
   createdAt: r.created_at,
+  documentId: r.document_id,
 });
 
 /**

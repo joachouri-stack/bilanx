@@ -178,6 +178,7 @@ export const DEMO_MEDICATIONS = [
     stopReason: null,
     replacesId: null,
     createdAt: new Date('2025-06-01T08:00:00Z'),
+    documentId: null,
   },
   {
     id: '00000000-0000-4000-8000-0000000000a2',
@@ -193,6 +194,7 @@ export const DEMO_MEDICATIONS = [
     stopReason: null,
     replacesId: null,
     createdAt: new Date('2026-02-20T08:00:00Z'),
+    documentId: null,
   },
 ];
 

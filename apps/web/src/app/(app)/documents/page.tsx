@@ -53,7 +53,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
                   <li key={d.id}>
                     <Link href={`/documents/${d.id}`} className="flex items-center justify-between gap-3 py-3 hover:bg-surface-2">
                       <span className="min-w-0">
-                        <span className="block truncate font-medium">{d.kind === 'lab_report' ? 'Bilan biologique' : d.title}</span>
+                        <span className="block truncate font-medium">{d.kind === 'lab_report' ? 'Bilan biologique' : d.kind === 'prescription' ? 'Ordonnance' : d.title}</span>
                         <span className="text-xs text-ink-3">
                           {d.document_date ? `Prélèvement du ${fmt.format(new Date(`${d.document_date}T12:00:00Z`))}` : `Déposé le ${fmt.format(d.uploaded_at)}`}
                           {d.issuer ? ` · ${d.issuer}` : ''} · {d.page_count} page{d.page_count > 1 ? 's' : ''}
@@ -70,13 +70,13 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
         {canWrite && (
           <Card>
             <h2 className="font-semibold">Scanner un document</h2>
-            <p className="mb-4 mt-1 text-sm text-ink-3">Bilan sanguin : les valeurs détectées vous seront proposées une par une.</p>
+            <p className="mb-4 mt-1 text-sm text-ink-3">Bilan sanguin ou ordonnance : les valeurs ou les traitements détectés vous seront proposés un par un.</p>
             <UploadForm />
           </Card>
         )}
       </div>
       <Meta className="mt-4">
-        Prochainement : ordonnances et comptes rendus, photos HEIC, PDF scannés sans texte, analyse antivirus des fichiers.
+        Prochainement : comptes rendus, photos HEIC, PDF scannés sans texte, analyse antivirus des fichiers.
       </Meta>
     </div>
   );
