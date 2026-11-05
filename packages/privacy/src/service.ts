@@ -94,8 +94,8 @@ export function createPrivacyService(cfg: PrivacyConfig) {
     );
 
     const glucose = await P.withProfileData(actor, profileId, 'glucose', 'read', (tx) =>
-      tx`SELECT measured_at, value_mgdl, kind FROM glucose_reading WHERE profile_id = ${profileId} ORDER BY measured_at`);
-    files[`${dir}/glycemie.csv`] = csv(['mesure_le', 'valeur_mg_dl', 'type'], glucose.map((r) => [r.measured_at, r.value_mgdl, r.kind]));
+      tx`SELECT measured_at, value_mgdl, kind, context FROM glucose_reading WHERE profile_id = ${profileId} ORDER BY measured_at`);
+    files[`${dir}/glycemie.csv`] = csv(['mesure_le', 'valeur_mg_dl', 'type', 'moment'], glucose.map((r) => [r.measured_at, r.value_mgdl, r.kind, r.context ?? '']));
 
     const [prods, doses, changes] = await P.withProfileData(actor, profileId, 'insulin', 'read', async (tx) => [
       await tx`SELECT id, name, type, active FROM insulin_product WHERE profile_id = ${profileId} ORDER BY name`,

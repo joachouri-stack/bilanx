@@ -2,7 +2,8 @@
 
 import { useActionState, useMemo, useRef, useState } from 'react';
 import { ANALYTES, getAnalyte, unitsFor } from '@bilanx/domain';
-import { reviewDocumentAction, uploadDocumentAction, type FormState } from '@/lib/server/actions';
+import { reviewDocumentAction, updateDocumentDetailsAction, uploadDocumentAction, type FormState } from '@/lib/server/actions';
+import { DOC_CATEGORIES, EXAM_LABELS } from '@/lib/document-categories';
 import { Alert } from './forms';
 import { useFormStatus } from 'react-dom';
 
@@ -15,8 +16,82 @@ function Submit({ children, pending, disabled }: { children: React.ReactNode; pe
   );
 }
 
-export function UploadForm() {
+/** Catégorie, date, titre (et type d'examen pour l'imagerie) : partagés par l'import et la modification. */
+function DetailsFields({ kind, setKind, today, values, allowAuto }: { kind: string; setKind: (k: string) => void; today: string; values: Record<string, string>; allowAuto: boolean }) {
+  const input = 'min-h-11 w-full rounded-xl border border-line bg-surface px-3';
+  return (
+    <>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-sm font-medium">Type de document</legend>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {DOC_CATEGORIES.map((c) => (
+            <label
+              key={c.key}
+              className={`flex min-h-12 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${kind === c.kind ? 'border-petrol bg-petrol-2 font-semibold' : 'border-line'}`}
+            >
+              <input type="radio" name="kind" value={c.kind} checked={kind === c.kind} onChange={() => setKind(c.kind)} className="sr-only" />
+              <span aria-hidden>{c.icon}</span>
+              {c.single === 'Document' ? 'Autre' : c.single}
+            </label>
+          ))}
+          {allowAuto && (
+            <label className={`flex min-h-12 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm ${kind === '' ? 'border-petrol bg-petrol-2 font-semibold' : 'border-line'}`}>
+              <input type="radio" name="kind" value="" checked={kind === ''} onChange={() => setKind('')} className="sr-only" />
+              <span aria-hidden>✨</span>
+              Je ne sais pas
+            </label>
+          )}
+        </div>
+      </fieldset>
+      {kind === 'imaging' && (
+        <label className="flex flex-col gap-1 text-sm font-medium">
+          Examen
+          <select name="examType" defaultValue={values.examType ?? 'irm'} className={input}>
+            {Object.entries(EXAM_LABELS).map(([k, l]) => (
+              <option key={k} value={k}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-sm font-medium">
+          Date du document <span className="font-normal text-ink-3">(facultatif)</span>
+          <input type="date" name="date" max={today} defaultValue={values.date} className={input} />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-medium">
+          Titre <span className="font-normal text-ink-3">(facultatif)</span>
+          <input name="title" maxLength={200} defaultValue={values.title} placeholder={kind === 'imaging' ? 'ex. IRM du genou droit' : 'ex. Dr Martin, cardiologue'} className={input} />
+        </label>
+      </div>
+    </>
+  );
+}
+
+/** Modifier le classement d'un document déjà importé. */
+export function DocumentDetailsForm({ documentId, today, kind: initialKind, title, date, examType, issuer }: { documentId: string; today: string; kind: string; title: string; date: string | null; examType: string | null; issuer: string | null }) {
+  const [state, action] = useActionState(updateDocumentDetailsAction, {} as FormState);
+  const known = DOC_CATEGORIES.some((c) => c.kind === initialKind) ? initialKind : DOC_CATEGORIES.find((c) => c.kinds.includes(initialKind))?.kind ?? 'other';
+  const [kind, setKind] = useState(known);
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <input type="hidden" name="documentId" value={documentId} />
+      <DetailsFields kind={kind} setKind={setKind} today={today} values={{ title, date: date ?? '', examType: examType ?? 'irm' }} allowAuto={false} />
+      <label className="flex flex-col gap-1 text-sm font-medium">
+        Médecin, laboratoire ou centre <span className="font-normal text-ink-3">(facultatif)</span>
+        <input name="issuer" maxLength={120} defaultValue={issuer ?? ''} className="min-h-11 w-full rounded-xl border border-line bg-surface px-3" />
+      </label>
+      {state.errors?.form && <Alert tone="error">{state.errors.form}</Alert>}
+      {state.ok && <Alert tone="success">{state.message}</Alert>}
+      <Submit pending="Enregistrement…">Enregistrer le classement</Submit>
+    </form>
+  );
+}
+
+export function UploadForm({ defaultKind = '', today }: { defaultKind?: string; today: string }) {
   const [state, action] = useActionState(uploadDocumentAction, {} as FormState);
+  const [kind, setKind] = useState(state.values?.kind ?? defaultKind);
   const [files, setFiles] = useState<File[]>([]);
   const camera = useRef<HTMLInputElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -44,7 +119,7 @@ export function UploadForm() {
       <input ref={hidden} type="file" name="files" multiple hidden />
       {/* Appareil photo (mobile) : une page par photo, plusieurs photos possibles. */}
       <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={(e) => add(e.target.files)} />
-      <input ref={picker} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" multiple hidden onChange={(e) => add(e.target.files)} />
+      <input ref={picker} type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png" multiple hidden onChange={(e) => add(e.target.files)} />
       <div className="grid gap-3 sm:grid-cols-2">
         <button type="button" onClick={() => camera.current?.click()} className="flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-line p-4 hover:bg-surface-2">
           <span className="text-2xl" aria-hidden>
@@ -58,7 +133,7 @@ export function UploadForm() {
             📄
           </span>
           <span className="font-semibold">Importer un fichier</span>
-          <span className="text-xs text-ink-3">PDF, JPEG, PNG — 10 Mo max.</span>
+          <span className="text-xs text-ink-3">PDF, JPEG, PNG — depuis Photos ou Fichiers · 10 Mo max.</span>
         </button>
       </div>
       {files.length > 0 && (
@@ -75,12 +150,13 @@ export function UploadForm() {
           ))}
         </ol>
       )}
-      <Submit pending="Lecture du document en cours…" disabled={files.length === 0}>
-        Envoyer {files.length > 1 ? `les ${files.length} pages` : 'le document'}
+      <DetailsFields kind={kind} setKind={setKind} today={today} values={state.values ?? {}} allowAuto />
+      <Submit pending={kind === 'prescription' || kind === 'lab_report' || kind === '' ? 'Envoi et lecture du document…' : 'Envoi du document…'} disabled={files.length === 0}>
+        Enregistrer {files.length > 1 ? `les ${files.length} pages` : 'le document'}
       </Submit>
       <p className="text-xs text-ink-3">
-        Le document original est chiffré et conservé. La lecture se fait sur nos serveurs, sans service extérieur. Aucune valeur
-        n’est enregistrée avant votre validation.
+        Le document original est chiffré et conservé. Ordonnances et bilans sont lus sur nos serveurs, sans service extérieur, et rien n’est
+        enregistré avant votre validation. Imagerie, comptes rendus et autres documents sont simplement rangés.
       </p>
     </form>
   );

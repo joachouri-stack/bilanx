@@ -31,10 +31,12 @@ export function Card({
   children,
   href,
   className = '',
+  id,
 }: {
   children: React.ReactNode;
   href?: string;
   className?: string;
+  id?: string;
 }) {
   const cls = `card block min-w-0 p-5 ${className}`;
   return href ? (
@@ -42,7 +44,9 @@ export function Card({
       {children}
     </Link>
   ) : (
-    <section className={cls}>{children}</section>
+    <section id={id} className={cls}>
+      {children}
+    </section>
   );
 }
 

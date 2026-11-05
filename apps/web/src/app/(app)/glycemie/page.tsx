@@ -18,13 +18,17 @@ import { GlucosePeriod } from './periode';
 import { ModuleForbidden } from '@/components/module-forbidden';
 import { Card, Chip, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
 import { GlucoseDayChart } from '@/components/glucose-day-chart';
+import { GlucoseEntryForm } from '@/components/glucose-forms';
+import { glucose } from '@/lib/server/auth';
+import { removeGlucoseAction } from '@/lib/server/actions';
+import { GLUCOSE_CONTEXTS } from '@bilanx/domain';
 
 export const metadata: Metadata = { title: 'Glycémie' };
 export const dynamic = 'force-dynamic';
 
 const TARGETS = { veryLow: 54, low: 70, high: 180, veryHigh: 250 };
 
-export default async function GlucosePage({ searchParams }: { searchParams: Promise<{ jour?: string; unite?: string; periode?: string }> }) {
+export default async function GlucosePage({ searchParams }: { searchParams: Promise<{ jour?: string; unite?: string; periode?: string; ajoute?: string }> }) {
   const ctx = await appContext();
   if (!moduleAllowed(ctx.active, 'glucose')) return <ModuleForbidden title="Glycémie" profileName={ctx.active.kind === 'real' ? ctx.active.access.displayName : ''} />;
   const isDemo = ctx.active.kind === 'demo';
@@ -44,6 +48,10 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
 
   const data = await glucoseDay(ctx, day, now);
   const { start, end } = dayBounds(day, DEMO_TIMEZONE);
+  const canWrite = ctx.active.kind === 'real' && moduleAllowed(ctx.active, 'glucose', 'write');
+  const manual = ctx.active.kind === 'real' ? await glucose().listCapillary(ctx.user, ctx.active.access.profileId, start, end) : [];
+  const fmtTime = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, hour: '2-digit', minute: '2-digit' });
+  const nowTime = fmtTime.format(now).replace(' h ', ':');
   const stats = computeGlucoseStats(data.sensor, { periodStart: start, periodEnd: isToday ? now : end });
   const dayLabel = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'full' }).format(start);
   const hrefFor = (d: typeof day) => `/glycemie?jour=${formatLocalDate(d)}${unitParam}`;
@@ -103,7 +111,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
     <div className="fade-in">
       <PageHeader
         title="Glycémie"
-        subtitle="Mesures du capteur — distinctes des glycémies capillaires et de l’HbA1c de laboratoire."
+        subtitle="Capteur et glycémies du lecteur (capillaires) — distinctes de l’HbA1c de laboratoire."
         actions={periodNav}
       />
 
@@ -163,7 +171,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
         </div>
 
         <div className="mt-4">
-          {data.sensor.length ? (
+          {data.sensor.length || data.capillary.length ? (
             <GlucoseDayChart
               dayStart={start.getTime()}
               dayEnd={end.getTime()}
@@ -179,7 +187,11 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
           ) : (
             <p className="rounded-xl border border-dashed border-line p-10 text-center text-ink-3">
               Aucune mesure disponible pour cette journée.
-              {!isDemo && <span className="mt-1 block text-sm">L’import des fichiers LibreView arrive prochainement ; aucune synchronisation n’est active.</span>}
+              {!isDemo && (
+                <span className="mt-1 block text-sm">
+                  Saisissez une glycémie de votre lecteur ci-dessous. L’import des fichiers LibreView arrive prochainement ; aucune synchronisation n’est active.
+                </span>
+              )}
             </p>
           )}
         </div>
@@ -192,6 +204,52 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
           </Meta>
         </div>
       </Card>
+
+      {sp.ajoute && (
+        <p role="status" className="mt-4 rounded-xl bg-sage-2 px-4 py-3 text-sm">
+          Glycémie enregistrée : {sp.ajoute.slice(0, 40)}.
+        </p>
+      )}
+      {(canWrite || manual.length > 0) && (
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          {canWrite && (
+            <Card id="ajouter-glycemie" className="scroll-mt-4">
+              <h2 className="font-semibold">Ajouter une glycémie</h2>
+              <p className="mb-3 mt-1 text-sm text-ink-3">Mesure de votre lecteur au bout du doigt (glycémie capillaire).</p>
+              <GlucoseEntryForm unit={unit} today={formatLocalDate(today)} defaultDate={formatLocalDate(day)} defaultTime={isToday ? nowTime : '12:00'} />
+            </Card>
+          )}
+          <Card>
+            <h2 className="font-semibold">Glycémies capillaires du jour</h2>
+            {manual.length === 0 ? (
+              <p className="mt-2 text-sm text-ink-3">Aucune glycémie saisie ce jour-là.</p>
+            ) : (
+              <ul className="mt-2 divide-y divide-line">
+                {[...manual].reverse().map((m) => (
+                  <li key={m.at.toISOString()} className="flex items-center justify-between gap-2 py-2">
+                    <span>
+                      <span className="tabular text-ink-3">{fmtTime.format(m.at)}</span> ·{' '}
+                      <span className="tabular font-semibold">
+                        {formatGlucose(m.mgdl, unit)} {unit}
+                      </span>
+                      {m.context && <span className="text-sm text-ink-3"> · {GLUCOSE_CONTEXTS[m.context]}</span>}
+                    </span>
+                    {canWrite && (
+                      <form action={removeGlucoseAction}>
+                        <input type="hidden" name="at" value={m.at.toISOString()} />
+                        <button type="submit" className="min-h-9 rounded-lg px-2 text-sm text-red hover:bg-red-2" aria-label={`Supprimer la glycémie de ${fmtTime.format(m.at)}`}>
+                          Supprimer
+                        </button>
+                      </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Meta className="mt-2">Points ◆ sur la courbe. Les statistiques ci-dessous ne portent que sur le capteur.</Meta>
+          </Card>
+        </div>
+      )}
 
       <div className="mt-4 grid gap-4 md:grid-cols-3">
         <Card className="md:col-span-2">

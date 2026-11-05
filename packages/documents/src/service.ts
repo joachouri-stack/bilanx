@@ -39,8 +39,23 @@ export interface UploadFile {
   data: Buffer;
 }
 
+/** Catégories choisies par l'utilisateur (« auto » : laisser la lecture automatique décider). */
+export const DOCUMENT_CATEGORIES = ['prescription', 'lab_report', 'imaging', 'medical_report', 'other'] as const;
+export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
+export const EXAM_TYPES = ['irm', 'scanner', 'radio', 'echo', 'autre'] as const;
+export type ExamType = (typeof EXAM_TYPES)[number];
+
+export interface DocumentDetails {
+  /** Catégorie choisie ; absente = détection automatique. */
+  kind?: DocumentCategory | null;
+  title?: string | null;
+  /** AAAA-MM-JJ : date du document (ordonnance, prélèvement, examen). */
+  date?: string | null;
+  examType?: ExamType | null;
+}
+
 export type UploadResult =
-  | { ok: true; documentId: string; status: 'to_review' | 'no_values' | 'no_text' | 'not_processed'; drafts: number }
+  | { ok: true; documentId: string; status: 'to_review' | 'no_values' | 'no_text' | 'not_processed' | 'stored'; drafts: number }
   | { ok: false; error: string };
 
 export interface DraftView {
@@ -119,7 +134,24 @@ export function createDocumentsService(cfg: DocumentsConfig) {
   }
 
   // ───────────────────────── Dépôt ─────────────────────────
-  async function upload(actor: Actor, profileId: string, files: UploadFile[]): Promise<UploadResult> {
+  function cleanDetails(d: DocumentDetails | undefined): { ok: true; kind: DocumentCategory | null; title: string | null; date: string | null; examType: ExamType | null } | { ok: false; error: string } {
+    const kind = d?.kind && (DOCUMENT_CATEGORIES as readonly string[]).includes(d.kind) ? d.kind : null;
+    if (d?.kind && !kind) return { ok: false, error: 'Catégorie de document inconnue.' };
+    const title = d?.title?.trim().slice(0, 200) || null;
+    let date: string | null = null;
+    if (d?.date) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date) || Number.isNaN(Date.parse(`${d.date}T12:00:00Z`))) return { ok: false, error: 'Date du document invalide.' };
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now());
+      if (d.date > today) return { ok: false, error: 'La date du document ne peut pas être dans le futur.' };
+      date = d.date;
+    }
+    const examType = kind === 'imaging' && d?.examType && (EXAM_TYPES as readonly string[]).includes(d.examType) ? d.examType : null;
+    return { ok: true, kind, title, date, examType };
+  }
+
+  async function upload(actor: Actor, profileId: string, files: UploadFile[], details?: DocumentDetails): Promise<UploadResult> {
+    const meta = cleanDetails(details);
+    if (!meta.ok) return meta;
     if (!files.length) return { ok: false, error: 'Choisissez au moins un fichier.' };
     if (files.length > MAX_FILES) return { ok: false, error: `${MAX_FILES} fichiers maximum par document.` };
     let total = 0;
@@ -144,9 +176,11 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     const dek = randomBytes(32);
     const documentId = await profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
       const [doc] = await tx<{ id: string }[]>`
-        INSERT INTO document (profile_id, kind, title, storage_key, dek_enc, sha256, mime_type, page_count, size_bytes, uploaded_by, uploaded_at)
-        VALUES (${profileId}, 'unknown', ${files[0]!.name.slice(0, 200)}, 'db', ${Buffer.alloc(0)}, ${sha256(Buffer.concat(files.map((f) => f.data)))},
-                ${isPdf ? 'application/pdf' : mimes[0]!}, ${files.length}, ${total}, ${actor.accountId}, ${now()})
+        INSERT INTO document (profile_id, kind, title, storage_key, dek_enc, sha256, mime_type, page_count, size_bytes, uploaded_by, uploaded_at,
+                              document_date, exam_type, kind_by_user)
+        VALUES (${profileId}, ${meta.kind ?? 'unknown'}, ${meta.title ?? files[0]!.name.slice(0, 200)}, 'db', ${Buffer.alloc(0)}, ${sha256(Buffer.concat(files.map((f) => f.data)))},
+                ${isPdf ? 'application/pdf' : mimes[0]!}, ${files.length}, ${total}, ${actor.accountId}, ${now()},
+                ${meta.date}, ${meta.examType}, ${meta.kind !== null})
         RETURNING id`;
       const id = doc!.id;
       await tx`UPDATE document SET dek_enc = ${encrypt(kek, dek, id)}, storage_key = ${`db:${id}`} WHERE id = ${id}`;
@@ -159,12 +193,14 @@ export function createDocumentsService(cfg: DocumentsConfig) {
       return id;
     });
 
+    // Imagerie, comptes rendus, autres : simplement conservés (aucune valeur à extraire).
+    if (meta.kind && meta.kind !== 'prescription' && meta.kind !== 'lab_report') return { ok: true, documentId, status: 'stored', drafts: 0 };
     if (!(await hasAutoReadingConsent(actor.accountId))) return { ok: true, documentId, status: 'not_processed', drafts: 0 };
-    return { ok: true, documentId, ...(await extract(actor, profileId, documentId, isPdf ? 'application/pdf' : mimes[0]!, files.map((f) => f.data))) };
+    return { ok: true, documentId, ...(await extract(actor, profileId, documentId, isPdf ? 'application/pdf' : mimes[0]!, files.map((f) => f.data), meta.kind)) };
   }
 
   // ───────────────────────── Lecture automatique ─────────────────────────
-  async function extract(actor: Actor, profileId: string, documentId: string, mime: AcceptedMime, data: Buffer[]) {
+  async function extract(actor: Actor, profileId: string, documentId: string, mime: AcceptedMime, data: Buffer[], hint: DocumentCategory | null = null) {
     let text: ExtractedText;
     try {
       text = await readText(mime, data);
@@ -179,7 +215,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     const source = text.lines.map((l) => l.text).join('\n');
     // Ordonnance : un document qui en a l'allure, et où le lecteur de bilans ne reconnaît AUCUNE analyse
     // (sinon « METFORMINE 1000 mg » serait proposé comme un résultat).
-    if (looksLikePrescription(text.lines) && !report.drafts.some((d) => assessDraft(d, source, now()).analyteCode))
+    // Catégorie choisie par l'utilisateur : elle décide du lecteur utilisé.
+    if (hint === 'prescription' || (hint !== 'lab_report' && looksLikePrescription(text.lines) && !report.drafts.some((d) => assessDraft(d, source, now()).analyteCode)))
       return extractPrescription(actor, profileId, documentId, text);
 
     return profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
@@ -207,7 +244,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
                   ${d.confidence ?? null}, ${tx.json(checks as never)}, 'proposed', ${d.lineText}, ${d.lineIndex})`;
       }
       if (report.drafts.length)
-        await tx`UPDATE document SET kind = 'lab_report', issuer = ${report.laboratory}, document_date = ${report.samplingDate} WHERE id = ${documentId}`;
+        await tx`UPDATE document SET kind = 'lab_report', issuer = COALESCE(issuer, ${report.laboratory}), document_date = COALESCE(document_date, ${report.samplingDate})
+                 WHERE id = ${documentId}`;
       return { status: report.drafts.length ? ('to_review' as const) : text.lines.length ? ('no_values' as const) : ('no_text' as const), drafts: report.drafts.length };
     });
   }
@@ -229,7 +267,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
           VALUES (${job!.id}, ${profileId}, ${it.lineText}, ${it.lineIndex}, ${it.page}, ${it.name}, ${it.strength}, ${it.posology}, ${it.times}, ${it.qty},
                   ${it.startDate}, ${it.endDate}, ${it.confidence}, ${tx.json(it.checks as never)})`;
       }
-      await tx`UPDATE document SET kind = 'prescription', issuer = ${p.prescriber}, document_date = ${p.date} WHERE id = ${documentId}`;
+      await tx`UPDATE document SET kind = 'prescription', issuer = COALESCE(issuer, ${p.prescriber}), document_date = COALESCE(document_date, ${p.date})
+               WHERE id = ${documentId}`;
       return { status: p.items.length ? ('to_review' as const) : ('no_values' as const), drafts: p.items.length };
     });
   }
@@ -238,30 +277,35 @@ export function createDocumentsService(cfg: DocumentsConfig) {
   async function process(actor: Actor, profileId: string, documentId: string) {
     if (!(await hasAutoReadingConsent(actor.accountId))) throw new ForbiddenError('Lecture automatique non autorisée.');
     const files = await readFiles(actor, profileId, documentId);
+    const [d] = await profiles.withProfileData(actor, profileId, 'documents', 'read', (tx) =>
+      tx<{ kind: string; kind_by_user: boolean }[]>`SELECT kind, kind_by_user FROM document WHERE id = ${documentId} AND profile_id = ${profileId}`,
+    );
+    const hint = d?.kind_by_user ? (d.kind as DocumentCategory) : null;
+    if (hint && hint !== 'prescription' && hint !== 'lab_report') return { status: 'stored' as const, drafts: 0 };
     const mime = files[0]!.mime === 'application/pdf' ? 'application/pdf' : (files[0]!.mime as AcceptedMime);
-    return extract(actor, profileId, documentId, mime, files.map((f) => f.data));
+    return extract(actor, profileId, documentId, mime, files.map((f) => f.data), hint);
   }
 
   // ───────────────────────── Consultation ─────────────────────────
   async function list(actor: Actor, profileId: string) {
     return profiles.withProfileData(actor, profileId, 'documents', 'read', (tx) =>
-      tx<{ id: string; title: string; kind: string; mime_type: string; page_count: number; uploaded_at: Date; document_date: string | null; issuer: string | null; job_status: string | null; pending: number }[]>`
-        SELECT d.id, d.title, d.kind, d.mime_type, d.page_count, d.uploaded_at, to_char(d.document_date, 'YYYY-MM-DD') AS document_date, d.issuer,
+      tx<{ id: string; title: string; kind: string; exam_type: ExamType | null; mime_type: string; page_count: number; uploaded_at: Date; document_date: string | null; issuer: string | null; job_status: string | null; pending: number }[]>`
+        SELECT d.id, d.title, d.kind, d.exam_type, d.mime_type, d.page_count, d.uploaded_at, to_char(d.document_date, 'YYYY-MM-DD') AS document_date, d.issuer,
                j.status AS job_status,
                (SELECT count(*)::int FROM extracted_value_draft v WHERE v.job_id = j.id AND v.status = 'proposed')
                  + (SELECT count(*)::int FROM medication_draft m WHERE m.job_id = j.id AND m.status = 'proposed') AS pending
         FROM document d
         LEFT JOIN LATERAL (SELECT * FROM extraction_job j WHERE j.document_id = d.id ORDER BY j.created_at DESC LIMIT 1) j ON true
         WHERE d.profile_id = ${profileId} AND d.deleted_at IS NULL
-        ORDER BY d.uploaded_at DESC`,
+        ORDER BY COALESCE(d.document_date, (d.uploaded_at AT TIME ZONE ${tz})::date) DESC, d.uploaded_at DESC`,
     );
   }
 
   async function get(actor: Actor, profileId: string, documentId: string) {
     if (!/^[0-9a-f-]{36}$/i.test(documentId)) return null;
     return profiles.withProfileData(actor, profileId, 'documents', 'read', async (tx) => {
-      const [doc] = await tx<{ id: string; title: string; kind: string; mime_type: string; page_count: number; uploaded_at: Date; document_date: string | null; issuer: string | null }[]>`
-        SELECT id, title, kind, mime_type, page_count, uploaded_at, to_char(document_date, 'YYYY-MM-DD') AS document_date, issuer
+      const [doc] = await tx<{ id: string; title: string; kind: string; exam_type: ExamType | null; kind_by_user: boolean; mime_type: string; page_count: number; uploaded_at: Date; document_date: string | null; issuer: string | null }[]>`
+        SELECT id, title, kind, exam_type, kind_by_user, mime_type, page_count, uploaded_at, to_char(document_date, 'YYYY-MM-DD') AS document_date, issuer
         FROM document WHERE id = ${documentId} AND profile_id = ${profileId} AND deleted_at IS NULL`;
       if (!doc) return null;
       const [job] = await tx<{ id: string; status: string; method: string | null; detected_lab: string | null; detected_sampling_date: string | null; warnings: unknown; error: string | null }[]>`
@@ -315,6 +359,21 @@ export function createDocumentsService(cfg: DocumentsConfig) {
         : [];
       return { document: doc, job: job ?? null, drafts, medicationDrafts };
     });
+  }
+
+  /** Classement d'un document : catégorie, titre, date, type d'examen (la catégorie devient celle de l'utilisateur). */
+  async function updateDetails(actor: Actor, profileId: string, documentId: string, details: DocumentDetails & { issuer?: string | null }): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!/^[0-9a-f-]{36}$/i.test(documentId)) return { ok: false, error: 'Document introuvable.' };
+    const meta = cleanDetails(details);
+    if (!meta.ok) return meta;
+    if (!meta.kind) return { ok: false, error: 'Choisissez une catégorie.' };
+    const issuer = details.issuer?.trim().slice(0, 120) || null;
+    const rows = await profiles.withProfileData(actor, profileId, 'documents', 'write', (tx) =>
+      tx`UPDATE document SET kind = ${meta.kind}, kind_by_user = true, title = COALESCE(${meta.title}, title), document_date = ${meta.date},
+                             exam_type = ${meta.examType}, issuer = ${issuer}
+         WHERE id = ${documentId} AND profile_id = ${profileId} AND deleted_at IS NULL RETURNING id`,
+    );
+    return rows.length ? { ok: true } : { ok: false, error: 'Document introuvable.' };
   }
 
   async function readFiles(actor: Actor, profileId: string, documentId: string, page?: number) {
@@ -488,7 +547,7 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     });
   }
 
-  return { hasAutoReadingConsent, giveAutoReadingConsent, upload, process, list, get, readFiles, review, reviewPrescription, remove, analyteName: (c: string) => getAnalyte(c)?.nameFr };
+  return { hasAutoReadingConsent, giveAutoReadingConsent, upload, process, list, get, updateDetails, readFiles, review, reviewPrescription, remove, analyteName: (c: string) => getAnalyte(c)?.nameFr };
 }
 
 export type DocumentsService = ReturnType<typeof createDocumentsService>;

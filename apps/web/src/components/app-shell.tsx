@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { NAV } from '@/lib/navigation';
+import { NAV, NAV_SECTIONS, QUICK_ADD } from '@/lib/navigation';
 import { signOutAction, switchProfileAction } from '@/lib/server/actions';
 import { Icon } from './icon';
 
@@ -37,7 +38,17 @@ export function AppShell({
   const active = profiles.find((p) => p.id === activeId) ?? profiles[0]!;
   const main = NAV.filter((n) => n.group === 'main' && !hidden.includes(n.href));
   const account = NAV.filter((n) => n.group === 'account');
-  const mobile = ['/tableau-de-bord', '/glycemie', '/analyses', '/parametres'];
+  const quick = QUICK_ADD.filter((q) => !hidden.includes(q.base));
+  const [sheet, setSheet] = useState<'menu' | 'add' | null>(null);
+  // Fermeture à chaque changement de page, et avec la touche Échap.
+  useEffect(() => setSheet(null), [pathname]);
+  useEffect(() => {
+    if (!sheet) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSheet(null);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sheet]);
+  const mobileTab = (href: string) => (hidden.includes(href) ? null : <MobileLink key={href} href={href} active={isActive(href)} />);
 
   return (
     <div className="min-h-dvh">
@@ -69,14 +80,8 @@ export function AppShell({
           <p className="px-2.5 pb-4 text-xs text-ink-3">Toute votre santé, en un seul endroit.</p>
           <AccountBox user={user} />
           <ProfileSwitcher profiles={profiles} active={active} />
-          <nav aria-label="Navigation principale" className="mt-4 flex flex-col gap-0.5">
-            {main.map((n) => (
-              <NavLink key={n.href} item={n} active={isActive(n.href)} />
-            ))}
-            <hr className="mx-1 my-2.5 border-line" />
-            {account.map((n) => (
-              <NavLink key={n.href} item={n} active={isActive(n.href)} />
-            ))}
+          <nav aria-label="Navigation principale" className="mt-4">
+            <NavGroups main={main} account={account} isActive={isActive} />
           </nav>
         </aside>
         <main id="contenu" tabIndex={-1} className="mx-auto w-full max-w-[1240px] px-4 pb-28 pt-5 outline-none sm:px-8 lg:pb-16 lg:pt-7">
@@ -89,22 +94,51 @@ export function AppShell({
 
       <nav
         aria-label="Navigation mobile"
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-line bg-surface pb-[max(10px,env(safe-area-inset-bottom))] pt-2 text-center text-[11px] text-ink-3 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface pb-[max(10px,env(safe-area-inset-bottom))] pt-2 text-center text-[11px] text-ink-3 lg:hidden"
       >
-        {mobile.slice(0, 2).map((href) => (
-          <MobileLink key={href} href={href} active={isActive(href)} />
-        ))}
-        <Link
-          href="/documents"
-          aria-label="Action rapide : scanner un document"
-          className="mx-auto -mt-5 grid size-12 place-items-center rounded-full bg-petrol text-2xl text-on-accent shadow-lg"
+        {mobileTab('/tableau-de-bord') ?? <span />}
+        {mobileTab('/ordonnances') ?? <span />}
+        <button
+          type="button"
+          onClick={() => setSheet(sheet === 'add' ? null : 'add')}
+          aria-expanded={sheet === 'add'}
+          aria-controls="ajout-rapide"
+          aria-label="Ajouter : glycémie, HbA1c, pas, ordonnance, document"
+          className="mx-auto -mt-5 grid size-14 place-items-center rounded-full bg-petrol text-3xl text-on-accent shadow-lg"
         >
-          ＋
-        </Link>
-        {mobile.slice(2).map((href) => (
-          <MobileLink key={href} href={href} active={isActive(href)} />
-        ))}
+          {sheet === 'add' ? '×' : '＋'}
+        </button>
+        {mobileTab('/documents') ?? <span />}
+        <button type="button" onClick={() => setSheet(sheet === 'menu' ? null : 'menu')} aria-expanded={sheet === 'menu'} aria-controls="menu-complet" className={`flex flex-col items-center gap-0.5 ${sheet === 'menu' ? 'text-petrol' : ''}`}>
+          <Icon path="M4 6h16M4 12h16M4 18h16" />
+          Menu
+        </button>
       </nav>
+
+      {sheet && (
+        <div className="fixed inset-0 z-20 bg-[rgba(0,0,0,0.4)] lg:hidden" onClick={() => setSheet(null)} aria-hidden />
+      )}
+      {sheet === 'add' && (
+        <div id="ajout-rapide" role="dialog" aria-label="Ajouter" className="fixed inset-x-0 bottom-0 z-25 rounded-t-3xl border-t border-line bg-surface px-4 pb-28 pt-5 shadow-2xl lg:hidden">
+          <p className="mb-3 font-semibold">Ajouter</p>
+          <div className="grid grid-cols-3 gap-2">
+            {quick.map((q) => (
+              <Link key={q.href} href={q.href} onClick={() => setSheet(null)} className="flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-2xl bg-surface-2 p-2 text-center text-sm font-medium">
+                <span className="text-2xl" aria-hidden>
+                  {q.icon}
+                </span>
+                {q.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+      {sheet === 'menu' && (
+        <div id="menu-complet" role="dialog" aria-label="Menu" className="fixed inset-x-0 bottom-0 top-10 z-25 overflow-y-auto rounded-t-3xl border-t border-line bg-surface px-4 pb-28 pt-5 shadow-2xl lg:hidden">
+          <AccountBox user={user} />
+          <NavGroups main={main} account={account} isActive={isActive} onNavigate={() => setSheet(null)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -188,10 +222,44 @@ function ProfileSwitcher({ profiles, active }: { profiles: ShellProfile[]; activ
   );
 }
 
-function NavLink({ item, active }: { item: (typeof NAV)[number]; active: boolean }) {
+/** Menu par rubriques : Suivi de santé, Soins, Documents, puis compte. */
+function NavGroups({ main, account, isActive, onNavigate }: { main: typeof NAV; account: typeof NAV; isActive: (h: string) => boolean; onNavigate?: () => void }) {
+  const head = main.filter((n) => !n.section && n.status === 'available');
+  const tail = main.filter((n) => !n.section && n.status !== 'available');
+  return (
+    <div className="flex flex-col gap-0.5">
+      {head.map((n) => (
+        <NavLink key={n.href} item={n} active={isActive(n.href)} onNavigate={onNavigate} />
+      ))}
+      {NAV_SECTIONS.map((sec) => {
+        const items = main.filter((n) => n.section === sec);
+        if (!items.length) return null;
+        return (
+          <div key={sec} className="mt-3 flex flex-col gap-0.5">
+            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-ink-3">{sec}</p>
+            {items.map((n) => (
+              <NavLink key={n.href} item={n} active={isActive(n.href)} onNavigate={onNavigate} />
+            ))}
+          </div>
+        );
+      })}
+      {tail.length > 0 && <div className="mt-3" />}
+      {tail.map((n) => (
+        <NavLink key={n.href} item={n} active={isActive(n.href)} onNavigate={onNavigate} />
+      ))}
+      <hr className="mx-1 my-2.5 border-line" />
+      {account.map((n) => (
+        <NavLink key={n.href} item={n} active={isActive(n.href)} onNavigate={onNavigate} />
+      ))}
+    </div>
+  );
+}
+
+function NavLink({ item, active, onNavigate }: { item: (typeof NAV)[number]; active: boolean; onNavigate?: () => void }) {
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       aria-current={active ? 'page' : undefined}
       className={`flex items-center gap-3 rounded-xl px-3 py-2 font-medium transition-colors ${
         active ? 'bg-petrol-2 text-petrol' : 'text-ink-2 hover:bg-surface-2'

@@ -214,7 +214,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
 
         <div className="flex flex-col gap-4">
           {canWrite && (
-            <Card>
+            <Card id="saisir-pas" className="scroll-mt-4">
               <h2 className="font-semibold">Saisir mes pas</h2>
               <p className="mb-3 mt-1 text-sm text-ink-3">Le total d’un jour, lu sur votre téléphone ou votre montre. Une nouvelle saisie pour le même jour remplace l’ancienne.</p>
               <ManualStepsForm today={formatLocalDate(today)} defaultDay={formatLocalDate(view === 'jour' ? day : today)} />

@@ -15,3 +15,4 @@ export * from './agp';
 export * from './steps';
 export * from './medication';
 export * from './prescription-parser';
+export * from './glucose-entry';

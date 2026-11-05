@@ -6,13 +6,14 @@ import { appContext, moduleAllowed } from '@/lib/server/context';
 import { documents } from '@/lib/server/auth';
 import { deleteDocumentAction, enableAutoReadingAction } from '@/lib/server/actions';
 import { ButtonLink, Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
-import { ReviewForm } from '@/components/document-forms';
+import { DocumentDetailsForm, ReviewForm } from '@/components/document-forms';
+import { categoryOf, documentTitle, EXAM_LABELS } from '@/lib/document-categories';
 import { PrescriptionReviewForm } from '@/components/prescription-forms';
 import { ModuleForbidden } from '@/components/module-forbidden';
 
 export const metadata: Metadata = { title: 'Document' };
 
-export default async function DocumentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ valide?: string; traitements?: string }> }) {
+export default async function DocumentPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ valide?: string; traitements?: string; enregistre?: string }> }) {
   const ctx = await appContext();
   if (ctx.active.kind !== 'real') notFound();
   if (!moduleAllowed(ctx.active, 'documents')) return <ModuleForbidden title="Document" profileName={ctx.active.access.displayName} />;
@@ -31,6 +32,10 @@ export default async function DocumentPage({ params, searchParams }: { params: P
   const pages = Array.from({ length: doc.page_count }, (_, i) => i + 1);
   const isPdf = doc.mime_type === 'application/pdf';
   const STATUS_FR = { confirmed: 'confirmé', corrected: 'corrigé puis confirmé', rejected: 'ignoré', proposed: 'à valider' } as const;
+  const cat = categoryOf(doc.kind);
+  // Imagerie, comptes rendus, autres : rangés, jamais lus automatiquement.
+  const readable = !doc.kind_by_user || doc.kind === 'prescription' || doc.kind === 'lab_report';
+  const fmtLong = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'Europe/Paris' });
 
   return (
     <div className="fade-in">
@@ -40,11 +45,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
             ? isPrescription
               ? 'Valider les traitements lus'
               : 'Valider les valeurs lues'
-            : doc.kind === 'lab_report'
-              ? 'Bilan biologique'
-              : isPrescription
-                ? 'Ordonnance'
-                : doc.title
+            : `${cat.icon} ${documentTitle(doc)}`
         }
         subtitle={
           job?.status === 'to_review' ? (
@@ -53,15 +54,30 @@ export default async function DocumentPage({ params, searchParams }: { params: P
               chaque ligne avec le document.
             </>
           ) : (
-            `Déposé le ${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeZone: 'Europe/Paris' }).format(doc.uploaded_at)}`
+            [
+              cat.single,
+              doc.kind === 'imaging' && doc.exam_type ? EXAM_LABELS[doc.exam_type] : null,
+              doc.document_date ? `du ${fmtLong.format(new Date(`${doc.document_date}T12:00:00Z`))}` : `ajouté le ${fmtLong.format(doc.uploaded_at)}`,
+              doc.issuer,
+            ]
+              .filter(Boolean)
+              .join(' · ')
           )
         }
         actions={
-          <Link href="/documents" className="text-sm text-ink-3 hover:text-ink">
-            ← Documents
+          <Link href={`/documents?cat=${cat.key}`} className="text-sm text-ink-3 hover:text-ink">
+            ← {cat.label}
           </Link>
         }
       />
+      {sp.enregistre && (
+        <p role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sage-2 px-4 py-3 text-sm">
+          Document rangé dans « {cat.label} ».
+          <Link href={`/documents?cat=${cat.key}`} className="font-medium text-petrol underline">
+            Voir {cat.label.toLowerCase()}
+          </Link>
+        </p>
+      )}
       {sp.traitements !== undefined && (
         <p role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sage-2 px-4 py-3 text-sm">
           {sp.traitements === '0' ? 'Validation terminée : aucun traitement ajouté.' : `${sp.traitements} traitement(s) ajouté(s) à vos médicaments.`}
@@ -83,7 +99,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
           <div className="mb-2 flex items-center justify-between">
             <p className="text-[12.5px] font-medium text-ink-3">Document original</p>
             <a href={`/api/documents/${doc.id}/pages/1`} target="_blank" rel="noopener" className="text-xs text-petrol underline">
-              Ouvrir dans un nouvel onglet
+              Ouvrir en plein écran
             </a>
           </div>
           {isPdf ? (
@@ -99,7 +115,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
         </Card>
 
         <div className="flex flex-col gap-4">
-          {!job && (
+          {!job && readable && (
             <Card>
               {consent ? (
                 <p className="text-sm text-ink-2">Ce document n’a pas encore été lu.</p>
@@ -205,6 +221,23 @@ export default async function DocumentPage({ params, searchParams }: { params: P
                   </li>
                 ))}
               </ul>
+            </Card>
+          )}
+          {moduleAllowed(ctx.active, 'documents', 'write') && (
+            <Card>
+              <details open={!doc.kind_by_user && !job}>
+                <summary className="cursor-pointer font-semibold">Classement : {cat.label}</summary>
+                <p className="mb-3 mt-1 text-sm text-ink-3">Catégorie, date et titre, pour retrouver ce document en un instant.</p>
+                <DocumentDetailsForm
+                  documentId={doc.id}
+                  today={today}
+                  kind={doc.kind}
+                  title={doc.title && !/\.(pdf|jpe?g|png|webp|heic)$/i.test(doc.title) ? doc.title : ''}
+                  date={doc.document_date}
+                  examType={doc.exam_type}
+                  issuer={doc.issuer}
+                />
+              </details>
             </Card>
           )}
           {moduleAllowed(ctx.active, 'documents', 'write') && (

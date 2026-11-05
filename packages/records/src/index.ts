@@ -7,3 +7,4 @@ export * from './activity';
 export * from './medications';
 export * from './sharing';
 export * from './reminders';
+export * from './glucose';

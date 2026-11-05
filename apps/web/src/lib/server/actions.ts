@@ -7,13 +7,15 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { ForbiddenError, MODULE_KEYS } from '@bilanx/profiles';
 import { appContext, DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
-import { addDays, formatLocalDate } from '@bilanx/domain';
+import { addDays, formatLocalDate, isGlucoseUnit } from '@bilanx/domain';
 import { buildReportPdf, SECTION_KEYS, type SectionKey } from '@bilanx/reports';
 import { SHARE_VIEWER_MINUTES } from '@bilanx/records';
+import type { DocumentCategory, ExamType } from '@bilanx/documents';
 import { collectReport } from './report-data';
 import { demoToday } from '@/lib/demo-data';
 import {
   activity,
+  glucose,
   appointments,
   auth,
   privacy,
@@ -349,15 +351,41 @@ export async function uploadDocumentAction(_: FormState, fd: FormData): Promise<
   if (ctx.active.kind !== 'real') return { errors: { form: 'Choisissez votre profil (ou celui d’un proche) : le profil de démonstration est en lecture seule.' } };
   const files = fd.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
   const payload = await Promise.all(files.map(async (f) => ({ name: f.name || 'document', data: Buffer.from(await f.arrayBuffer()) })));
+  const values = { kind: str(fd, 'kind'), title: str(fd, 'title'), date: str(fd, 'date'), examType: str(fd, 'examType') };
+  const details = { kind: (values.kind || null) as DocumentCategory | null, title: values.title || null, date: values.date || null, examType: (values.examType || null) as ExamType | null };
   let r;
   try {
-    r = await documents().upload(ctx.user, ctx.active.access.profileId, payload);
+    r = await documents().upload(ctx.user, ctx.active.access.profileId, payload, details);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message }, values };
+    throw e;
+  }
+  if (!r.ok) return { errors: { form: r.error }, values };
+  revalidatePath('/documents');
+  revalidatePath('/tableau-de-bord');
+  redirect(`/documents/${r.documentId}${r.status === 'stored' ? '?enregistre=1' : ''}`);
+}
+
+export async function updateDocumentDetailsAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Profil de démonstration en lecture seule.' } };
+  const id = str(fd, 'documentId');
+  try {
+    const r = await documents().updateDetails(ctx.user, ctx.active.access.profileId, id, {
+      kind: (str(fd, 'kind') || null) as DocumentCategory | null,
+      title: str(fd, 'title') || null,
+      date: str(fd, 'date') || null,
+      examType: (str(fd, 'examType') || null) as ExamType | null,
+      issuer: str(fd, 'issuer') || null,
+    });
+    if (!r.ok) return { errors: { form: r.error } };
   } catch (e) {
     if (e instanceof ForbiddenError) return { errors: { form: e.message } };
     throw e;
   }
-  if (!r.ok) return { errors: { form: r.error } };
-  redirect(`/documents/${r.documentId}`);
+  revalidatePath(`/documents/${id}`);
+  revalidatePath('/documents');
+  return { ok: true, message: 'Classement enregistré.' };
 }
 
 export async function enableAutoReadingAction(fd: FormData): Promise<void> {
@@ -924,6 +952,32 @@ export async function deleteProfileAction(_: FormState, fd: FormData): Promise<F
   }
   (await cookies()).delete(PROFILE_COOKIE);
   redirect('/famille?profil-supprime=1');
+}
+
+// ───────────── Glycémie capillaire ─────────────
+export async function addGlucoseAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  const attempt = crypto.randomUUID();
+  if (ctx.active.kind !== 'real') return { attempt, errors: { form: 'Profil de démonstration en lecture seule.' } };
+  const unitRaw = str(fd, 'unit');
+  const unit = isGlucoseUnit(unitRaw) ? unitRaw : 'mg/dL';
+  const values = { value: str(fd, 'value'), date: str(fd, 'date'), time: str(fd, 'time'), context: str(fd, 'context') };
+  try {
+    const r = await glucose().addCapillary(ctx.user, ctx.active.access.profileId, { ...values, unit });
+    if (!r.ok) return { attempt, fieldErrors: r.errors, values };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt, errors: { form: e.message } };
+    throw e;
+  }
+  revalidatePath('/tableau-de-bord');
+  redirect(`/glycemie?jour=${encodeURIComponent(values.date)}&ajoute=${encodeURIComponent(`${values.value} ${unit} à ${values.time}`)}#ajouter-glycemie`);
+}
+
+export async function removeGlucoseAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await glucose().removeCapillary(ctx.user, ctx.active.access.profileId, new Date(str(fd, 'at')));
+  revalidatePath('/glycemie');
+  revalidatePath('/tableau-de-bord');
 }
 
 // ───────────── Activité ─────────────

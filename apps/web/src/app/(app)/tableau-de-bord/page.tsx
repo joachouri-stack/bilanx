@@ -23,7 +23,9 @@ import {
 import { appContext, displayUnits, moduleAllowed } from '@/lib/server/context';
 import { glucoseDay, labResults, sensorRange, type LabRow } from '@/lib/server/data';
 import { insulinDoses, toDomainDoses } from '@/lib/server/insulin-data';
-import { appointments } from '@/lib/server/auth';
+import { appointments, documents } from '@/lib/server/auth';
+import { QUICK_ADD } from '@/lib/navigation';
+import { DOC_CATEGORIES, documentTitle } from '@/lib/document-categories';
 import { stepsDaily, stepsGoal, stepsSource } from '@/lib/server/activity-data';
 import { medicationDay, medicationList } from '@/lib/server/medication-data';
 import { ButtonLink, Card, CardLabel, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
@@ -43,7 +45,19 @@ export default async function DashboardPage() {
   const now = new Date();
   const today = demoToday(now);
   const todayData = showGlucose ? await glucoseDay(ctx, today, now) : { sensor: [], capillary: [], events: [], insulin: [] };
-  const last = todayData.sensor.at(-1);
+  // Dernière glycémie du jour : capteur ou lecteur (saisie), la plus récente.
+  const lastSensor = todayData.sensor.at(-1);
+  const lastCap = todayData.capillary.at(-1);
+  const last = lastSensor && (!lastCap || lastSensor.at >= lastCap.at) ? lastSensor : lastCap;
+  const lastIsSensor = !!last && last === lastSensor;
+  const showDocs = ctx.active.kind === 'real' && moduleAllowed(ctx.active, 'documents');
+  const docs = showDocs && ctx.active.kind === 'real' ? await documents().list(ctx.user, ctx.active.access.profileId) : [];
+  const canAdd = (base: string) => {
+    if (ctx.active.kind !== 'real') return false;
+    const m = ({ '/glycemie': 'glucose', '/analyses': 'lab', '/activite': 'activity', '/documents': 'documents' } as const)[base as '/glycemie'];
+    return !!m && moduleAllowed(ctx.active, m, 'write');
+  };
+  const quick = QUICK_ADD.filter((q) => canAdd(q.base));
 
   const from14 = addDays(today, -13);
   const stats14 = computeGlucoseStats(showGlucose ? await sensorRange(ctx, from14, today, now) : [], {
@@ -98,18 +112,61 @@ export default async function DashboardPage() {
         actions={
           <>
             <ButtonLink href="/parametres">Personnaliser</ButtonLink>
-            <ButtonLink href="/documents" primary>
-              ⌁ Scanner un document
-            </ButtonLink>
+            {showDocs && (
+              <ButtonLink href="/documents#ajouter" primary>
+                ＋ Ajouter un document
+              </ButtonLink>
+            )}
           </>
         }
       />
+
+      {quick.length > 0 && (
+        <section aria-label="Ajouter rapidement" className="-mx-4 mb-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <div className="flex gap-2 sm:flex-wrap">
+            {quick.map((q) => (
+              <Link
+                key={q.href}
+                href={q.href}
+                className="flex min-h-11 shrink-0 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium hover:bg-surface-2"
+              >
+                <span aria-hidden>{q.icon}</span>＋ {q.label}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {showDocs && (
+        <section aria-label="Mes documents" className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {DOC_CATEGORIES.filter((c) => c.key !== 'autres').map((c) => {
+            const mine = docs.filter((d) => c.kinds.includes(d.kind));
+            const latest = mine[0];
+            return (
+              <Link key={c.key} href={c.key === 'ordonnances' ? '/ordonnances' : `/documents?cat=${c.key}`} className="card flex min-h-24 flex-col justify-between gap-1 p-3.5 transition-transform hover:-translate-y-0.5">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-2xl" aria-hidden>
+                    {c.icon}
+                  </span>
+                  <span className="tabular rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-ink-2">{mine.length}</span>
+                </span>
+                <span className="font-semibold">{c.label}</span>
+                <span className="truncate text-xs text-ink-3">
+                  {latest
+                    ? `Dernier : ${documentTitle(latest)}${latest.document_date ? ` · ${new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', dateStyle: 'short' }).format(new Date(`${latest.document_date}T12:00:00Z`))}` : ''}`
+                    : 'Aucun pour l’instant'}
+                </span>
+              </Link>
+            );
+          })}
+        </section>
+      )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-6 xl:grid-cols-12">
 {showGlucose && (
         <Card href="/glycemie" className="md:col-span-3 xl:col-span-4">
           <CardLabel tone="glucose" tag="Glycémie">
-            Dernière mesure du capteur
+            Dernière mesure du jour
           </CardLabel>
           {last ? (
             <>
@@ -120,15 +177,17 @@ export default async function DashboardPage() {
                   {lastInRange ? 'dans la cible' : 'hors cible'}
                 </span>
               </p>
-              <Sparkline points={todayData.sensor.map((s) => s.mgdl)} />
+              {todayData.sensor.length > 1 && <Sparkline points={todayData.sensor.map((s) => s.mgdl)} />}
               <Meta>
                 {isDemo
                   ? `Source : import de fichier LibreView (démo) · mesure de ${timeShort(last.at)} · dernier import il y a ${DEMO_LAST_IMPORT_MINUTES_AGO} min`
-                  : `Source : import de fichier · mesure de ${timeShort(last.at)}`}
+                  : lastIsSensor
+                    ? `Capteur (import de fichier) · mesure de ${timeShort(last.at)}`
+                    : `Lecteur, saisie manuelle · ${timeShort(last.at)}${todayData.capillary.length > 1 ? ` · ${todayData.capillary.length} glycémies saisies aujourd’hui` : ''}`}
               </Meta>
             </>
           ) : (
-            <Empty>{isDemo ? 'Aucune glycémie importée aujourd’hui.' : 'Aucune glycémie enregistrée aujourd’hui. L’import de fichiers LibreView arrive prochainement.'}</Empty>
+            <Empty>{isDemo ? 'Aucune glycémie importée aujourd’hui.' : 'Aucune glycémie aujourd’hui. Touchez « ＋ Glycémie » pour saisir celle de votre lecteur.'}</Empty>
           )}
         </Card>
         )}
@@ -191,7 +250,7 @@ export default async function DashboardPage() {
             <Empty>
               Aucune HbA1c de laboratoire enregistrée.
               {!isDemo && moduleAllowed(ctx.active, 'lab', 'write') && (
-                <span className="mt-1 block font-medium text-petrol">Ajoutez un résultat depuis « Analyses & Bilans ».</span>
+                <span className="mt-1 block font-medium text-petrol">Touchez « ＋ HbA1c » pour la saisir.</span>
               )}
             </Empty>
           )}
@@ -212,17 +271,13 @@ export default async function DashboardPage() {
               <Meta>
                 Objectif {formatNumberFr(goal)} · {Math.round((todaySteps / goal) * 100)} %
                 <br />
-                {isDemo ? 'Données fictives' : stepsSrc?.lastImportAt ? `Import Apple Santé du ${new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'short' }).format(stepsSrc.lastImportAt)}` : ''}
+                {isDemo ? 'Données fictives' : stepsSrc?.status === 'manual' ? 'Saisie manuelle' : stepsSrc?.lastImportAt ? `Import Apple Santé du ${new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'short' }).format(stepsSrc.lastImportAt)}` : ''}
               </Meta>
             </>
           ) : (
             <>
-              <p className="mt-3 text-sm text-ink-2">{stepsSrc ? 'Aucun pas enregistré pour aujourd’hui.' : 'Aucune source de données.'}</p>
-              <Meta className="mt-1">
-                {stepsSrc?.lastImportAt
-                  ? `Dernier import Apple Santé : ${new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'short' }).format(stepsSrc.lastImportAt)}. Importez un nouvel export pour mettre à jour.`
-                  : 'Importez l’export d’Apple Santé (pas de l’iPhone et de l’Apple Watch) depuis Activité & Pas.'}
-              </Meta>
+              <p className="mt-3 text-sm text-ink-2">Aucun pas enregistré pour aujourd’hui.</p>
+              <Meta className="mt-1">Touchez « ＋ Pas du jour » pour saisir le total de votre téléphone ou de votre montre.</Meta>
             </>
           )}
         </Card>
