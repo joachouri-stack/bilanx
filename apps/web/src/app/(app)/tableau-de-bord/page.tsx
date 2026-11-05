@@ -15,7 +15,6 @@ import {
 } from '@bilanx/domain';
 import {
   DEMO_LAST_IMPORT_MINUTES_AGO,
-  DEMO_MEDICATIONS,
   DEMO_NEXT_APPOINTMENT,
   DEMO_PROFILE,
   DEMO_TIMEZONE,
@@ -26,6 +25,7 @@ import { glucoseDay, labResults, sensorRange, type LabRow } from '@/lib/server/d
 import { insulinDoses, toDomainDoses } from '@/lib/server/insulin-data';
 import { appointments } from '@/lib/server/auth';
 import { stepsDaily, stepsGoal, stepsSource } from '@/lib/server/activity-data';
+import { medicationDay, medicationList } from '@/lib/server/medication-data';
 import { ButtonLink, Card, CardLabel, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
 import { CapsuleGauge } from '@/components/capsule-gauge';
 
@@ -65,6 +65,9 @@ export default async function DashboardPage() {
     ctx.active.kind === 'real' && moduleAllowed(ctx.active, 'appointments')
       ? ((await appointments().list(ctx.user, ctx.active.access.profileId)).upcoming[0] ?? null)
       : null;
+  const showMeds = moduleAllowed(ctx.active, 'medications');
+  const [medsNow, medsToday] = showMeds ? await Promise.all([medicationList(ctx), medicationDay(ctx, today, now)]) : [{ current: [], past: [] }, []];
+  const nextDose = medsToday.find((d) => d.at.getTime() > now.getTime() - 30 * 60_000 && !d.status) ?? null;
   const profileName = isDemo ? DEMO_PROFILE.displayName : ctx.active.kind === 'real' ? ctx.active.access.displayName : '';
   const isSelf = ctx.active.kind === 'real' && ctx.active.access.relationship === 'self' && ctx.active.access.role === 'owner';
 
@@ -239,18 +242,25 @@ export default async function DashboardPage() {
         </Card>
         )}
 
-{isDemo && (
-        <Card className="md:col-span-3 xl:col-span-3">
-          <CardLabel tone="neutral" tag="💊 Traitements">
+{medsNow.current.length > 0 && (
+        <Card href="/medicaments" className="md:col-span-3 xl:col-span-3">
+          <CardLabel tone="neutral" tag="💊 Médicaments">
             En cours
           </CardLabel>
           <ul className="mt-2.5 space-y-1 text-sm">
-            {DEMO_MEDICATIONS.map((m) => (
-              <li key={m.name}>
-                {m.name} <span className="text-ink-3">· {m.posology}</span>
+            {medsNow.current.slice(0, 4).map((m) => (
+              <li key={m.id}>
+                {m.name}
+                {m.strength ? ` ${m.strength}` : ''} <span className="text-ink-3">· {m.posology}</span>
               </li>
             ))}
           </ul>
+          {medsToday.length > 0 && (
+            <Meta>
+              Aujourd’hui : {medsToday.filter((d) => d.status === 'taken').length}/{medsToday.length} prise{medsToday.length > 1 ? 's' : ''} notée{medsToday.length > 1 ? 's' : ''}
+              {nextDose ? ` · prochaine à ${nextDose.time.replace(':', ' h ')}` : ''}
+            </Meta>
+          )}
         </Card>
         )}
 

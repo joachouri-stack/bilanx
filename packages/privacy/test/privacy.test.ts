@@ -3,7 +3,7 @@ import { strFromU8, unzipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createProfilesService, ForbiddenError, type Actor } from '@bilanx/profiles';
 import { createDocumentsService, terminateOcr } from '@bilanx/documents';
-import { createJournalService, createLabService } from '../../records/src';
+import { createJournalService, createLabService, createMedicationsService } from '../../records/src';
 import { setupAuth, TEST_DB, tokenFrom } from '../../auth/test/helpers';
 import { createPrivacyService } from '../src';
 
@@ -53,6 +53,9 @@ describe.skipIf(!TEST_DB)('droits RGPD : export, consentements, suppression (Pos
     if (r.ok) mamie = r.profileId;
     await lab.addManual(jo, joPid, { analyteCode: 'hba1c', value: '7,2', unit: '%', sampledOn: '2026-09-03', laboratory: 'Labo; "du centre"' });
     await lab.addManual(jo, mamie, { analyteCode: 'ferritin', value: '25', unit: 'µg/L', sampledOn: '2026-09-03' });
+    const meds = createMedicationsService({ profiles, now });
+    const m = await meds.save(jo, joPid, { name: 'Metformine', strength: '1000 mg', posology: '1 comprimé matin et soir', times: ['08:00', '20:00'], qty: ['1 cp', '1 cp'], startDate: '2026-11-01' });
+    if (m.ok) await meds.record(jo, joPid, m.id, new Date('2026-11-03T07:00:00Z'), 'taken');
     await journal.add(jo, joPid, { kind: 'meal', mealKind: 'lunch', date: '2026-11-03', time: '12:30', description: 'Lentilles', carbs: '45' });
     const u = await docs.upload(jo, joPid, [{ name: 'bilan.pdf', data: PDF }]);
     if (u.ok) docId = u.documentId;
@@ -77,6 +80,8 @@ describe.skipIf(!TEST_DB)('droits RGPD : export, consentements, suppression (Pos
     expect(names).toContain('profils/Jo/analyses.csv');
     expect(names).toContain('profils/Mamie-Rose/analyses.csv');
     expect(names).toContain('profils/Jo/activite-pas.csv');
+    expect(names).toContain('profils/Jo/medicaments.csv');
+    expect(names).toContain('profils/Jo/prises-medicaments.csv');
     const compte = JSON.parse(strFromU8(files['compte.json']!));
     expect(compte.email).toBe('jo@exemple.fr');
     expect(compte.consentements.map((c: { purpose: string }) => c.purpose).sort()).toEqual(['ai_extraction', 'health_data_processing']);
@@ -88,6 +93,8 @@ describe.skipIf(!TEST_DB)('droits RGPD : export, consentements, suppression (Pos
     expect(analyses).toContain('hba1c;7.2;');
     expect(analyses).toContain('"Labo; ""du centre"""'); // échappement CSV
     expect(strFromU8(files['profils/Jo/journal.csv']!)).toContain('Lentilles');
+    expect(strFromU8(files['profils/Jo/medicaments.csv']!)).toContain('08:00 (1 cp) ; 20:00 (1 cp)');
+    expect(strFromU8(files['profils/Jo/prises-medicaments.csv']!)).toMatch(/2026-11-03T07:00:00.*Metformine.*taken/);
     const original = names.find((x) => x.startsWith('profils/Jo/documents/') && x.endsWith('.pdf'))!;
     expect(Buffer.from(files[original]!).equals(PDF)).toBe(true);
     expect(strFromU8(files['profils/Jo/valeurs-lues.csv']!)).toContain('Ferritine');

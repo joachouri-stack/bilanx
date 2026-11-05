@@ -180,6 +180,8 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
   if ('lab' in d || d.notAuthorized.includes('lab')) row('lab', !!d.lab?.length, `${d.lab?.length ?? 0} résultat(s)`, [...new Set((d.lab ?? []).map((r) => SOURCE_FR[r.source]))].join(', '));
   if ('insulin' in d || d.notAuthorized.includes('insulin'))
     row('insulin', !!d.insulin && d.insulin.total > 0, d.insulin ? `${d.insulin.daysWithData} jour(s) sur ${d.period.days} avec injections notées` : '', d.insulin ? SOURCE_FR[d.insulin.source] : '');
+  if ('medications' in d || d.notAuthorized.includes('medications'))
+    row('medications', !!d.medications?.items.length, `${d.medications?.items.length ?? 0} traitement(s)`, d.medications ? SOURCE_FR[d.medications.source] : '');
   if ('activity' in d || d.notAuthorized.includes('activity'))
     row('activity', !!d.activity?.stats.daysWithData, d.activity ? `${d.activity.stats.daysWithData} jour(s) sur ${d.period.days}` : '', d.activity ? (d.activity.source === 'demo' ? SOURCE_FR.demo : SOURCE_ACTIVITY) : '');
   if ('journal' in d || d.notAuthorized.includes('journal')) row('journal', !!d.journal?.length, `${d.journal?.length ?? 0} entrée(s)`, d.isDemo ? SOURCE_FR.demo : SOURCE_FR.manual);
@@ -188,7 +190,6 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
   table([{ label: 'Rubrique', w: 3 }, { label: 'Disponibilité', w: 3.4 }, { label: 'Source', w: 2.6 }], avail, {
     emphasize: (i) => (avail[i]![1] === 'aucune donnée' || avail[i]![1] === 'non autorisé' ? C.amber : null),
   });
-  note('Médicaments (hors insuline) : module non encore disponible dans BILANX.');
 
   // ───────────────────────── Glycémie ─────────────────────────
   if (d.glucose) {
@@ -369,6 +370,36 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
         [{ label: 'Date d’effet', w: 1.2 }, { label: 'Insuline', w: 1.6 }, { label: 'Avant', w: 1.4 }, { label: 'Prescription', w: 1.6 }, { label: 'Prescrit par / objectif', w: 2.6 }],
         ins.changes.map((c) => [fmtDate(c.date), c.subject, c.previous ?? '—', c.next, [c.prescribedBy, c.goal && `objectif : ${c.goal}`].filter(Boolean).join(' · ') || '—']),
       );
+    }
+  }
+
+  // ───────────────────────── Médicaments ─────────────────────────
+  if (d.medications) {
+    h2(SECTION_LABELS.medications);
+    const md = d.medications;
+    if (!md.items.length) missing('Aucun traitement enregistré sur la période.');
+    else {
+      const per = (m: (typeof md.items)[number]) =>
+        [m.startDate ? `depuis ${fmtDate(m.startDate)}` : null, m.stoppedOn ? `arrêté le ${fmtDate(m.stoppedOn)}${m.stopReason ? ` (${m.stopReason})` : ''}` : m.endDate ? `jusqu’au ${fmtDate(m.endDate)}` : null]
+          .filter(Boolean)
+          .join(', ') || '—';
+      table(
+        [{ label: 'Médicament', w: 2 }, { label: 'Posologie prescrite', w: 2.8 }, { label: 'Heures', w: 1.2 }, { label: 'Période', w: 2.2 }, { label: 'Prescrit par', w: 1.4 }],
+        md.items.map((m) => [`${m.name}${m.strength ? ` ${m.strength}` : ''}`, m.posology, m.times.join(', ') || 'si besoin', per(m), m.prescriber ?? '—']),
+      );
+      const a = md.adherence;
+      if (a.planned > 0) {
+        kpis([
+          ['Prises prévues (passées)', `${a.planned}`],
+          ['Notées prises', `${a.taken}`],
+          ['Notées non prises', `${a.skipped}`],
+          ['Non renseignées', `${a.unrecorded}`],
+        ]);
+        note(
+          `Suivi déclaratif : ${a.takenPctOfRecorded === null ? 'aucune prise renseignée' : `${Math.round(a.takenPctOfRecorded)} % des prises renseignées ont été notées prises`}. Une prise non renseignée n’est pas comptée comme oubliée.`,
+        );
+      }
+      note('Traitements recopiés des ordonnances par l’utilisateur ; BILANX ne propose ni ne modifie aucune dose.');
     }
   }
 

@@ -159,10 +159,52 @@ export const DEMO_NEXT_APPOINTMENT = {
   toPrepare: 'Rapport 90 jours, dernier bilan sanguin',
 };
 
+/** Traitements fictifs (démonstration) : même forme que les traitements enregistrés. */
 export const DEMO_MEDICATIONS = [
-  { name: 'Metformine 1000 mg', posology: 'Matin et soir' },
-  { name: 'Vitamine D3', posology: '1 ampoule par mois' },
+  {
+    id: '00000000-0000-4000-8000-0000000000a1',
+    name: 'Metformine',
+    strength: '1000 mg',
+    posology: '1 comprimé matin et soir, au milieu du repas',
+    schedule: [
+      { time: '08:00', qty: '1 comprimé' },
+      { time: '20:00', qty: '1 comprimé' },
+    ],
+    startDate: '2025-06-01',
+    endDate: null,
+    prescriber: 'Dr Exemple (fictif)',
+    status: 'active' as const,
+    stoppedOn: null,
+    stopReason: null,
+    replacesId: null,
+    createdAt: new Date('2025-06-01T08:00:00Z'),
+  },
+  {
+    id: '00000000-0000-4000-8000-0000000000a2',
+    name: 'Vitamine D3',
+    strength: '100 000 UI',
+    posology: '1 ampoule par mois',
+    schedule: [],
+    startDate: '2026-02-20',
+    endDate: null,
+    prescriber: 'Dr Exemple (fictif)',
+    status: 'active' as const,
+    stoppedOn: null,
+    stopReason: null,
+    replacesId: null,
+    createdAt: new Date('2026-02-20T08:00:00Z'),
+  },
 ];
+
+/** Saisie fictive d'une prise passée (démonstration) : surtout « prise », parfois non renseignée. */
+export function demoIntakeStatus(medicationId: string, at: Date): 'taken' | 'skipped' | null {
+  // Hachage entier (le premier tirage de `seeded` est presque linéaire en la graine : prises corrélées).
+  let h = Math.floor(at.getTime() / 60_000) ^ (medicationId.charCodeAt(medicationId.length - 1) * 0x9e3779b1);
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  const r = ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  return r < 0.8 ? 'taken' : r < 0.85 ? 'skipped' : null;
+}
 
 export const DEMO_LAST_IMPORT_MINUTES_AGO = 32;
 

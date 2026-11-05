@@ -54,6 +54,14 @@ function sample(): ReportData {
       changes: [{ date: '2026-10-15', subject: 'Insuline lente B', previous: '18 U le soir', next: '16 U le soir', prescribedBy: 'Dr Exemple', goal: null }],
       source: 'manual',
     },
+    medications: {
+      items: [
+        { name: 'Metformine', strength: '1000 mg', posology: '1 comprimé matin et soir', times: ['08:00', '20:00'], startDate: '2026-06-01', endDate: null, stoppedOn: null, stopReason: null, prescriber: 'Dr Exemple' },
+        { name: 'Amoxicilline', strength: null, posology: '1 g matin, midi et soir', times: ['08:00', '12:00', '20:00'], startDate: '2026-10-20', endDate: '2026-10-26', stoppedOn: null, stopReason: null, prescriber: null },
+      ],
+      adherence: { planned: 40, taken: 30, skipped: 2, unrecorded: 8, takenPctOfRecorded: (30 / 32) * 100 },
+      source: 'manual',
+    },
     activity: (() => {
       const daily = new Map([['2026-10-30', 9500], ['2026-11-02', 4200]]);
       const days = stepsSeries(daily, { year: 2026, month: 10, day: 22 }, { year: 2026, month: 11, day: 4 });
@@ -92,6 +100,13 @@ describe('rapport PDF', () => {
       'Dr Exemple',
       '45 g de glucides (indiqués)',
       'Endocrinologie — Dr Exemple',
+      'Médicaments',
+      'Metformine 1000 mg',
+      '1 comprimé matin et soir',
+      '08:00, 20:00',
+      'jusqu’au 26 octobre 2026',
+      '94 % des prises renseignées',
+      'Une prise non renseignée n’est pas comptée comme oubliée',
       'Activité physique (pas)',
       '6 850 pas',
       '2 / 14',
@@ -113,6 +128,8 @@ describe('rapport PDF', () => {
     expect(text).toContain('Aucun autre résultat d’analyse sur la période.');
     expect(text).toContain('Aucune entrée de journal sur la période.');
     expect(text).toContain('non autorisé');
+    d.medications = { items: [], adherence: { planned: 0, taken: 0, skipped: 0, unrecorded: 0, takenPctOfRecorded: null }, source: 'manual' };
+    expect((await pdfToText(await buildReportPdf(d))).text).toContain('Aucun traitement enregistré sur la période.');
     expect(text).not.toContain('Total de la période');
     expect(text).toContain('DONNÉES FICTIVES');
   });

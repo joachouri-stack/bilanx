@@ -42,6 +42,7 @@ export const NAV_MODULES: Record<string, ModuleKey> = {
   '/glycemie': 'glucose',
   '/analyses': 'lab',
   '/traitements': 'insulin',
+  '/medicaments': 'medications',
   '/activite': 'activity',
   '/journal': 'journal',
   '/documents': 'documents',

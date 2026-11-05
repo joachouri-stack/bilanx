@@ -15,6 +15,7 @@ import {
   insulin,
   journal,
   lab,
+  medications,
   profiles,
   rememberNext,
   takeNext,
@@ -514,6 +515,88 @@ export async function unlinkAppointmentAction(fd: FormData): Promise<void> {
   const ctx = await appContext();
   if (ctx.active.kind === 'real') await appointments().unlink(ctx.user, ctx.active.access.profileId, str(fd, 'linkId'));
   redirect(`/rendez-vous/${str(fd, 'id')}`);
+}
+
+// ───────────── Médicaments ─────────────
+function medicationValues(fd: FormData) {
+  const times = fd.getAll('times').map(String);
+  const qty = fd.getAll('qty').map(String);
+  return {
+    form: {
+      name: str(fd, 'name'),
+      strength: str(fd, 'strength'),
+      posology: str(fd, 'posology'),
+      startDate: str(fd, 'startDate'),
+      endDate: str(fd, 'endDate'),
+      prescriber: str(fd, 'prescriber'),
+      effectiveDate: str(fd, 'effectiveDate'),
+      // Horaires renvoyés au formulaire pour ne rien perdre en cas d'erreur.
+      slots: JSON.stringify(times.map((t, i) => ({ time: t, qty: qty[i] ?? '' }))),
+    },
+    times,
+    qty,
+  };
+}
+
+/** Ajout, correction (`id`) ou nouvelle prescription (`id` + `mode=change`). */
+export async function saveMedicationAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  const { form: values, times, qty } = medicationValues(fd);
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Le profil de démonstration est en lecture seule : choisissez votre profil.' }, values };
+  const id = str(fd, 'id') || undefined;
+  const isChange = !!id && str(fd, 'mode') === 'change';
+  const input = { ...values, times, qty };
+  let r;
+  try {
+    r = isChange
+      ? await medications().change(ctx.user, ctx.active.access.profileId, id, input, values.effectiveDate)
+      : await medications().save(ctx.user, ctx.active.access.profileId, input, id);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values };
+    throw e;
+  }
+  if (!r.ok) {
+    const fe: Record<string, string | undefined> = { ...r.errors };
+    if (isChange && fe.startDate) fe.effectiveDate = fe.startDate;
+    return { attempt: crypto.randomUUID(), fieldErrors: fe, errors: { form: 'Vérifiez les champs signalés.' }, values };
+  }
+  redirect(`/medicaments/${r.id}?${isChange ? 'change' : id ? 'modifie' : 'cree'}=1`);
+}
+
+export async function stopMedicationAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  const values = { date: str(fd, 'date'), reason: str(fd, 'reason') };
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Le profil de démonstration est en lecture seule.' }, values };
+  const id = str(fd, 'id');
+  let r;
+  try {
+    r = await medications().stop(ctx.user, ctx.active.access.profileId, id, values.date, values.reason);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values };
+    throw e;
+  }
+  if (!r.ok) return { attempt: crypto.randomUUID(), errors: { form: r.error }, values };
+  redirect(`/medicaments/${id}?arrete=1`);
+}
+
+export async function deleteMedicationAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await medications().remove(ctx.user, ctx.active.access.profileId, str(fd, 'id'));
+  redirect('/medicaments?supprime=1');
+}
+
+/** Prise renseignée depuis la liste du jour : « taken », « skipped » ou « clear » (annuler la saisie). */
+export async function recordIntakeAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  const st = str(fd, 'status');
+  const status = st === 'taken' || st === 'skipped' ? st : null;
+  if (ctx.active.kind === 'real') {
+    await medications().record(ctx.user, ctx.active.access.profileId, str(fd, 'medicationId'), new Date(str(fd, 'at')), status);
+  }
+  const jour = str(fd, 'jour');
+  // Pas d'ancre (#) : une redirection vers la même adresse avec une ancre ne recharge pas la page.
+  revalidatePath('/medicaments');
+  redirect(`/medicaments${/^\d{4}-\d{2}-\d{2}$/.test(jour) ? `?jour=${jour}` : ''}`);
 }
 
 // ───────────── Droits RGPD ─────────────

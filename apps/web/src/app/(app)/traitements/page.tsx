@@ -252,7 +252,13 @@ export default async function TreatmentsPage({ searchParams }: { searchParams: P
                 <ProductForm />
               </div>
             )}
-            <Meta className="mt-3">Médicaments (autres traitements, rappels) : prochainement.</Meta>
+            <Meta className="mt-3">
+              Autres traitements (comprimés, rappels de prise) :{' '}
+              <Link href="/medicaments" className="text-petrol underline">
+                Médicaments
+              </Link>
+              .
+            </Meta>
           </Card>
         </div>
 

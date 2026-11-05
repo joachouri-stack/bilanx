@@ -13,3 +13,4 @@ export * from './journal-entry';
 export * from './appointment';
 export * from './agp';
 export * from './steps';
+export * from './medication';

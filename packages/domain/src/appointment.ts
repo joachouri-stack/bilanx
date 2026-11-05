@@ -2,7 +2,7 @@
  * Rendez-vous médicaux : validation de la saisie et export vers un agenda (iCalendar).
  * L'export .ics permet un vrai rappel par l'agenda du téléphone, sans service tiers.
  */
-import { parseLocalDate, zonedTimeToUtc } from './time';
+import { addDays, parseLocalDate, zoneOffsetMs, zonedTimeToUtc } from './time';
 
 /** Rappels proposés (minutes avant le rendez-vous). */
 export const REMINDER_OPTIONS: Record<string, string> = {
@@ -133,6 +133,116 @@ export function buildIcs(a: IcsAppointment): string {
       ? ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsEscape(a.title)}`, `TRIGGER:-PT${a.reminderMinutes}M`, 'END:VALARM']
       : []),
     'END:VEVENT',
+    'END:VCALENDAR',
+  ];
+  return `${lines.map(fold).join('\r\n')}\r\n`;
+}
+
+// ───────────────────────── Rappels récurrents (traitements) ─────────────────────────
+function offsetStr(ms: number): string {
+  const m = Math.round(ms / 60_000);
+  const a = Math.abs(m);
+  return `${m < 0 ? '-' : '+'}${String(Math.floor(a / 60)).padStart(2, '0')}${String(a % 60).padStart(2, '0')}`;
+}
+
+function localStamp(instant: Date, offsetMs: number): string {
+  return icsDate(new Date(instant.getTime() + offsetMs)).replace(/Z$/, '');
+}
+
+/**
+ * Bloc VTIMEZONE déduit des changements d'heure de l'année `year` (règles annuelles « n-ième
+ * dimanche du mois »). Suffisant pour les fuseaux européens ; un fuseau sans heure d'été donne
+ * un seul bloc STANDARD.
+ */
+function vtimezone(timeZone: string, year: number): string[] {
+  const at = (ms: number) => zoneOffsetMs(new Date(ms), timeZone);
+  const start = Date.UTC(year, 0, 1);
+  const end = Date.UTC(year + 1, 0, 1);
+  const transitions: { instant: Date; from: number; to: number }[] = [];
+  let prev = at(start);
+  for (let t = start + 86_400_000; t <= end; t += 86_400_000) {
+    const cur = at(t);
+    if (cur !== prev) {
+      // Affinage à l'heure près dans les 24 h précédentes.
+      let h = t - 86_400_000;
+      while (at(h) === prev) h += 3_600_000;
+      transitions.push({ instant: new Date(h), from: prev, to: cur });
+      prev = cur;
+    }
+  }
+  const out = ['BEGIN:VTIMEZONE', `TZID:${timeZone}`];
+  if (!transitions.length) {
+    const o = offsetStr(prev);
+    out.push('BEGIN:STANDARD', `DTSTART:${year}0101T000000`, `TZOFFSETFROM:${o}`, `TZOFFSETTO:${o}`, 'END:STANDARD');
+  }
+  for (const tr of transitions) {
+    const local = new Date(tr.instant.getTime() + tr.from);
+    const day = local.getUTCDate();
+    const daysInMonth = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth() + 1, 0)).getUTCDate();
+    const nth = day + 7 > daysInMonth ? -1 : Math.ceil(day / 7);
+    const wd = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][local.getUTCDay()];
+    const kind = tr.to > tr.from ? 'DAYLIGHT' : 'STANDARD';
+    out.push(
+      `BEGIN:${kind}`,
+      `DTSTART:${localStamp(tr.instant, tr.from)}`,
+      `TZOFFSETFROM:${offsetStr(tr.from)}`,
+      `TZOFFSETTO:${offsetStr(tr.to)}`,
+      `RRULE:FREQ=YEARLY;BYMONTH=${local.getUTCMonth() + 1};BYDAY=${nth}${wd}`,
+      `END:${kind}`,
+    );
+  }
+  out.push('END:VTIMEZONE');
+  return out;
+}
+
+export interface RecurringIcsOptions {
+  uidPrefix: string;
+  title: string;
+  description?: string | null;
+  times: string[]; // HH:MM, heure locale
+  startDate: string; // AAAA-MM-JJ
+  endDate?: string | null;
+  timeZone: string;
+  stamp: Date;
+}
+
+/**
+ * Rappels quotidiens (un événement récurrent par horaire), à l'heure locale du fuseau,
+ * jusqu'à la fin de `endDate` incluse. Alarme à l'heure de la prise.
+ */
+export function buildRecurringIcs(o: RecurringIcsOptions): string {
+  const start = parseLocalDate(o.startDate);
+  if (!start) throw new Error('startDate invalide');
+  const end = o.endDate ? parseLocalDate(o.endDate) : null;
+  const until = end ? new Date(zonedTimeToUtc(addDays(end, 1), 0, 0, o.timeZone).getTime() - 1000) : null;
+  const ymd = o.startDate.replace(/-/g, '');
+  const events = o.times.flatMap((time) => {
+    const hm = time.replace(':', '');
+    return [
+      'BEGIN:VEVENT',
+      `UID:${o.uidPrefix}-${hm}@bilanx.fr`,
+      `DTSTAMP:${icsDate(o.stamp)}`,
+      `DTSTART;TZID=${o.timeZone}:${ymd}T${hm}00`,
+      'DURATION:PT5M',
+      `RRULE:FREQ=DAILY${until ? `;UNTIL=${icsDate(until)}` : ''}`,
+      `SUMMARY:${icsEscape(o.title)}`,
+      ...(o.description ? [`DESCRIPTION:${icsEscape(o.description)}`] : []),
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${icsEscape(o.title)}`,
+      'TRIGGER:PT0M',
+      'END:VALARM',
+      'END:VEVENT',
+    ];
+  });
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//BILANX//Traitements//FR',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    ...vtimezone(o.timeZone, start.year),
+    ...events,
     'END:VCALENDAR',
   ];
   return `${lines.map(fold).join('\r\n')}\r\n`;

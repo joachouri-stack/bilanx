@@ -14,6 +14,7 @@ export const NAV: NavItem[] = [
   { href: '/glycemie', label: 'Glycémie', short: 'Glycémie', icon: 'M3 17l5-6 4 3 5-8 4 5', status: 'available', group: 'main' },
   { href: '/analyses', label: 'Analyses & Bilans', short: 'Analyses', icon: 'M9 3v6l-5 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-5-9V3M8 3h8', status: 'available', group: 'main' },
   { href: '/traitements', label: 'Insuline & Traitements', short: 'Traitements', icon: 'M18 2l4 4M17 7l-9 9-4 1 1-4 9-9z', status: 'available', group: 'main' },
+  { href: '/medicaments', label: 'Médicaments', short: 'Médicaments', icon: 'M10.5 20.5a5 5 0 0 1-7-7l7-7a5 5 0 0 1 7 7zM7 10l7 7', status: 'available', group: 'main' },
   { href: '/activite', label: 'Activité & Pas', short: 'Activité', icon: 'M13 4a2 2 0 1 0 0 .1M9 21l3-7 3 3v5M6 12l3-4 4 1 3 3', status: 'available', group: 'main' },
   { href: '/journal', label: 'Journal & Repas', short: 'Journal', icon: 'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5', status: 'available', group: 'main' },
   { href: '/documents', label: 'Documents & Scanner', short: 'Documents', icon: 'M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M4 12h16', status: 'available', group: 'main' },

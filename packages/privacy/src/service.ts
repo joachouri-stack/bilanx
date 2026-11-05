@@ -50,6 +50,8 @@ telles qu'enregistrées dans BILANX à la date indiquée dans compte.json.
     glycemie.csv           mesures de glycémie (mg/dL ; capteur, capillaire)
     insuline.csv           injections déclarées ; insulines.csv ; modifications-prescrites.csv
     journal.csv            repas et événements
+    medicaments.csv        traitements prescrits (posologie recopiée, horaires, période, arrêt)
+    prises-medicaments.csv prises renseignées (prise / non prise)
     rendez-vous.csv        rendez-vous et notes
     activite-pas.csv       nombre de pas par jour (import Apple Santé)
     documents.csv          liste des documents ; documents/ : originaux déchiffrés
@@ -114,6 +116,26 @@ export function createPrivacyService(cfg: PrivacyConfig) {
     files[`${dir}/journal.csv`] = csv(
       ['debut', 'fin', 'type', 'repas', 'description', 'quantites', 'glucides_g', 'intensite', 'commentaire'],
       journal.map((r) => [r.occurred_at, r.ended_at, r.kind, r.meal_kind, r.description, r.quantities, r.carbs_g, r.intensity, r.comment]),
+    );
+
+    const [meds, intakes] = await P.withProfileData(actor, profileId, 'medications', 'read', async (tx) => [
+      await tx`SELECT id, name, strength, posology_text, schedule, to_char(start_date, 'YYYY-MM-DD') AS start_date, to_char(end_date, 'YYYY-MM-DD') AS end_date,
+                      prescriber, status, to_char(stopped_on, 'YYYY-MM-DD') AS stopped_on, stop_reason, replaces_id, created_at
+               FROM medication WHERE profile_id = ${profileId} AND deleted_at IS NULL ORDER BY name, created_at`,
+      await tx`SELECT i.scheduled_at, m.name, m.strength, i.status, i.taken_at, i.recorded_at FROM medication_intake i JOIN medication m ON m.id = i.medication_id
+               WHERE i.profile_id = ${profileId} AND m.deleted_at IS NULL ORDER BY i.scheduled_at`,
+    ]);
+    files[`${dir}/medicaments.csv`] = csv(
+      ['id', 'medicament', 'dosage', 'posologie_prescrite', 'heures_de_prise', 'debut', 'fin', 'prescrit_par', 'statut', 'arrete_le', 'motif_arret', 'remplace', 'saisi_le'],
+      meds.map((r) => [
+        r.id, r.name, r.strength, r.posology_text,
+        (r.schedule as { time: string; qty: string }[]).map((x) => (x.qty ? `${x.time} (${x.qty})` : x.time)).join(' ; '),
+        r.start_date, r.end_date, r.prescriber, r.status, r.stopped_on, r.stop_reason, r.replaces_id, r.created_at,
+      ]),
+    );
+    files[`${dir}/prises-medicaments.csv`] = csv(
+      ['prevue_le', 'medicament', 'dosage', 'statut', 'notee_prise_le', 'renseignee_le'],
+      intakes.map((r) => [r.scheduled_at, r.name, r.strength, r.status, r.taken_at, r.recorded_at]),
     );
 
     const rdv = await P.withProfileData(actor, profileId, 'appointments', 'read', (tx) =>

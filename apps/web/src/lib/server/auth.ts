@@ -10,11 +10,13 @@ import {
   createInsulinService,
   createJournalService,
   createLabService,
+  createMedicationsService,
   type ActivityService,
   type AppointmentsService,
   type InsulinService,
   type JournalService,
   type LabService,
+  type MedicationsService,
 } from '@bilanx/records';
 import { createDocumentsService, type DocumentsService } from '@bilanx/documents';
 import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
@@ -23,7 +25,7 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxMedications?: MedicationsService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createSql();
@@ -66,6 +68,11 @@ export function documents(): DocumentsService {
 export function activity(): ActivityService {
   globalForAuth.bilanxActivity ??= createActivityService({ profiles: profiles() });
   return globalForAuth.bilanxActivity;
+}
+
+export function medications(): MedicationsService {
+  globalForAuth.bilanxMedications ??= createMedicationsService({ profiles: profiles() });
+  return globalForAuth.bilanxMedications;
 }
 
 export function privacy(): PrivacyService {

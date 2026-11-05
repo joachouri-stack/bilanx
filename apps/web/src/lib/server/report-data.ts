@@ -25,12 +25,14 @@ import { moduleAllowed, type AppContext } from './context';
 import { glucoseRangeAll, journalToEvent, labResults, type LabRow } from './data';
 import { insulinDoses, insulinProducts, toDomainDoses } from './insulin-data';
 import { stepsDaily, stepsGoal, stepsSource } from './activity-data';
+import { medicationFollowUpRange, medicationList } from './medication-data';
 
 export const SECTION_MODULE: Record<SectionKey, ModuleKey> = {
   glucose: 'glucose',
   hba1c: 'lab',
   lab: 'lab',
   insulin: 'insulin',
+  medications: 'medications',
   activity: 'activity',
   journal: 'journal',
   appointments: 'appointments',
@@ -124,6 +126,30 @@ export async function collectReport(ctx: AppContext, from: LocalDate, to: LocalD
         for (const e of demoDay(d, now).events) if (e.kind !== 'injection') out.push({ at: e.at, endedAt: null, title: e.label, detail: e.detail });
       data.journal = out;
     }
+  }
+  if (wanted.includes('medications')) {
+    const { current, past } = await medicationList(ctx);
+    const f = formatLocalDate(from);
+    const t = formatLocalDate(to);
+    // Traitements actifs à un moment de la période (le jour d'arrêt est exclu).
+    const items = [...current, ...past]
+      .filter((m) => (!m.startDate || m.startDate <= t) && (!m.endDate || m.endDate >= f) && (!m.stoppedOn || m.stoppedOn > f))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr') || (a.startDate ?? '').localeCompare(b.startDate ?? ''));
+    data.medications = {
+      items: items.map((m) => ({
+        name: m.name,
+        strength: m.strength,
+        posology: m.posology,
+        times: m.schedule.map((s) => s.time),
+        startDate: m.startDate,
+        endDate: m.endDate,
+        stoppedOn: m.stoppedOn,
+        stopReason: m.stopReason,
+        prescriber: m.prescriber,
+      })),
+      adherence: await medicationFollowUpRange(ctx, from, to, now),
+      source: isDemo ? 'demo' : 'manual',
+    };
   }
   if (wanted.includes('appointments')) {
     if (access) {
