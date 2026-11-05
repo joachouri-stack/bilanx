@@ -59,7 +59,7 @@ export interface ReportData {
     adherence: Adherence;
     source: Source;
   };
-  activity?: { days: StepsDay[]; goal: number; stats: StepsStats; source: Source; devices: string[] };
+  activity?: { days: StepsDay[]; goal: number; stats: StepsStats; source: Source; /** Des jours ont été saisis à la main. */ manual?: boolean; devices: string[] };
   journal?: { at: Date; endedAt: Date | null; title: string; detail: string }[];
   appointments?: { at: Date; who: string; location: string | null; notesAfter: string | null; upcoming: boolean }[];
 }

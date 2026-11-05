@@ -38,6 +38,8 @@ export function pdfText(s: string): string {
 
 const SOURCE_FR: Record<Source, string> = { manual: 'saisie manuelle (S)', document: 'bilan scanné et validé', import: 'import de fichier', demo: 'données fictives' };
 const SOURCE_ACTIVITY = 'import Apple Santé (fichier)';
+const activitySource = (a: { source: Source; manual?: boolean }) =>
+  a.source === 'demo' ? SOURCE_FR.demo : a.source === 'manual' ? 'saisie manuelle' : a.manual ? `${SOURCE_ACTIVITY} et saisie manuelle` : SOURCE_ACTIVITY;
 
 export async function buildReportPdf(d: ReportData): Promise<Buffer> {
   const doc = new PDFDocument({
@@ -183,7 +185,7 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
   if ('medications' in d || d.notAuthorized.includes('medications'))
     row('medications', !!d.medications?.items.length, `${d.medications?.items.length ?? 0} traitement(s)`, d.medications ? SOURCE_FR[d.medications.source] : '');
   if ('activity' in d || d.notAuthorized.includes('activity'))
-    row('activity', !!d.activity?.stats.daysWithData, d.activity ? `${d.activity.stats.daysWithData} jour(s) sur ${d.period.days}` : '', d.activity ? (d.activity.source === 'demo' ? SOURCE_FR.demo : SOURCE_ACTIVITY) : '');
+    row('activity', !!d.activity?.stats.daysWithData, d.activity ? `${d.activity.stats.daysWithData} jour(s) sur ${d.period.days}` : '', d.activity ? activitySource(d.activity) : '');
   if ('journal' in d || d.notAuthorized.includes('journal')) row('journal', !!d.journal?.length, `${d.journal?.length ?? 0} entrée(s)`, d.isDemo ? SOURCE_FR.demo : SOURCE_FR.manual);
   if ('appointments' in d || d.notAuthorized.includes('appointments'))
     row('appointments', !!d.appointments?.length, `${d.appointments?.length ?? 0}`, d.isDemo ? SOURCE_FR.demo : SOURCE_FR.manual);
@@ -436,7 +438,7 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
         doc.rect(x, y(day.steps), Math.max(0.8, bw * 0.7), y(0) - y(day.steps)).fill(day.steps >= a.goal ? C.sage : C.petrol);
       });
       doc.y = top + ch + 6;
-      note(`Pas par jour (barres vertes : objectif atteint ; jours sans donnée laissés vides).${a.devices.length ? ` Appareils : ${a.devices.join(', ')}.` : ''} iPhone et Apple Watch dédoublonnés heure par heure.`);
+      note(`Pas par jour (barres vertes : objectif atteint ; jours sans donnée laissés vides).${a.devices.length ? ` Appareils : ${a.devices.join(', ')}. iPhone et Apple Watch dédoublonnés heure par heure.` : ''}${a.manual ? ' Certains jours ont été saisis à la main.' : ''}`);
     }
   }
 

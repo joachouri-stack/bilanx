@@ -1,6 +1,6 @@
 /** Pas du profil affiché : réels (import Apple Santé, RLS, journalisés) ou fictifs (démonstration). */
 import { addDays, compareLocalDates, dayBounds, formatLocalDate, type LocalDate } from '@bilanx/domain';
-import type { ActivitySourceInfo } from '@bilanx/records';
+import type { ActivitySourceInfo, ManualStepsDay } from '@bilanx/records';
 import { DEMO_TIMEZONE, demoStepsHourly } from '@/lib/demo-data';
 import { activity } from './auth';
 import type { AppContext } from './context';
@@ -28,6 +28,10 @@ export async function stepsGoal(ctx: AppContext): Promise<number> {
 }
 
 export async function stepsSource(ctx: AppContext): Promise<ActivitySourceInfo | null> {
-  if (ctx.active.kind === 'demo') return { label: 'Démonstration (données fictives)', status: 'demo', lastImportAt: null, dataFrom: null, dataTo: null, sources: [] };
+  if (ctx.active.kind === 'demo') return { label: 'Démonstration (données fictives)', status: 'demo', lastImportAt: null, dataFrom: null, dataTo: null, sources: [], kinds: ['demo'] };
   return activity().source(ctx.user, ctx.active.access.profileId);
+}
+
+export async function manualSteps(ctx: AppContext): Promise<ManualStepsDay[]> {
+  return ctx.active.kind === 'demo' ? [] : activity().manualDays(ctx.user, ctx.active.access.profileId);
 }

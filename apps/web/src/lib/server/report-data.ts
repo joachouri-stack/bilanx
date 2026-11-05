@@ -117,7 +117,7 @@ export async function collectReport(ctx: AppContext, from: LocalDate, to: LocalD
   if (wanted.includes('activity')) {
     const [daily, goal, src] = await Promise.all([stepsDaily(ctx, from, to, now), stepsGoal(ctx), stepsSource(ctx)]);
     const series = stepsSeries(daily, from, to);
-    data.activity = { days: series, goal, stats: stepsStats(series, goal), source: isDemo ? 'demo' : 'import', devices: src?.sources ?? [] };
+    data.activity = { days: series, goal, stats: stepsStats(series, goal), source: isDemo ? 'demo' : src?.kinds.includes('file_import') ? 'import' : 'manual', manual: !isDemo && !!src?.kinds.includes('manual'), devices: src?.sources ?? [] };
   }
   if (wanted.includes('journal')) {
     if (access) data.journal = (await journal().list(ctx.user, access.profileId, start, end)).map(journalToEvent).map((e) => ({ at: e.at, endedAt: null, title: e.label, detail: e.detail }));

@@ -1,4 +1,4 @@
-import { addSample, dedupHourly, type StepSample } from '@bilanx/domain';
+import { addDays, compareLocalDates, formatLocalDate, localDateOf, parseLocalDate, addSample, dedupHourly, type StepSample } from '@bilanx/domain';
 import type { Actor, ProfilesService } from '@bilanx/profiles';
 import { readAppleHealthSteps } from './apple-health';
 
@@ -25,7 +25,17 @@ export interface ActivitySourceInfo {
   dataFrom: string | null;
   dataTo: string | null;
   sources: string[];
+  /** Origines présentes pour ce profil : « file_import » (Apple Santé) et/ou « manual » (saisie). */
+  kinds: string[];
 }
+
+export interface ManualStepsDay {
+  day: string;
+  steps: number;
+}
+
+/** Saisie manuelle : 0 à 100 000 pas, au plus 10 ans en arrière, jamais dans le futur. */
+export const MANUAL_STEPS_MAX = 100_000;
 
 const MAX_YEARS = 10;
 
@@ -138,15 +148,76 @@ export function createActivityService(cfg: ActivityConfig) {
     return { ok: true };
   }
 
+  /** Source d'import Apple Santé si elle existe (sinon la saisie manuelle), et la liste des origines présentes. */
   async function source(actor: Actor, profileId: string): Promise<ActivitySourceInfo | null> {
-    const [s] = await P.withProfileData(actor, profileId, 'activity', 'read', (tx) =>
+    const rows = await P.withProfileData(actor, profileId, 'activity', 'read', (tx) =>
       tx<{ device_label: string; status: string; last_sync_at: Date | null; data_from: string | null; data_to: string | null; details: { sources?: string[] } }[]>`
         SELECT device_label, status, last_sync_at, to_char(data_from, 'YYYY-MM-DD') AS data_from, to_char(data_to, 'YYYY-MM-DD') AS data_to, details
-        FROM activity_source WHERE profile_id = ${profileId} ORDER BY last_sync_at DESC NULLS LAST LIMIT 1`,
+        FROM activity_source WHERE profile_id = ${profileId} ORDER BY (status = 'manual'), last_sync_at DESC NULLS LAST`,
     );
+    const s = rows[0];
     return s
-      ? { label: s.device_label, status: s.status, lastImportAt: s.last_sync_at, dataFrom: s.data_from, dataTo: s.data_to, sources: s.details?.sources ?? [] }
+      ? {
+          label: s.device_label,
+          status: s.status,
+          lastImportAt: s.last_sync_at,
+          dataFrom: s.data_from,
+          dataTo: s.data_to,
+          sources: s.details?.sources ?? [],
+          kinds: [...new Set(rows.map((r) => r.status))],
+        }
       : null;
+  }
+
+  /**
+   * Saisie manuelle du total d'un jour : remplace la valeur de ce jour (et son éventuel détail horaire importé).
+   * Un import Apple Santé ultérieur contenant ce jour le recalcule à partir des heures.
+   */
+  async function setManualDay(actor: Actor, profileId: string, dayIso: string, steps: number): Promise<{ ok: true } | { ok: false; error: string }> {
+    const day = parseLocalDate(dayIso);
+    if (!day) return { ok: false, error: 'Choisissez une date.' };
+    const today = localDateOf(now(), tz);
+    if (compareLocalDates(day, today) > 0) return { ok: false, error: 'La date ne peut pas être dans le futur.' };
+    if (compareLocalDates(day, addDays(today, -MAX_YEARS * 366)) < 0) return { ok: false, error: `Date trop ancienne (${MAX_YEARS} ans au plus).` };
+    if (!Number.isInteger(steps) || steps < 0 || steps > MANUAL_STEPS_MAX) return { ok: false, error: 'Indiquez un nombre de pas entier, entre 0 et 100 000.' };
+    const iso = formatLocalDate(day);
+    await P.withProfileData(actor, profileId, 'activity', 'write', async (tx) => {
+      const [src] = await tx<{ id: string }[]>`
+        INSERT INTO activity_source (profile_id, source_type, device_label, status, last_sync_at)
+        VALUES (${profileId}, 'manual', 'Saisie manuelle', 'manual', ${now()})
+        ON CONFLICT (profile_id, source_type) DO UPDATE SET last_sync_at = EXCLUDED.last_sync_at
+        RETURNING id`;
+      await tx`DELETE FROM activity_hourly WHERE profile_id = ${profileId} AND (hour_start AT TIME ZONE ${tz})::date = ${iso}::date`;
+      await tx`
+        INSERT INTO activity_daily (profile_id, day, steps, source_id) VALUES (${profileId}, ${iso}::date, ${steps}, ${src!.id})
+        ON CONFLICT (profile_id, day) DO UPDATE SET steps = EXCLUDED.steps, source_id = EXCLUDED.source_id`;
+      await tx`
+        UPDATE activity_source SET data_from = LEAST(COALESCE(data_from, ${iso}::date), ${iso}::date),
+                                   data_to = GREATEST(COALESCE(data_to, ${iso}::date), ${iso}::date)
+        WHERE id = ${src!.id}`;
+    });
+    return { ok: true };
+  }
+
+  /** Efface un jour saisi à la main (les jours importés ne sont pas concernés). */
+  async function removeManualDay(actor: Actor, profileId: string, dayIso: string): Promise<boolean> {
+    const day = parseLocalDate(dayIso);
+    if (!day) return false;
+    const rows = await P.withProfileData(actor, profileId, 'activity', 'write', (tx) =>
+      tx`DELETE FROM activity_daily d USING activity_source s
+         WHERE d.profile_id = ${profileId} AND d.day = ${formatLocalDate(day)}::date AND s.id = d.source_id AND s.status = 'manual'
+         RETURNING d.day`,
+    );
+    return rows.length > 0;
+  }
+
+  /** Derniers jours saisis à la main (du plus récent au plus ancien). */
+  async function manualDays(actor: Actor, profileId: string, limit = 14): Promise<ManualStepsDay[]> {
+    return P.withProfileData(actor, profileId, 'activity', 'read', (tx) =>
+      tx<ManualStepsDay[]>`
+        SELECT to_char(d.day, 'YYYY-MM-DD') AS day, d.steps FROM activity_daily d JOIN activity_source s ON s.id = d.source_id
+        WHERE d.profile_id = ${profileId} AND s.status = 'manual' ORDER BY d.day DESC LIMIT ${limit}`,
+    );
   }
 
   /** Efface toutes les données d'activité importées pour ce profil. */
@@ -158,7 +229,7 @@ export function createActivityService(cfg: ActivityConfig) {
     });
   }
 
-  return { importAppleHealth, daily, hourly, goal, setGoal, source, clear };
+  return { importAppleHealth, daily, hourly, goal, setGoal, source, setManualDay, removeManualDay, manualDays, clear };
 }
 
 export type ActivityService = ReturnType<typeof createActivityService>;

@@ -14,11 +14,11 @@ import {
 } from '@bilanx/domain';
 import { DEMO_TIMEZONE, demoToday } from '@/lib/demo-data';
 import { appContext, moduleAllowed } from '@/lib/server/context';
-import { stepsDaily, stepsGoal, stepsHourly, stepsSource } from '@/lib/server/activity-data';
-import { clearActivityAction } from '@/lib/server/actions';
+import { manualSteps, stepsDaily, stepsGoal, stepsHourly, stepsSource } from '@/lib/server/activity-data';
+import { clearActivityAction, removeStepsAction } from '@/lib/server/actions';
 import { Card, Chip, Meta, PageHeader } from '@/components/ui';
 import { StepsBars, type Bar } from '@/components/steps-bars';
-import { AppleHealthImport, GoalForm } from '@/components/activity-forms';
+import { AppleHealthImport, GoalForm, ManualStepsForm } from '@/components/activity-forms';
 import { ModuleForbidden } from '@/components/module-forbidden';
 
 export const metadata: Metadata = { title: 'Activité & Pas' };
@@ -63,11 +63,12 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const canWrite = !isDemo && moduleAllowed(ctx.active, 'activity', 'write');
   const lastTo = compareLocalDates(to, today) > 0 ? today : to;
 
-  const [goal, source, daily, hourly] = await Promise.all([
+  const [goal, source, daily, hourly, manual] = await Promise.all([
     stepsGoal(ctx),
     stepsSource(ctx),
     stepsDaily(ctx, from, lastTo, now),
     view === 'jour' ? stepsHourly(ctx, day, now) : Promise.resolve(new Map<number, number>()),
+    canWrite ? manualSteps(ctx) : Promise.resolve([]),
   ]);
   const days = compareLocalDates(from, today) > 0 ? [] : stepsSeries(daily, from, lastTo);
   const stats = stepsStats(days, goal);
@@ -117,7 +118,10 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const href = (v: View, d: LocalDate) => `/activite?vue=${v}&date=${formatLocalDate(d)}`;
   const navBtn = 'inline-grid min-h-11 min-w-11 place-items-center rounded-xl border border-line bg-surface px-3 font-medium hover:bg-surface-2';
   const hasNext = compareLocalDates(next, today) <= 0;
-  const dayTotal = view === 'jour' ? [...hourly.values()].reduce((a, b) => a + b, 0) : null;
+  // Total du jour : valeur quotidienne enregistrée (import ou saisie), sinon somme des heures.
+  const dayDaily = view === 'jour' ? (daily.get(formatLocalDate(day)) ?? null) : null;
+  const dayTotal = view === 'jour' ? (dayDaily ?? (hourly.size ? [...hourly.values()].reduce((a, b) => a + b, 0) : null)) : null;
+  const dayManualOnly = view === 'jour' && dayDaily !== null && hourly.size === 0;
   const fmtDT = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'medium', timeStyle: 'short' });
 
   return (
@@ -174,6 +178,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
               <StepsBars bars={bars} goal={barGoal} minWidth={minWidth} labelEvery={labelEvery} />
             </div>
             <Meta className="mt-1">
+              {dayManualOnly ? 'Total saisi à la main pour ce jour, sans détail par heure. ' : ''}
               {view === 'annee'
                 ? 'Chaque barre est une moyenne par jour, calculée sur les seuls jours renseignés du mois.'
                 : 'Nombre exact au-dessus de chaque barre ; un jour ou une heure sans donnée reste vide (jamais compté comme 0).'}
@@ -185,13 +190,13 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
             <Card>
               <p className="text-xs text-ink-3">{view === 'jour' ? 'Pas ce jour' : 'Moyenne par jour'}</p>
               <p className="tabular mt-1 text-3xl font-semibold">
-                {view === 'jour' ? (hourly.size ? formatNumberFr(dayTotal!) : '—') : stats.averagePerDay === null ? '—' : formatNumberFr(Math.round(stats.averagePerDay))}
+                {view === 'jour' ? (dayTotal !== null ? formatNumberFr(dayTotal) : '—') : stats.averagePerDay === null ? '—' : formatNumberFr(Math.round(stats.averagePerDay))}
               </p>
               <Meta>{view === 'jour' ? `objectif ${formatNumberFr(goal)}` : `sur ${stats.daysWithData} jour(s) renseigné(s)`}</Meta>
             </Card>
             <Card>
               <p className="text-xs text-ink-3">Objectif atteint</p>
-              <p className="tabular mt-1 text-3xl font-semibold">{view === 'jour' ? (hourly.size ? (dayTotal! >= goal ? 'oui' : 'non') : '—') : `${stats.goalReachedDays} j`}</p>
+              <p className="tabular mt-1 text-3xl font-semibold">{view === 'jour' ? (dayTotal !== null ? (dayTotal >= goal ? 'oui' : 'non') : '—') : `${stats.goalReachedDays} j`}</p>
               <Meta>objectif : {formatNumberFr(goal)} pas</Meta>
             </Card>
             <Card>
@@ -208,17 +213,49 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
         </div>
 
         <div className="flex flex-col gap-4">
+          {canWrite && (
+            <Card>
+              <h2 className="font-semibold">Saisir mes pas</h2>
+              <p className="mb-3 mt-1 text-sm text-ink-3">Le total d’un jour, lu sur votre téléphone ou votre montre. Une nouvelle saisie pour le même jour remplace l’ancienne.</p>
+              <ManualStepsForm today={formatLocalDate(today)} defaultDay={formatLocalDate(view === 'jour' ? day : today)} />
+              {manual.length > 0 && (
+                <details className="mt-4 text-sm">
+                  <summary className="cursor-pointer text-petrol">Jours saisis à la main ({manual.length === 14 ? '14 derniers' : manual.length})</summary>
+                  <ul className="mt-2 divide-y divide-line">
+                    {manual.map((m) => (
+                      <li key={m.day} className="flex items-center justify-between gap-2 py-1.5">
+                        <span>
+                          {dd(m.day)} · <span className="tabular font-medium">{formatNumberFr(m.steps)} pas</span>
+                        </span>
+                        <form action={removeStepsAction}>
+                          <input type="hidden" name="day" value={m.day} />
+                          <button type="submit" className="min-h-9 rounded-lg px-2 text-red hover:bg-red-2" aria-label={`Supprimer la saisie du ${dd(m.day)}`}>
+                            Supprimer
+                          </button>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </Card>
+          )}
           <Card>
             <h2 className="font-semibold">Source des données</h2>
             {source ? (
               <div className="mt-2 text-sm">
                 <p>
-                  {source.label} <Chip tone="neutral">{source.status === 'demo' ? 'fictif' : 'import de fichier'}</Chip>
+                  {source.label} <Chip tone="neutral">{source.status === 'demo' ? 'fictif' : source.status === 'manual' ? 'saisie' : 'import de fichier'}</Chip>
                 </p>
-                {source.lastImportAt && <Meta className="mt-1">Dernier import : {fmtDT.format(source.lastImportAt)}</Meta>}
+                {source.lastImportAt && (
+                  <Meta className="mt-1">
+                    {source.status === 'manual' ? 'Dernière saisie' : 'Dernier import'} : {fmtDT.format(source.lastImportAt)}
+                  </Meta>
+                )}
+                {source.status !== 'manual' && source.kinds.includes('manual') && <Meta>Certains jours ont aussi été saisis à la main.</Meta>}
                 {source.dataFrom && source.dataTo && <Meta>Données du {dd(source.dataFrom)} au {dd(source.dataTo)}</Meta>}
                 {source.sources.length > 0 && <Meta>Appareils : {source.sources.join(', ')}</Meta>}
-                {!isDemo && <Meta className="mt-2">Aucune synchronisation automatique : importez un nouvel export pour mettre à jour.</Meta>}
+                {!isDemo && <Meta className="mt-2">Aucune synchronisation automatique : saisissez vos pas ou importez un nouvel export.</Meta>}
               </div>
             ) : (
               <p className="mt-2 text-sm text-ink-3">Aucune donnée d’activité pour ce profil.</p>
@@ -241,7 +278,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
           )}
           {canWrite && source && (
             <details className="text-sm">
-              <summary className="cursor-pointer text-ink-3">Effacer les données d’activité importées</summary>
+              <summary className="cursor-pointer text-ink-3">Effacer toutes les données d’activité (importées et saisies)</summary>
               <form action={clearActivityAction} className="mt-2">
                 <button type="submit" className="rounded-lg bg-red-2 px-3 py-2 font-medium text-red">
                   Confirmer l’effacement

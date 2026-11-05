@@ -2,7 +2,7 @@
 
 import { useActionState, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { setStepsGoalAction, type FormState } from '@/lib/server/actions';
+import { addStepsAction, setStepsGoalAction, type FormState } from '@/lib/server/actions';
 import { Alert, SubmitButton } from './forms';
 
 export function AppleHealthImport() {
@@ -62,6 +62,45 @@ export function GoalForm({ goal }: { goal: number }) {
       </div>
       {state.errors?.form && <p className="w-full text-sm text-red">{state.errors.form}</p>}
       {state.ok && <p className="w-full text-sm text-sage">{state.message}</p>}
+    </form>
+  );
+}
+
+/** Saisie manuelle du nombre de pas d'un jour (remplace la valeur déjà présente pour ce jour). */
+export function ManualStepsForm({ today, defaultDay }: { today: string; defaultDay: string }) {
+  const [state, action] = useActionState(addStepsAction, {} as FormState);
+  return (
+    <form action={action} className="flex flex-col gap-3" key={state.attempt ?? 'initial'}>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="flex flex-col gap-1 text-sm font-medium">
+          Jour
+          <input type="date" name="day" required max={today} defaultValue={state.values?.day ?? defaultDay} className="min-h-11 rounded-xl border border-line bg-surface px-3" />
+        </label>
+        <label className="flex flex-col gap-1 text-sm font-medium">
+          Nombre de pas
+          <input
+            name="steps"
+            required
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="ex. 8 500"
+            defaultValue={state.values?.steps}
+            aria-invalid={!!state.errors?.form}
+            className="tabular min-h-11 rounded-xl border border-line bg-surface px-3"
+          />
+        </label>
+      </div>
+      <SubmitButton pendingLabel="Enregistrement…">Enregistrer</SubmitButton>
+      {state.errors?.form && (
+        <p className="text-sm text-red" role="alert">
+          {state.errors.form}
+        </p>
+      )}
+      {state.ok && (
+        <p className="text-sm text-sage" role="status">
+          {state.message}
+        </p>
+      )}
     </form>
   );
 }

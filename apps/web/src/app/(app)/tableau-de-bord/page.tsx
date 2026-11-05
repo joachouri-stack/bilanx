@@ -217,7 +217,7 @@ export default async function DashboardPage() {
             </>
           ) : (
             <>
-              <p className="mt-3 text-sm text-ink-2">{stepsSrc ? 'Aucun pas importé pour aujourd’hui.' : 'Aucune source de données.'}</p>
+              <p className="mt-3 text-sm text-ink-2">{stepsSrc ? 'Aucun pas enregistré pour aujourd’hui.' : 'Aucune source de données.'}</p>
               <Meta className="mt-1">
                 {stepsSrc?.lastImportAt
                   ? `Dernier import Apple Santé : ${new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'short' }).format(stepsSrc.lastImportAt)}. Importez un nouvel export pour mettre à jour.`

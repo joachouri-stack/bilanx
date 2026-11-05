@@ -149,4 +149,52 @@ describe.skipIf(!TEST_DB)('import des pas (PostgreSQL réel)', () => {
     expect(ms).toBeLessThan(30_000);
     console.info(`  import de ${(xml.length / 1e6).toFixed(0)} Mo de XML (${r.ok && r.stepRecords} mesures) en ${(ms / 1000).toFixed(1)} s`);
   });
+
+  it('saisie manuelle : ajout, remplacement d’un jour importé, contrôles, liste et suppression', async () => {
+    // 5 nov. (aujourd'hui) : aucun import ce jour-là.
+    expect(await act.setManualDay(jo, pid, '2026-11-05', 6543)).toEqual({ ok: true });
+    expect((await act.daily(jo, pid, '2026-11-05', '2026-11-05')).get('2026-11-05')).toBe(6543);
+    const src = await act.source(jo, pid);
+    expect(src).toMatchObject({ status: 'file_import' }); // l'import reste la source principale affichée
+    expect(src!.kinds.sort()).toEqual(['file_import', 'manual']);
+
+    // 4 nov. : jour importé (2300) remplacé par la saisie ; son détail horaire est retiré.
+    expect(await act.setManualDay(jo, pid, '2026-11-04', 5000)).toEqual({ ok: true });
+    expect((await act.daily(jo, pid, '2026-11-04', '2026-11-04')).get('2026-11-04')).toBe(5000);
+    expect((await act.hourly(jo, pid, new Date('2026-11-03T23:00:00Z'), new Date('2026-11-04T23:00:00Z'))).size).toBe(0);
+    // Une nouvelle saisie du même jour remplace la précédente.
+    expect(await act.setManualDay(jo, pid, '2026-11-04', 5100)).toEqual({ ok: true });
+    expect((await act.daily(jo, pid, '2026-11-04', '2026-11-04')).get('2026-11-04')).toBe(5100);
+
+    // Contrôles.
+    expect(await act.setManualDay(jo, pid, '2026-11-06', 100)).toMatchObject({ ok: false, error: expect.stringContaining('futur') });
+    expect(await act.setManualDay(jo, pid, '2026-11-02', -5)).toMatchObject({ ok: false });
+    expect(await act.setManualDay(jo, pid, '2026-11-02', 12.5)).toMatchObject({ ok: false });
+    expect(await act.setManualDay(jo, pid, '2026-11-02', 100_001)).toMatchObject({ ok: false });
+    expect(await act.setManualDay(jo, pid, 'hier', 100)).toMatchObject({ ok: false });
+    expect(await act.setManualDay(jo, pid, '2026-11-02', 0)).toEqual({ ok: true }); // 0 pas est une vraie valeur
+
+    expect(await act.manualDays(jo, pid)).toEqual([
+      { day: '2026-11-05', steps: 6543 },
+      { day: '2026-11-04', steps: 5100 },
+      { day: '2026-11-02', steps: 0 },
+    ]);
+
+    // Suppression : seulement les jours saisis.
+    expect(await act.removeManualDay(jo, pid, '2026-11-05')).toBe(true);
+    expect((await act.daily(jo, pid, '2026-11-05', '2026-11-05')).size).toBe(0);
+    const imported = (await act.daily(jo, pid, '2026-11-03', '2026-11-03')).get('2026-11-03');
+    expect(imported).toBeGreaterThan(0);
+    expect(await act.removeManualDay(jo, pid, '2026-11-03')).toBe(false); // jour importé : conservé
+    expect((await act.daily(jo, pid, '2026-11-03', '2026-11-03')).get('2026-11-03')).toBe(imported);
+
+    // Un aidant en lecture seule ne peut pas saisir.
+    await expect(act.setManualDay(marc, pid, '2026-11-05', 1000)).rejects.toBeInstanceOf(ForbiddenError);
+
+    // Un nouvel import contenant le 4 nov. le recalcule à partir des heures.
+    await act.importAppleHealth(jo, pid, chunked(strToU8(XML), 999));
+    const reimported = (await act.daily(jo, pid, '2026-11-04', '2026-11-04')).get('2026-11-04');
+    expect(reimported).not.toBe(5100);
+    expect(reimported).toBeGreaterThanOrEqual(2300);
+  });
 });

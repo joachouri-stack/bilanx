@@ -941,6 +941,31 @@ export async function setStepsGoalAction(_: FormState, fd: FormData): Promise<Fo
   return { attempt: crypto.randomUUID(), ok: true, message: 'Objectif enregistré.' };
 }
 
+export async function addStepsAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { attempt: crypto.randomUUID(), errors: { form: 'Profil de démonstration en lecture seule.' } };
+  const day = str(fd, 'day');
+  const raw = str(fd, 'steps').replace(/[\s\u00a0\u202f.]/g, '');
+  const steps = /^\d+$/.test(raw) ? Number(raw) : NaN;
+  try {
+    const r = await activity().setManualDay(ctx.user, ctx.active.access.profileId, day, steps);
+    if (!r.ok) return { attempt: crypto.randomUUID(), errors: { form: r.error }, values: { day, steps: str(fd, 'steps') } };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message } };
+    throw e;
+  }
+  revalidatePath('/activite');
+  revalidatePath('/tableau-de-bord');
+  return { attempt: crypto.randomUUID(), ok: true, message: `${steps.toLocaleString('fr-FR')} pas enregistrés pour le ${new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', dateStyle: 'long' }).format(new Date(`${day}T12:00:00Z`))}.` };
+}
+
+export async function removeStepsAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await activity().removeManualDay(ctx.user, ctx.active.access.profileId, str(fd, 'day'));
+  revalidatePath('/activite');
+  revalidatePath('/tableau-de-bord');
+}
+
 export async function clearActivityAction(): Promise<void> {
   const ctx = await appContext();
   if (ctx.active.kind === 'real') await activity().clear(ctx.user, ctx.active.access.profileId);
