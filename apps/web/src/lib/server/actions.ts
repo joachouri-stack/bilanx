@@ -772,6 +772,18 @@ export async function removeDeviceAction(fd: FormData): Promise<void> {
   redirect('/medicaments#rappels');
 }
 
+// ───────────── Unités d'affichage d'un profil ─────────────
+export async function setDisplayUnitsAction(fd: FormData): Promise<void> {
+  const user = await requireUser();
+  const profileId = str(fd, 'profileId');
+  await profiles().setDisplayUnits({ accountId: user.accountId, email: user.email, displayName: user.displayName ?? '' }, profileId, {
+    glucose: str(fd, 'glucose'),
+    hba1c: str(fd, 'hba1c'),
+  });
+  revalidatePath('/', 'layout');
+  redirect(`/famille/${profileId}?unites=1`);
+}
+
 // ───────────── Médicaments ─────────────
 function medicationValues(fd: FormData) {
   const times = fd.getAll('times').map(String);

@@ -40,6 +40,9 @@ export interface ProfileAccess {
   role: AccessRole;
   permissions: Permissions;
   expiresAt: Date | null;
+  /** Unités d'affichage choisies pour ce profil (valeurs toujours stockées en mg/dL et en %). */
+  glucoseUnit: 'mg/dL' | 'mmol/L' | 'g/L';
+  hba1cUnit: '%' | 'mmol/mol';
 }
 
 export interface Actor {
@@ -67,6 +70,8 @@ export function createProfilesService(cfg: ProfilesConfig) {
     role: AccessRole;
     permissions: Permissions;
     expires_at: Date | null;
+    glucose_unit: ProfileAccess['glucoseUnit'];
+    hba1c_unit: ProfileAccess['hba1cUnit'];
   };
   const toAccess = (r: Row): ProfileAccess => ({
     accessId: r.access_id,
@@ -77,13 +82,15 @@ export function createProfilesService(cfg: ProfilesConfig) {
     role: r.role,
     permissions: sanitizePermissions(r.permissions ?? {}),
     expiresAt: r.expires_at,
+    glucoseUnit: r.glucose_unit,
+    hba1cUnit: r.hba1c_unit,
   });
 
   // ───────────────────────── Lecture des accès ─────────────────────────
   async function listProfiles(accountId: string): Promise<ProfileAccess[]> {
     const rows = await sql<Row[]>`
       SELECT pa.id AS access_id, p.id AS profile_id, p.display_name, p.relationship, to_char(p.birth_date, 'YYYY-MM-DD') AS birth_date,
-             pa.role, pa.permissions, pa.expires_at
+             pa.role, pa.permissions, pa.expires_at, p.glucose_unit, p.hba1c_unit
       FROM profile_access pa JOIN profile p ON p.id = pa.profile_id AND p.deleted_at IS NULL
       WHERE pa.account_id = ${accountId} AND pa.revoked_at IS NULL AND (pa.expires_at IS NULL OR pa.expires_at > ${now()})
       ORDER BY (p.relationship = 'self' AND pa.role = 'owner') DESC NULLS LAST, (pa.role = 'owner') DESC, p.display_name`;
@@ -94,12 +101,23 @@ export function createProfilesService(cfg: ProfilesConfig) {
     if (!/^[0-9a-f-]{36}$/i.test(profileId)) return null;
     const [r] = await sql<Row[]>`
       SELECT pa.id AS access_id, p.id AS profile_id, p.display_name, p.relationship, to_char(p.birth_date, 'YYYY-MM-DD') AS birth_date,
-             pa.role, pa.permissions, pa.expires_at
+             pa.role, pa.permissions, pa.expires_at, p.glucose_unit, p.hba1c_unit
       FROM profile_access pa JOIN profile p ON p.id = pa.profile_id AND p.deleted_at IS NULL
       WHERE pa.account_id = ${accountId} AND pa.profile_id = ${profileId}
         AND pa.revoked_at IS NULL AND (pa.expires_at IS NULL OR pa.expires_at > ${now()})
       ORDER BY (pa.role = 'owner') DESC LIMIT 1`;
     return r ? toAccess(r) : null;
+  }
+
+  /** Unités d'affichage d'un profil : réglage du ou de la gestionnaire, appliqué pour tous ses lecteurs. */
+  async function setDisplayUnits(actor: Actor, profileId: string, units: { glucose: string; hba1c: string }): Promise<Result> {
+    await requireOwner(actor.accountId, profileId);
+    if (!['mg/dL', 'mmol/L', 'g/L'].includes(units.glucose) || !['%', 'mmol/mol'].includes(units.hba1c)) return { ok: false, error: 'Unité invalide.' };
+    await sql.begin(async (tx) => {
+      await tx`UPDATE profile SET glucose_unit = ${units.glucose}, hba1c_unit = ${units.hba1c} WHERE id = ${profileId}`;
+      await audit(tx, { accountId: actor.accountId, profileId, action: 'profile.units_changed', resource: 'profile', resourceId: profileId, context: units });
+    });
+    return { ok: true };
   }
 
   async function requireOwner(accountId: string, profileId: string): Promise<ProfileAccess> {
@@ -436,6 +454,7 @@ export function createProfilesService(cfg: ProfilesConfig) {
 
   return {
     listProfiles,
+    setDisplayUnits,
     getAccess,
     withProfileData,
     createRelativeProfile,

@@ -134,6 +134,14 @@ describe('rapport PDF', () => {
     expect(text).toContain('DONNÉES FICTIVES');
   });
 
+  it('glycémie dans l’unité choisie pour le profil (g/L)', async () => {
+    const d = sample();
+    d.glucose!.unit = 'g/L';
+    const { text } = await pdfToText(await buildReportPdf(d));
+    expect(text).toContain('Plage cible 0,70–1,80 g/L');
+    expect(text).not.toContain('mg/dL');
+  });
+
   it('remplace les caractères non représentables par les polices du PDF', () => {
     expect(pdfText('≤ 5 μmol/L 🍽 → ok')).toBe('<= 5 µmol/L  -> ok');
   });

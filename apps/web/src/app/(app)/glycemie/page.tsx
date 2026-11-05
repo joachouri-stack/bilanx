@@ -7,12 +7,12 @@ import {
   dayBounds,
   formatLocalDate,
   formatNumberFr,
-  glucoseForDisplay,
+  formatGlucose,
   parseLocalDate,
   type GlucoseUnit,
 } from '@bilanx/domain';
 import { DEMO_TIMEZONE, demoFirstDay, demoToday } from '@/lib/demo-data';
-import { appContext, moduleAllowed } from '@/lib/server/context';
+import { appContext, displayUnits, moduleAllowed } from '@/lib/server/context';
 import { glucoseDay } from '@/lib/server/data';
 import { ModuleForbidden } from '@/components/module-forbidden';
 import { Card, Chip, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
@@ -34,8 +34,11 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
   const first = isDemo ? demoFirstDay(now) : addDays(today, -365);
   let day = (sp.jour && parseLocalDate(sp.jour)) || today;
   if (compareLocalDates(day, today) > 0) day = today;
-  const unit: GlucoseUnit = sp.unite === 'mmol' ? 'mmol/L' : 'mg/dL';
-  const unitParam = unit === 'mmol/L' ? '&unite=mmol' : '';
+  // Unité du profil, ou choix ponctuel (?unite=) sans modifier la préférence.
+  const UNIT_PARAM: Record<string, GlucoseUnit> = { mgdl: 'mg/dL', gl: 'g/L', mmol: 'mmol/L' };
+  const unit: GlucoseUnit = UNIT_PARAM[sp.unite ?? ''] ?? displayUnits(ctx.active).glucose;
+  const unitKey = Object.entries(UNIT_PARAM).find(([, u]) => u === unit)![0];
+  const unitParam = sp.unite && UNIT_PARAM[sp.unite] ? `&unite=${unitKey}` : '';
   const isToday = compareLocalDates(day, today) === 0;
 
   const data = await glucoseDay(ctx, day, now);
@@ -43,7 +46,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
   const stats = computeGlucoseStats(data.sensor, { periodStart: start, periodEnd: isToday ? now : end });
   const dayLabel = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'full' }).format(start);
   const hrefFor = (d: typeof day) => `/glycemie?jour=${formatLocalDate(d)}${unitParam}`;
-  const g = (v: number | null) => (v === null ? '—' : formatNumberFr(glucoseForDisplay(v, unit), 1));
+  const g = (v: number | null) => (v === null ? '—' : formatGlucose(v, unit));
   const navBtn = 'inline-grid min-h-11 min-w-11 place-items-center rounded-xl border border-line bg-surface px-3 font-medium hover:bg-surface-2';
 
   return (
@@ -100,7 +103,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
                 max={formatLocalDate(today)}
                 className="min-h-11 rounded-xl border border-line bg-surface px-3"
               />
-              {unit === 'mmol/L' && <input type="hidden" name="unite" value="mmol" />}
+              {unitParam && <input type="hidden" name="unite" value={unitKey} />}
               <button type="submit" className={navBtn}>
                 Afficher
               </button>
@@ -114,16 +117,17 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
           <div className="flex flex-wrap items-center gap-2">
             <Chip tone="glucose">● Capteur</Chip>
             <Chip tone="neutral">◆ Capillaire</Chip>
-            <span className="inline-flex rounded-xl bg-surface-2 p-1 text-sm">
-              <Link href={`/glycemie?jour=${formatLocalDate(day)}`} className={`rounded-lg px-3 py-1.5 ${unit === 'mg/dL' ? 'bg-surface shadow-sm' : 'text-ink-3'}`}>
-                mg/dL
-              </Link>
-              <Link
-                href={`/glycemie?jour=${formatLocalDate(day)}&unite=mmol`}
-                className={`rounded-lg px-3 py-1.5 ${unit === 'mmol/L' ? 'bg-surface shadow-sm' : 'text-ink-3'}`}
-              >
-                mmol/L
-              </Link>
+            <span className="inline-flex rounded-xl bg-surface-2 p-1 text-sm" aria-label="Unité d’affichage">
+              {Object.entries(UNIT_PARAM).map(([k, u]) => (
+                <Link
+                  key={k}
+                  href={`/glycemie?jour=${formatLocalDate(day)}&unite=${k}`}
+                  aria-current={unit === u ? 'true' : undefined}
+                  className={`rounded-lg px-3 py-1.5 ${unit === u ? 'bg-surface shadow-sm' : 'text-ink-3'}`}
+                >
+                  {u}
+                </Link>
+              ))}
             </span>
           </div>
         </div>

@@ -214,4 +214,12 @@ describe.skipIf(!TEST_DB)('Famille & profils (PostgreSQL réel, Row-Level Securi
     expect(lines).toContain('jo@exemple.fr:profile.created:profile');
     await expect(profiles.accessLog(marc, mamieId)).rejects.toBeInstanceOf(ForbiddenError);
   });
+
+  it('unités d’affichage : réglage du gestionnaire, visibles pour tous les lecteurs du profil', async () => {
+    expect((await profiles.getAccess(jo.accountId, mamieId))).toMatchObject({ glucoseUnit: 'mg/dL', hba1cUnit: '%' });
+    expect(await profiles.setDisplayUnits(jo, mamieId, { glucose: 'mg/l', hba1c: '%' })).toMatchObject({ ok: false });
+    await expect(profiles.setDisplayUnits(intrus, mamieId, { glucose: 'g/L', hba1c: '%' })).rejects.toBeInstanceOf(ForbiddenError);
+    expect(await profiles.setDisplayUnits(jo, mamieId, { glucose: 'g/L', hba1c: 'mmol/mol' })).toEqual({ ok: true });
+    expect((await profiles.listProfiles(jo.accountId)).find((p) => p.profileId === mamieId)).toMatchObject({ glucoseUnit: 'g/L', hba1cUnit: 'mmol/mol' });
+  });
 });

@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { GLUCOSE_UNITS, HBA1C_UNITS } from '@bilanx/domain';
 import { notFound } from 'next/navigation';
 import { MODULES, ROLE_LABELS, type Permissions } from '@bilanx/profiles';
 import { profiles } from '@/lib/server/auth';
 import { appContext } from '@/lib/server/context';
-import { leaveProfileAction, revokeAccessAction, revokeInvitationAction } from '@/lib/server/actions';
+import { leaveProfileAction, revokeAccessAction, revokeInvitationAction, setDisplayUnitsAction } from '@/lib/server/actions';
 import { Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
 import { InviteForm, PermissionsEditor } from '@/components/family-forms';
 import { DeleteProfileForm } from '@/components/privacy-forms';
@@ -30,9 +31,10 @@ function summary(p: Permissions): string {
   return parts.length ? parts.join(', ') : 'aucun module';
 }
 
-export default async function ProfileAccessPage({ params }: { params: Promise<{ profileId: string }> }) {
+export default async function ProfileAccessPage({ params, searchParams }: { params: Promise<{ profileId: string }>; searchParams: Promise<{ unites?: string }> }) {
   const ctx = await appContext();
   const { profileId } = await params;
+  const sp = await searchParams;
   const me = ctx.profiles.find((p) => p.profileId === profileId);
   if (!me) notFound();
   const fmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Paris' });
@@ -157,6 +159,46 @@ export default async function ProfileAccessPage({ params }: { params: Promise<{ 
         </div>
 
         <div className="flex flex-col gap-4">
+        <Card>
+          <h2 className="font-semibold" id="unites">
+            Unités d’affichage
+          </h2>
+          <p className="mt-1 text-sm text-ink-3">Pour tous ceux qui consultent ce profil. Les valeurs enregistrées ne changent pas, seul l’affichage change.</p>
+          {sp.unites && (
+            <p role="status" className="mt-3 rounded-xl bg-sage-2 px-3 py-2 text-sm">
+              Unités enregistrées.
+            </p>
+          )}
+          <form action={setDisplayUnitsAction} className="mt-3 flex flex-col gap-3">
+            <input type="hidden" name="profileId" value={profileId} />
+            <fieldset>
+              <legend className="mb-1.5 text-sm font-medium">Glycémie (capteur, journal, rapports)</legend>
+              <div className="flex flex-col gap-1.5">
+                {Object.entries(GLUCOSE_UNITS).map(([u, label]) => (
+                  <label key={u} className="flex min-h-10 items-center gap-2 text-sm">
+                    <input type="radio" name="glucose" value={u} defaultChecked={me.glucoseUnit === u} className="size-4 accent-[var(--petrol)]" />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset>
+              <legend className="mb-1.5 text-sm font-medium">HbA1c (tableau de bord)</legend>
+              <div className="flex flex-col gap-1.5">
+                {Object.entries(HBA1C_UNITS).map(([u, label]) => (
+                  <label key={u} className="flex min-h-10 items-center gap-2 text-sm">
+                    <input type="radio" name="hba1c" value={u} defaultChecked={me.hba1cUnit === u} className="size-4 accent-[var(--petrol)]" />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <p className="text-xs text-ink-3">Les résultats de laboratoire restent affichés tels qu’écrits par le laboratoire, avec la conversion à côté.</p>
+            <button type="submit" className="min-h-11 self-start rounded-xl border border-line px-4 text-sm font-medium hover:bg-surface-2">
+              Enregistrer les unités
+            </button>
+          </form>
+        </Card>
         <Card>
           <h2 className="font-semibold">Inviter une personne</h2>
           <p className="mb-4 mt-1 text-sm text-ink-3">L’invitation ne donne aucun accès tant qu’elle n’est pas acceptée par cette personne, connectée avec cette adresse.</p>

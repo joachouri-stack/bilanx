@@ -21,7 +21,7 @@ import type { ModuleKey } from '@bilanx/profiles';
 import type { ReportData, ReportLab, SectionKey, Source } from '@bilanx/reports';
 import { DEMO_NEXT_APPOINTMENT, DEMO_TIMEZONE, demoDay } from '@/lib/demo-data';
 import { appointments, insulin, journal, profiles } from './auth';
-import { moduleAllowed, type AppContext } from './context';
+import { displayUnits, moduleAllowed, type AppContext } from './context';
 import { glucoseRangeAll, journalToEvent, labResults, type LabRow } from './data';
 import { insulinDoses, insulinProducts, toDomainDoses } from './insulin-data';
 import { stepsDaily, stepsGoal, stepsSource } from './activity-data';
@@ -85,6 +85,7 @@ export async function collectReport(ctx: AppContext, from: LocalDate, to: LocalD
       capillaryCount: all.length - sensor.length,
       source: isDemo ? 'demo' : 'import',
       targets: { low: 70, high: 180 },
+      unit: displayUnits(ctx.active).glucose,
     };
   }
   if (wanted.includes('hba1c') || wanted.includes('lab')) {

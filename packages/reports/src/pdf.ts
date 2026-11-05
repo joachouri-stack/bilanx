@@ -5,7 +5,7 @@
  * aucune interprétation ni recommandation.
  */
 import PDFDocument from 'pdfkit';
-import { formatNumberFr, hba1cPercentToMmolMol, referenceStatus } from '@bilanx/domain';
+import { formatGlucose, formatNumberFr, hba1cPercentToMmolMol, referenceStatus } from '@bilanx/domain';
 import { SECTION_LABELS, type ReportData, type ReportLab, type Source } from './types';
 
 const C = {
@@ -195,17 +195,18 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
   if (d.glucose) {
     h2(SECTION_LABELS.glucose);
     const s = d.glucose.stats;
+    const gu = d.glucose.unit ?? 'mg/dL';
     if (s.count === 0) missing('Aucune mesure du capteur sur la période.');
     else {
       kpis([
-        ['Moyenne', `${Math.round(s.mean!)} mg/dL`],
+        ['Moyenne', `${formatGlucose(s.mean!, gu)} ${gu}`],
         ['Dans la cible', `${Math.round(s.pctInRange)} %`],
         ['Sous la cible', `${Math.round(s.pctLow + s.pctVeryLow)} %`],
         ['Au-dessus', `${Math.round(s.pctHigh + s.pctVeryHigh)} %`],
         ['Variabilité (CV)', `${Math.round(s.cv ?? 0)} %`],
       ]);
       text(
-        `Plage cible ${d.glucose.targets.low}–${d.glucose.targets.high} mg/dL · très bas (< 54) ${n(s.pctVeryLow)} % · bas ${n(s.pctLow)} % · élevé ${n(s.pctHigh)} % · très élevé (> 250) ${n(s.pctVeryHigh)} % · min ${Math.round(s.min!)} / max ${Math.round(s.max!)} mg/dL · données disponibles ${Math.round(s.coveragePct)} %`,
+        `Plage cible ${formatGlucose(d.glucose.targets.low, gu)}–${formatGlucose(d.glucose.targets.high, gu)} ${gu} · très bas (< ${formatGlucose(54, gu)}) ${n(s.pctVeryLow)} % · bas ${n(s.pctLow)} % · élevé ${n(s.pctHigh)} % · très élevé (> ${formatGlucose(250, gu)}) ${n(s.pctVeryHigh)} % · min ${formatGlucose(s.min!, gu)} / max ${formatGlucose(s.max!, gu)} ${gu} · données disponibles ${Math.round(s.coveragePct)} %`,
         { size: 8.5, color: C.ink2 },
       );
       if (s.gmiReliable && s.gmiPercent !== null)
@@ -225,7 +226,7 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
       doc.rect(cx, y(d.glucose.targets.high), cw, y(d.glucose.targets.low) - y(d.glucose.targets.high)).fill(C.sageSoft);
       for (const v of [54, 70, 180, 250]) {
         doc.moveTo(cx, y(v)).lineTo(cx + cw, y(v)).lineWidth(0.4).dash(2, { space: 2 }).strokeColor(v === 54 ? C.red : C.line).stroke().undash();
-        text(String(v), { x: L, y: y(v) - 3.5, width: 26, size: 7, color: C.ink3, align: 'right' });
+        text(formatGlucose(v, gu), { x: L, y: y(v) - 3.5, width: 26, size: 7, color: C.ink3, align: 'right' });
       }
       const pts = d.glucose.agp.filter((a) => a.p50 !== null);
       const band = (lo: 'p5' | 'p25', hi: 'p95' | 'p75', color: string) => {

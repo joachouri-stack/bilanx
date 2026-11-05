@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { auth, privacy, requireUser } from '@/lib/server/auth';
 import { DeleteAccountForm } from '@/components/privacy-forms';
 import {
@@ -98,6 +99,13 @@ export default async function SettingsPage({
               Se déconnecter
             </button>
           </form>
+          {user.profileId && (
+            <p className="mt-3 text-sm">
+              <Link href={`/famille/${user.profileId}#unites`} className="text-petrol underline">
+                Unités d’affichage (glycémie en mg/dL, g/L ou mmol/L ; HbA1c)
+              </Link>
+            </p>
+          )}
           <div className="mt-5 flex flex-col gap-2.5">
             <details className="rounded-xl border border-line p-3.5" id="mot-de-passe">
               <summary className="cursor-pointer text-sm font-medium text-petrol">Changer mon mot de passe</summary>

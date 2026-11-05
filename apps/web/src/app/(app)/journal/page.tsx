@@ -7,13 +7,13 @@ import {
   dayBounds,
   formatLocalDate,
   formatNumberFr,
-  glucoseForDisplay,
+  formatGlucose,
   JOURNAL_KINDS,
   MEAL_KINDS,
   parseLocalDate,
 } from '@bilanx/domain';
 import { DEMO_TIMEZONE, demoDay, demoToday } from '@/lib/demo-data';
-import { appContext, moduleAllowed } from '@/lib/server/context';
+import { appContext, displayUnits, moduleAllowed } from '@/lib/server/context';
 import { insulin, journal } from '@/lib/server/auth';
 import { glucoseDay } from '@/lib/server/data';
 import { deleteJournalAction } from '@/lib/server/actions';
@@ -137,7 +137,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
               {moduleAllowed(ctx.active, 'insulin') && <Chip tone="neutral">{items.filter((i) => i.source === 'insulin').length} injection(s)</Chip>}
               {stats?.mean != null && (
                 <Chip tone="glucose">
-                  Glycémie moyenne {glucoseForDisplay(stats.mean, 'mg/dL')} mg/dL · {Math.round(stats.pctInRange)} % dans la cible
+                  Glycémie moyenne {formatGlucose(stats.mean, displayUnits(ctx.active).glucose)} {displayUnits(ctx.active).glucose} · {Math.round(stats.pctInRange)} % dans la cible
                 </Chip>
               )}
             </div>

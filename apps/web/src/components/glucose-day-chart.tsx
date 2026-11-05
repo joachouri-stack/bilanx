@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { glucoseForDisplay, splitIntoSegments, type GlucoseUnit } from '@bilanx/domain';
+import { formatGlucose, glucoseAxisTicks, splitIntoSegments, type GlucoseUnit } from '@bilanx/domain';
 
 export interface ChartPoint {
   t: number; // ms UTC
@@ -75,7 +75,7 @@ export function GlucoseDayChart(p: Props) {
     () => new Intl.DateTimeFormat('fr-FR', { timeZone: p.timeZone, hour: '2-digit', minute: '2-digit' }),
     [p.timeZone],
   );
-  const disp = (v: number) => String(glucoseForDisplay(v, p.unit)).replace('.', ',');
+  const disp = (v: number) => formatGlucose(v, p.unit);
 
   const zoomAround = (centerT: number, factor: number) => {
     const cur = view[1] - view[0];
@@ -156,8 +156,7 @@ export function GlucoseDayChart(p: Props) {
   const firstTick = p.dayStart + Math.ceil((view[0] - p.dayStart) / (stepH * 3_600_000)) * stepH * 3_600_000;
   for (let t = firstTick; t <= view[1] + 1; t += stepH * 3_600_000) ticks.push(t);
 
-  const yTicks = p.unit === 'mg/dL' ? [54, 70, 100, 140, 180, 250, 300] : [3, 3.9, 5.5, 7.8, 10, 13.9];
-  const yTickPos = (v: number) => (p.unit === 'mg/dL' ? v : v * 18.016);
+  const yAxis = glucoseAxisTicks(p.unit);
   const segments = splitIntoSegments(p.sensor.map((s) => ({ at: new Date(s.t), v: s.v })));
   const inView = (t: number) => t >= view[0] && t <= view[1];
   const eventY = PAD.t + plotH + 40;
@@ -202,9 +201,9 @@ export function GlucoseDayChart(p: Props) {
           <line key={v} x1={PAD.l} x2={PAD.l + plotW} y1={y(v)} y2={y(v)} stroke="var(--sage)" strokeDasharray="4 4" />
         ))}
         <line x1={PAD.l} x2={PAD.l + plotW} y1={y(p.veryLow)} y2={y(p.veryLow)} stroke="var(--red)" strokeDasharray="2 4" strokeOpacity={0.6} />
-        {yTicks.map((v) => (
-          <text key={v} x={PAD.l - 8} y={y(yTickPos(v)) + 4} textAnchor="end" fontSize={11} fill="var(--ink-3)">
-            {String(v).replace('.', ',')}
+        {yAxis.map((t) => (
+          <text key={t.mgdl} x={PAD.l - 8} y={y(t.mgdl) + 4} textAnchor="end" fontSize={11} fill="var(--ink-3)">
+            {t.label}
           </text>
         ))}
         {ticks.map((t) => (

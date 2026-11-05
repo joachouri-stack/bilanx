@@ -1,4 +1,4 @@
-import type { Adherence, AgpHour, DailyInsulin, GlucoseStats, StepsDay, StepsStats } from '@bilanx/domain';
+import type { Adherence, AgpHour, DailyInsulin, GlucoseStats, GlucoseUnit, StepsDay, StepsStats } from '@bilanx/domain';
 
 export type Source = 'manual' | 'document' | 'import' | 'demo';
 
@@ -29,6 +29,8 @@ export interface ReportData {
     capillaryCount: number;
     source: Source;
     targets: { low: number; high: number };
+    /** Unité d'affichage choisie pour le profil (valeurs fournies en mg/dL). Défaut : mg/dL. */
+    unit?: GlucoseUnit;
   };
   hba1c?: ReportLab[]; // historique complet (pour l'évolution), dates réelles uniquement
   lab?: ReportLab[]; // résultats de la période (hors HbA1c)

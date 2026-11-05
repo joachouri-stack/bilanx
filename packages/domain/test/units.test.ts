@@ -78,3 +78,15 @@ describe('reconnaissance des libellés', () => {
     expect(matchAnalyte('Anticorps anti-TPO')).toBeUndefined();
   });
 });
+
+describe('glycémie : unité d’affichage au choix', () => {
+  it('mg/dL, g/L (comptes rendus français) et mmol/L, à la française', async () => {
+    const { formatGlucose, glucoseAxisTicks, isGlucoseUnit } = await import('../src/units');
+    expect([formatGlucose(120, 'mg/dL'), formatGlucose(120, 'g/L'), formatGlucose(120, 'mmol/L')]).toEqual(['120', '1,20', '6,7']);
+    expect(formatGlucose(70, 'g/L')).toBe('0,70');
+    expect(formatGlucose(54.4, 'mg/dL')).toBe('54');
+    expect(glucoseAxisTicks('g/L').map((t) => t.label)).toEqual(['0,54', '0,70', '1,00', '1,40', '1,80', '2,50', '3,00']);
+    expect(glucoseAxisTicks('mmol/L').map((t) => t.label)).toEqual(['3', '3,9', '5,5', '7,8', '10', '13,9']);
+    expect([isGlucoseUnit('g/L'), isGlucoseUnit('mg/l')]).toEqual([true, false]);
+  });
+});

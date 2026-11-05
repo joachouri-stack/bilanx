@@ -49,3 +49,8 @@ export const NAV_MODULES: Record<string, ModuleKey> = {
   '/rendez-vous': 'appointments',
   '/rapports': 'reports',
 };
+
+/** Unités d'affichage du profil affiché (démonstration : mg/dL et %). */
+export function displayUnits(active: ActiveProfile): { glucose: 'mg/dL' | 'mmol/L' | 'g/L'; hba1c: '%' | 'mmol/mol' } {
+  return active.kind === 'real' ? { glucose: active.access.glucoseUnit, hba1c: active.access.hba1cUnit } : { glucose: 'mg/dL', hba1c: '%' };
+}

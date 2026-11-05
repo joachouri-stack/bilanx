@@ -7,8 +7,8 @@ import {
   formatLocalDate,
   formatNumberFr,
   getAnalyte,
-  glucoseForDisplay,
-  hba1cPercentToMmolMol,
+  formatGlucose,
+  formatHba1c,
   latestEvolution,
   referenceStatus,
   summarizeInsulin,
@@ -20,7 +20,7 @@ import {
   DEMO_TIMEZONE,
   demoToday,
 } from '@/lib/demo-data';
-import { appContext, moduleAllowed } from '@/lib/server/context';
+import { appContext, displayUnits, moduleAllowed } from '@/lib/server/context';
 import { glucoseDay, labResults, sensorRange, type LabRow } from '@/lib/server/data';
 import { insulinDoses, toDomainDoses } from '@/lib/server/insulin-data';
 import { appointments } from '@/lib/server/auth';
@@ -32,11 +32,12 @@ import { CapsuleGauge } from '@/components/capsule-gauge';
 export const metadata: Metadata = { title: 'Tableau de bord' };
 export const dynamic = 'force-dynamic';
 
-const UNIT = 'mg/dL' as const;
 
 export default async function DashboardPage() {
   const ctx = await appContext();
   const isDemo = ctx.active.kind === 'demo';
+  const UNIT = displayUnits(ctx.active).glucose;
+  const A1C = displayUnits(ctx.active).hba1c;
   const showGlucose = moduleAllowed(ctx.active, 'glucose');
   const showLab = moduleAllowed(ctx.active, 'lab');
   const now = new Date();
@@ -113,7 +114,7 @@ export default async function DashboardPage() {
           {last ? (
             <>
               <p className="mt-2.5 flex flex-wrap items-baseline gap-2">
-                <span className="tabular text-4xl font-semibold tracking-tight text-glucose">{glucoseForDisplay(last.mgdl, UNIT)}</span>
+                <span className="tabular text-4xl font-semibold tracking-tight text-glucose">{formatGlucose(last.mgdl, UNIT)}</span>
                 <span className="text-sm text-ink-3">{UNIT}</span>
                 <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${lastInRange ? 'bg-sage-2 text-sage' : 'bg-amber-2 text-amber'}`}>
                   {lastInRange ? 'dans la cible' : 'hors cible'}
@@ -142,7 +143,7 @@ export default async function DashboardPage() {
           ) : (
           <>
           <div className="mt-2.5 flex gap-6">
-            <Stat label="Moyenne" value={stats14.mean !== null ? `${glucoseForDisplay(stats14.mean, UNIT)}` : '—'} unit={UNIT} />
+            <Stat label="Moyenne" value={stats14.mean !== null ? formatGlucose(stats14.mean, UNIT) : '—'} unit={UNIT} />
             <Stat label="Dans la cible" value={pct(stats14.pctInRange)} />
             <Stat label="Données" value={pct(stats14.coveragePct)} />
           </div>
@@ -155,7 +156,7 @@ export default async function DashboardPage() {
           />
           <Meta>
             Sous la cible {pct(stats14.pctVeryLow + stats14.pctLow)} · au-dessus {pct(stats14.pctHigh + stats14.pctVeryHigh)} · plage
-            70–180 mg/dL (par défaut, à définir avec l’équipe soignante)
+            {' '}{formatGlucose(70, UNIT)}–{formatGlucose(180, UNIT)} {UNIT} (par défaut, à définir avec l’équipe soignante)
           </Meta>
           </>
           )}
@@ -170,9 +171,9 @@ export default async function DashboardPage() {
           {hba1c ? (
             <>
               <p className="mt-2.5 flex items-baseline gap-2">
-                <span className="tabular text-4xl font-semibold tracking-tight">{formatNumberFr(hba1c.latest.value, 1)}</span>
-                <span className="text-sm text-ink-3">%</span>
-                <span className="text-xs text-ink-3">soit {Math.round(hba1cPercentToMmolMol(hba1c.latest.value))} mmol/mol</span>
+                <span className="tabular text-4xl font-semibold tracking-tight">{formatHba1c(hba1c.latest.value, A1C).value}</span>
+                <span className="text-sm text-ink-3">{formatHba1c(hba1c.latest.value, A1C).unit}</span>
+                <span className="text-xs text-ink-3">soit {formatHba1c(hba1c.latest.value, A1C).other}</span>
               </p>
               {hba1c.previous && hba1c.delta !== null && (
                 <p className="mt-1 text-sm text-ink-2">
@@ -336,7 +337,7 @@ export default async function DashboardPage() {
           <p className="mt-2.5 text-sm text-ink-2">
             {stats14.mean !== null && (
               <>
-                Sur 14 jours, la moyenne du capteur est de <strong>{`${glucoseForDisplay(stats14.mean, UNIT)} mg/dL`}</strong> avec{' '}
+                Sur 14 jours, la moyenne du capteur est de <strong>{`${formatGlucose(stats14.mean, UNIT)} ${UNIT}`}</strong> avec{' '}
                 {pct(stats14.coveragePct)} de données disponibles.
               </>
             )}
