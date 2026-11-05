@@ -10,3 +10,4 @@ coverage/
 .DS_Store
 next-env.d.ts
 test-output-*.pdf
+apps/web/e2e/.resultats/

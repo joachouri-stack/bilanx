@@ -34,3 +34,41 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build -w @bilanx/web
+
+  # Parcours réels dans Chromium (voir apps/web/e2e/LISEZ-MOI.md).
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bilanx
+          POSTGRES_PASSWORD: bilanx
+          POSTGRES_DB: bilanx
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U bilanx" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://bilanx:bilanx@localhost:5432/bilanx
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Navigateur Chromium (version de Playwright du projet)
+        run: npx playwright install --with-deps chromium
+      - name: Clé de test (jamais utilisée hors de cette exécution)
+        run: echo "BILANX_SECRET_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+      - run: npm run build -w @bilanx/web
+      - run: npm run e2e
+      - name: Résultats (en cas d'échec)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultats-e2e
+          path: apps/web/e2e/.resultats/
+          retention-days: 7

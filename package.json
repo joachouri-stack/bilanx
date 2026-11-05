@@ -16,10 +16,12 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "dev": "npm run dev -w @bilanx/web",
     "db:migrate": "npm run migrate -w @bilanx/db",
-    "sauvegarde:verifier": "tsx --env-file-if-exists=apps/web/.env.local packages/privacy/src/verifier-sauvegarde.ts"
+    "sauvegarde:verifier": "tsx --env-file-if-exists=apps/web/.env.local packages/privacy/src/verifier-sauvegarde.ts",
+    "e2e": "node apps/web/e2e/run.mjs"
   },
   "devDependencies": {
     "axe-core": "4.14.0",
+    "playwright": "1.63.0",
     "tsx": "4.23.15"
   }
 }
