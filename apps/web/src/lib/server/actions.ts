@@ -86,7 +86,8 @@ export async function resendVerificationAction(_: FormState, fd: FormData): Prom
 // ───────────── Connexion ─────────────
 export async function signInAction(_: FormState, fd: FormData): Promise<FormState> {
   const email = str(fd, 'email');
-  const r = await auth().signIn({ email, password: str(fd, 'password'), ...(await clientInfo()) });
+  const remember = fd.get('remember') === 'on';
+  const r = await auth().signIn({ email, password: str(fd, 'password'), remember, ...(await clientInfo()) });
   switch (r.status) {
     case 'invalid':
       return { errors: { form: 'Adresse e-mail ou mot de passe incorrect.' }, values: { email } };
@@ -95,7 +96,7 @@ export async function signInAction(_: FormState, fd: FormData): Promise<FormStat
     case 'unverified':
       return { errors: { form: 'Confirmez d’abord votre adresse e-mail. Vous pouvez demander un nouveau lien ci-dessous.' }, values: { email } };
     case 'ok':
-      await setSessionCookie(r.token);
+      await setSessionCookie(r.token, remember);
       await rememberNext(str(fd, 'suite') || null);
       redirect(r.next === 'mfa_enroll' ? '/mfa/configuration' : '/mfa');
   }
@@ -114,10 +115,15 @@ export async function passkeyLoginOptionsAction() {
   return r ?? { error: 'Trop de tentatives. Réessayez dans 15 minutes.' };
 }
 
-export async function passkeySignInAction(challengeId: string, response: AuthenticationResponseJSON, suite: string | null): Promise<{ ok: true; next: string } | { ok: false; error: string }> {
-  const r = await auth().passkeySignIn(String(challengeId), response, await clientInfo());
+export async function passkeySignInAction(
+  challengeId: string,
+  response: AuthenticationResponseJSON,
+  suite: string | null,
+  remember = false,
+): Promise<{ ok: true; next: string } | { ok: false; error: string }> {
+  const r = await auth().passkeySignIn(String(challengeId), response, { ...(await clientInfo()), remember: remember === true });
   if (r.status !== 'ok') return { ok: false, error: 'Clé d’accès non reconnue. Connectez-vous avec votre mot de passe.' };
-  await setSessionCookie(r.token);
+  await setSessionCookie(r.token, remember === true);
   await rememberNext(suite);
   return { ok: true, next: await takeNext() };
 }
@@ -147,7 +153,7 @@ export async function confirmTotpAction(_: FormState, fd: FormData): Promise<For
   const s = await requirePendingMfa();
   const r = await auth().confirmTotpEnrollment(s, str(fd, 'code'));
   if (!r.ok) return { errors: { form: r.error } };
-  await setSessionCookie(r.token);
+  await setSessionCookie(r.token, s.remember);
   return { ok: true, recoveryCodes: r.recoveryCodes };
 }
 
@@ -155,7 +161,7 @@ export async function verifyMfaAction(_: FormState, fd: FormData): Promise<FormS
   const s = await requirePendingMfa();
   const r = await auth().verifyMfa(s, str(fd, 'code'));
   if (!r.ok) return { errors: { form: r.error } };
-  await setSessionCookie(r.token);
+  await setSessionCookie(r.token, s.remember);
   redirect(r.usedRecoveryCode ? `/parametres?codes-restants=${r.recoveryCodesLeft}` : await takeNext());
 }
 

@@ -44,7 +44,8 @@ export function PasskeySignIn({ suite }: { suite?: string }) {
             const o = await passkeyLoginOptionsAction();
             if ('error' in o) return setError(o.error);
             const response = await startAuthentication({ optionsJSON: o.options });
-            const r = await passkeySignInAction(o.challengeId, response, suite ?? null);
+            const remember = (document.getElementById('remember-device') as HTMLInputElement | null)?.checked ?? false;
+            const r = await passkeySignInAction(o.challengeId, response, suite ?? null, remember);
             if (!r.ok) return setError(r.error);
             window.location.assign(r.next);
           } catch (e) {

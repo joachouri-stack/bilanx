@@ -78,6 +78,22 @@ export function SignUpForm() {
   );
 }
 
+/**
+ * « Rester connecté sur cet appareil » : coché par défaut (appareils personnels). Lu aussi par la connexion
+ * par clé d'accès, sur la même page.
+ */
+export function RememberDevice() {
+  return (
+    <label className="flex items-start gap-3 text-sm">
+      <input type="checkbox" name="remember" id="remember-device" defaultChecked className="mt-0.5 size-5 shrink-0 accent-[var(--petrol)]" />
+      <span>
+        Rester connecté sur cet appareil
+        <span className="block text-xs text-ink-3">Jusqu’à ce que vous vous déconnectiez (90 jours sans visite au plus). À décocher sur un appareil partagé.</span>
+      </span>
+    </label>
+  );
+}
+
 export function SignInForm({ suite }: { suite?: string }) {
   const [state, action] = useActionState(signInAction, initial);
   return (
@@ -86,6 +102,7 @@ export function SignInForm({ suite }: { suite?: string }) {
       {state.errors?.form && <Alert tone="error">{state.errors.form}</Alert>}
       <Field label="Adresse e-mail" name="email" type="email" autoComplete="username" inputMode="email" defaultValue={state.values?.email} autoFocus />
       <Field label="Mot de passe" name="password" type="password" autoComplete="current-password" />
+      <RememberDevice />
       <div className="flex justify-end text-sm">
         <Link href="/mot-de-passe-oublie" className="text-petrol underline">
           Mot de passe oublié ?

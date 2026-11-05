@@ -34,7 +34,7 @@ Onglet **Environment Variables** de l'application, ajoutez :
 | `DATABASE_URL` | l'adresse *Postgres URL (internal)* copiée à l'étape 1 |
 | `BILANX_SECRET_KEY` | une clé aléatoire : sur votre ordinateur, `openssl rand -base64 32`, ou le générateur de Coolify, 32 octets en base64. **Ne la changez plus ensuite** : elle chiffre les secrets de double authentification |
 | `BILANX_APP_URL` | l'adresse publique exacte du site, par ex. `https://xxxx.sslip.io` (sans `/` final) |
-| `BILANX_BASIC_AUTH` | `identifiant:motdepasse` choisis par vous : le navigateur les demandera avant d'afficher le site |
+| `BILANX_BASIC_AUTH` | `identifiant:motdepasse` choisis par vous : le navigateur les demandera avant d'afficher le site, une fois par appareil (un cookie d'un an évite de les redemander ; changer ce mot de passe le redemande partout) |
 
 Facultatif, pour envoyer réellement les e-mails (voir étape 5) :
 

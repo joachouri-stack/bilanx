@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createAuthService, mailerFromEnv, SmtpMailer, parseSecretKey, SESSION_ABSOLUTE_HOURS, type AuthService, type SessionInfo } from '@bilanx/auth';
+import { createAuthService, mailerFromEnv, SmtpMailer, parseSecretKey, sessionLifetimeMinutes, type AuthService, type SessionInfo } from '@bilanx/auth';
 import { createAppSql, type Sql } from '@bilanx/db';
 import { createProfilesService, type ProfilesService } from '@bilanx/profiles';
 import {
@@ -127,13 +127,14 @@ export const COOKIE_SECURE = process.env.NODE_ENV === 'production' && !(process.
 /** Préfixe __Host- en production : cookie lié à l'hôte, Secure, chemin « / ». */
 export const SESSION_COOKIE = COOKIE_SECURE ? '__Host-bilanx_session' : 'bilanx_session';
 
-export async function setSessionCookie(token: string): Promise<void> {
+/** Cookie persistant : durée de vie de la session (12 h, ou un an avec « Rester connecté »). */
+export async function setSessionCookie(token: string, remember = false): Promise<void> {
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: COOKIE_SECURE,
     sameSite: 'lax',
     path: '/',
-    maxAge: SESSION_ABSOLUTE_HOURS * 3600,
+    maxAge: sessionLifetimeMinutes(remember) * 60,
   });
 }
 

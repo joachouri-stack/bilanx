@@ -16,7 +16,7 @@ L'architecture cible (doc 02) prévoit une API NestJS séparée. Pour le MVP, un
 | Mots de passe | Argon2id (m = 19 MiB, t = 2, p = 1), 12 caractères minimum, refus des mots de passe triviaux |
 | Énumération des comptes | Réponses identiques (inscription, connexion, mot de passe oublié), hachage factice si compte inexistant |
 | Vérification e-mail | Jeton 256 bits, stocké haché, 24 h, usage unique, consommé par un bouton (POST) et non à l'ouverture du lien |
-| Sessions | Jeton aléatoire en cookie `__Host-`, HttpOnly, Secure, SameSite=Lax ; stocké haché ; 30 min d'inactivité, 12 h maximum ; 10 min pour terminer la MFA |
+| Sessions | Jeton aléatoire en cookie `__Host-`, HttpOnly, Secure, SameSite=Lax ; stocké haché ; 30 min d'inactivité, 12 h maximum ; 10 min pour terminer la MFA. Option « Rester connecté sur cet appareil » (cochée par défaut, choisie à chaque connexion) : 90 jours sans visite, un an maximum, cookie persistant ; la MFA reste exigée à la connexion, les actions sensibles redemandent le mot de passe, et chaque session est révocable depuis Paramètres |
 | MFA | **Obligatoire** avant tout accès aux données ; TOTP RFC 6238 (secret chiffré AES-256-GCM, anti-rejeu) ; 10 codes de secours hachés à usage unique |
 | Fixation de session | Nouveau jeton après validation de la MFA |
 | Force brute | 5 échecs / 15 min par adresse (connexion) et par compte (MFA) ; 3 demandes / h (réinitialisation, renvoi) |

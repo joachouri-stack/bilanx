@@ -19,6 +19,12 @@ import { base32Encode, generateTotpSecret, otpauthUri, verifyTotp } from './totp
 
 export const SESSION_IDLE_MINUTES = 30;
 export const SESSION_ABSOLUTE_HOURS = 12;
+/** « Rester connecté sur cet appareil » : 90 jours sans utilisation, un an au plus. */
+export const REMEMBERED_IDLE_DAYS = 90;
+export const REMEMBERED_ABSOLUTE_DAYS = 365;
+/** Durée de vie maximale d'une session (et du cookie correspondant). */
+export const sessionLifetimeMinutes = (remember: boolean) => (remember ? REMEMBERED_ABSOLUTE_DAYS * 24 * 60 : SESSION_ABSOLUTE_HOURS * 60);
+const idleMinutes = (remember: boolean) => (remember ? REMEMBERED_IDLE_DAYS * 24 * 60 : SESSION_IDLE_MINUTES);
 /** Délai pour finir l'étape MFA après le mot de passe. */
 export const PRE_MFA_MINUTES = 10;
 export const EMAIL_TOKEN_HOURS = 24;
@@ -53,6 +59,8 @@ export interface SessionInfo {
   emailVerified: boolean;
   mfaEnrolled: boolean;
   mfaPassed: boolean;
+  /** Session mémorisée sur cet appareil (« Rester connecté »). */
+  remember: boolean;
   profileId: string | null;
   displayName: string | null;
 }
@@ -221,7 +229,7 @@ export function createAuthService(cfg: AuthConfig) {
     | { status: 'throttled' }
     | { status: 'unverified' };
 
-  async function signIn(input: { email: string; password: string } & ClientInfo): Promise<SignInResult> {
+  async function signIn(input: { email: string; password: string; remember?: boolean } & ClientInfo): Promise<SignInResult> {
     const email = normalizeEmail(input.email);
     if (await isThrottled('login', email, LOGIN_MAX_FAILURES)) return { status: 'throttled' };
 
@@ -241,9 +249,9 @@ export function createAuthService(cfg: AuthConfig) {
       SELECT count(*)::int AS n FROM mfa_factor WHERE account_id = ${acc.id} AND kind = 'totp' AND confirmed_at IS NOT NULL`;
     await sql.begin(async (tx) => {
       await tx`
-        INSERT INTO session (account_id, token_hash, mfa_passed, ip_hash, user_agent, created_at, last_seen_at, expires_at, absolute_expires_at)
-        VALUES (${acc.id}, ${sha256(token)}, false, ${ipHash(input.ip)}, ${input.userAgent ?? null}, ${now()}, ${now()},
-                ${addMin(PRE_MFA_MINUTES)}, ${addMin(SESSION_ABSOLUTE_HOURS * 60)})`;
+        INSERT INTO session (account_id, token_hash, mfa_passed, remember, ip_hash, user_agent, created_at, last_seen_at, expires_at, absolute_expires_at)
+        VALUES (${acc.id}, ${sha256(token)}, false, ${!!input.remember}, ${ipHash(input.ip)}, ${input.userAgent ?? null}, ${now()}, ${now()},
+                ${addMin(PRE_MFA_MINUTES)}, ${addMin(sessionLifetimeMinutes(!!input.remember))})`;
       await tx`INSERT INTO login_event (account_id, success, method, user_agent, occurred_at) VALUES (${acc.id}, true, 'password', ${input.userAgent ?? null}, ${now()})`;
       await audit(tx, { accountId: acc.id, action: 'session.password_ok' });
     });
@@ -260,6 +268,7 @@ export function createAuthService(cfg: AuthConfig) {
         email: string;
         email_verified_at: Date | null;
         mfa_passed: boolean;
+        remember: boolean;
         last_seen_at: Date;
         absolute_expires_at: Date;
         mfa_enrolled: boolean;
@@ -267,7 +276,7 @@ export function createAuthService(cfg: AuthConfig) {
         display_name: string | null;
       }[]
     >`
-      SELECT s.id AS session_id, a.id AS account_id, a.email, a.email_verified_at, s.mfa_passed, s.last_seen_at,
+      SELECT s.id AS session_id, a.id AS account_id, a.email, a.email_verified_at, s.mfa_passed, s.remember, s.last_seen_at,
              s.absolute_expires_at,
              EXISTS (SELECT 1 FROM mfa_factor f WHERE f.account_id = a.id AND f.kind = 'totp' AND f.confirmed_at IS NOT NULL) AS mfa_enrolled,
              p.id AS profile_id, p.display_name
@@ -282,7 +291,7 @@ export function createAuthService(cfg: AuthConfig) {
     if (!row) return null;
     // Expiration glissante (uniquement après MFA), rafraîchie au plus une fois par minute.
     if (row.mfa_passed && at.getTime() - row.last_seen_at.getTime() > MIN) {
-      const idle = new Date(Math.min(at.getTime() + SESSION_IDLE_MINUTES * MIN, row.absolute_expires_at.getTime()));
+      const idle = new Date(Math.min(at.getTime() + idleMinutes(row.remember) * MIN, row.absolute_expires_at.getTime()));
       await sql`UPDATE session SET last_seen_at = ${at}, expires_at = ${idle} WHERE id = ${row.session_id}`;
     }
     return {
@@ -292,6 +301,7 @@ export function createAuthService(cfg: AuthConfig) {
       emailVerified: !!row.email_verified_at,
       mfaEnrolled: row.mfa_enrolled,
       mfaPassed: row.mfa_passed,
+      remember: row.remember,
       profileId: row.profile_id,
       displayName: row.display_name,
     };
@@ -301,8 +311,8 @@ export function createAuthService(cfg: AuthConfig) {
   async function promoteSession(tx: TransactionSql, sessionId: string): Promise<string> {
     const token = randomToken();
     await tx`
-      UPDATE session SET token_hash = ${sha256(token)}, mfa_passed = true, mfa_passed_at = ${now()},
-             last_seen_at = ${now()}, expires_at = LEAST(${addMin(SESSION_IDLE_MINUTES)}, absolute_expires_at)
+      UPDATE session SET token_hash = ${sha256(token)}, mfa_passed = true, mfa_passed_at = ${now()}, last_seen_at = ${now()},
+             expires_at = LEAST(CASE WHEN remember THEN ${addMin(idleMinutes(true))}::timestamptz ELSE ${addMin(idleMinutes(false))}::timestamptz END, absolute_expires_at)
       WHERE id = ${sessionId}`;
     return token;
   }
@@ -749,7 +759,7 @@ export function createAuthService(cfg: AuthConfig) {
    * Connexion par clé d'accès, étape 2. La clé (appareil + Face ID / empreinte / code) vaut double
    * authentification : la session est complète d'emblée.
    */
-  async function passkeySignIn(challengeId: string, response: AuthenticationResponseJSON, client: ClientInfo): Promise<{ status: 'ok'; token: string } | { status: 'invalid' }> {
+  async function passkeySignIn(challengeId: string, response: AuthenticationResponseJSON, client: ClientInfo & { remember?: boolean }): Promise<{ status: 'ok'; token: string } | { status: 'invalid' }> {
     const challenge = await takeChallenge(challengeId, 'login', null);
     if (!challenge || typeof response?.id !== 'string') return { status: 'invalid' };
     const [f] = await sql<{ id: string; account_id: string; secret_enc: Buffer; sign_count: string; transports: string[] | null; email_verified_at: Date | null }[]>`
@@ -782,9 +792,9 @@ export function createAuthService(cfg: AuthConfig) {
     await sql.begin(async (tx) => {
       await tx`UPDATE mfa_factor SET sign_count = ${v.authenticationInfo.newCounter}, last_used_at = ${now()} WHERE id = ${f.id}`;
       await tx`
-        INSERT INTO session (account_id, token_hash, mfa_passed, mfa_passed_at, ip_hash, user_agent, created_at, last_seen_at, expires_at, absolute_expires_at)
-        VALUES (${f.account_id}, ${sha256(token)}, true, ${now()}, ${ipHash(client.ip)}, ${client.userAgent ?? null}, ${now()}, ${now()},
-                ${addMin(SESSION_IDLE_MINUTES)}, ${addMin(SESSION_ABSOLUTE_HOURS * 60)})`;
+        INSERT INTO session (account_id, token_hash, mfa_passed, mfa_passed_at, remember, ip_hash, user_agent, created_at, last_seen_at, expires_at, absolute_expires_at)
+        VALUES (${f.account_id}, ${sha256(token)}, true, ${now()}, ${!!client.remember}, ${ipHash(client.ip)}, ${client.userAgent ?? null}, ${now()}, ${now()},
+                ${addMin(idleMinutes(!!client.remember))}, ${addMin(sessionLifetimeMinutes(!!client.remember))})`;
       await tx`INSERT INTO login_event (account_id, success, method, user_agent, occurred_at) VALUES (${f.account_id}, true, 'passkey', ${client.userAgent ?? null}, ${now()})`;
       await audit(tx, { accountId: f.account_id, action: 'session.passkey_ok' });
     });

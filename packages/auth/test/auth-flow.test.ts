@@ -150,6 +150,45 @@ describe.skipIf(!TEST_DB)('parcours d’authentification (PostgreSQL réel)', ()
     expect(await ctx.auth.getSession(ok.token)).toBeNull();
   });
 
+  it('« Rester connecté » : la session survit à des semaines d’absence, puis expire après 90 jours sans visite', async () => {
+    ctx.advance(1);
+    const r = await ctx.auth.signIn({ email: EMAIL, password: PASSWORD, remember: true });
+    if (r.status !== 'ok') throw new Error('connexion attendue');
+    // L'étape MFA reste limitée à 10 minutes, même pour une session mémorisée.
+    const pending = (await ctx.auth.getSession(r.token))!;
+    expect(pending).toMatchObject({ remember: true, mfaPassed: false });
+    const ok = await ctx.auth.verifyMfa(pending, totp(totpSecret, ctx.clock.t));
+    if (!ok.ok) throw new Error('MFA attendue');
+    ctx.advance(13 * 60); // au-delà des 12 h d'une session ordinaire
+    expect(await ctx.auth.getSession(ok.token)).toMatchObject({ remember: true, mfaPassed: true });
+    ctx.advance(60 * 24 * 60); // 60 jours sans visite
+    expect(await ctx.auth.getSession(ok.token)).not.toBeNull();
+    ctx.advance(91 * 24 * 60); // 91 jours sans visite
+    expect(await ctx.auth.getSession(ok.token)).toBeNull();
+
+    // La déconnexion ferme la session mémorisée immédiatement.
+    const r2 = await ctx.auth.signIn({ email: EMAIL, password: PASSWORD, remember: true });
+    if (r2.status !== 'ok') throw new Error('connexion attendue');
+    const ok2 = await ctx.auth.verifyMfa((await ctx.auth.getSession(r2.token))!, totp(totpSecret, ctx.clock.t));
+    if (!ok2.ok) throw new Error('MFA attendue');
+    await ctx.auth.signOut(ok2.token);
+    expect(await ctx.auth.getSession(ok2.token)).toBeNull();
+  });
+
+  it('« Rester connecté » : un an au plus, même avec des visites régulières', async () => {
+    ctx.advance(1);
+    const r = await ctx.auth.signIn({ email: EMAIL, password: PASSWORD, remember: true });
+    if (r.status !== 'ok') throw new Error('connexion attendue');
+    const ok = await ctx.auth.verifyMfa((await ctx.auth.getSession(r.token))!, totp(totpSecret, ctx.clock.t));
+    if (!ok.ok) throw new Error('MFA attendue');
+    for (let month = 0; month < 12; month++) {
+      ctx.advance(30 * 24 * 60);
+      expect(await ctx.auth.getSession(ok.token)).not.toBeNull();
+    }
+    ctx.advance(6 * 24 * 60); // 366 jours après la connexion
+    expect(await ctx.auth.getSession(ok.token)).toBeNull();
+  });
+
   it('liste et révoque les sessions, et garde l’historique des connexions', async () => {
     const [acc] = await ctx.sql`SELECT id FROM account`;
     for (let i = 0; i < 2; i++) {

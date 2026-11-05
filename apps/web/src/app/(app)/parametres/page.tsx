@@ -190,7 +190,7 @@ export default async function SettingsPage({
               </li>
             ))}
           </ul>
-          <Meta>Les sessions expirent après 30 minutes d’inactivité et au plus tard 12 heures après la connexion.</Meta>
+          <Meta>Sans « Rester connecté », une session expire après 30 minutes d’inactivité et au plus tard 12 heures après la connexion. Avec, elle dure jusqu’à la déconnexion (90 jours sans visite, un an au plus). Vous pouvez fermer ici la session d’un appareil perdu.</Meta>
         </Card>
 
         <Card className="lg:col-span-2">
