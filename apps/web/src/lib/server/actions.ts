@@ -517,6 +517,43 @@ export async function unlinkAppointmentAction(fd: FormData): Promise<void> {
   redirect(`/rendez-vous/${str(fd, 'id')}`);
 }
 
+// ───────────── Compte : mot de passe, adresse e-mail, codes de secours ─────────────
+export async function changePasswordAction(_: FormState, fd: FormData): Promise<FormState> {
+  const s = await requireUser();
+  const r = await auth().changePassword(s, str(fd, 'currentPassword'), str(fd, 'password'));
+  if (!r.ok) return { attempt: crypto.randomUUID(), errors: r.errors };
+  return {
+    ok: true,
+    attempt: crypto.randomUUID(),
+    message: `Mot de passe modifié.${r.closedSessions ? ` ${r.closedSessions} autre(s) appareil(s) déconnecté(s).` : ''} Un e-mail de confirmation vous a été envoyé.`,
+  };
+}
+
+export async function requestEmailChangeAction(_: FormState, fd: FormData): Promise<FormState> {
+  const s = await requireUser();
+  const values = { email: str(fd, 'email') };
+  const r = await auth().requestEmailChange(s, str(fd, 'currentPassword'), values.email);
+  if (!r.ok) return { attempt: crypto.randomUUID(), errors: r.errors, values };
+  return {
+    ok: true,
+    attempt: crypto.randomUUID(),
+    message: `Un lien de confirmation a été envoyé à ${r.sentTo}. Votre adresse actuelle reste active tant qu’il n’a pas été ouvert (valable 24 h).`,
+  };
+}
+
+/** Depuis le lien reçu : fonctionne sans être connecté (le lien prouve l'accès à la nouvelle adresse). */
+export async function confirmEmailChangeAction(_: FormState, fd: FormData): Promise<FormState> {
+  const r = await auth().confirmEmailChange(str(fd, 'token'));
+  return r.ok ? { ok: true, message: `Adresse modifiée : votre compte utilise désormais ${r.email}.` } : { ok: false, message: r.error };
+}
+
+export async function regenerateRecoveryCodesAction(_: FormState, fd: FormData): Promise<FormState> {
+  const s = await requireUser();
+  const r = await auth().regenerateRecoveryCodes(s, str(fd, 'currentPassword'));
+  if (!r.ok) return { attempt: crypto.randomUUID(), errors: r.errors };
+  return { ok: true, attempt: crypto.randomUUID(), recoveryCodes: r.recoveryCodes };
+}
+
 // ───────────── Médicaments ─────────────
 function medicationValues(fd: FormData) {
   const times = fd.getAll('times').map(String);

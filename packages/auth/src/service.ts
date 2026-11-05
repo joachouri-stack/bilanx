@@ -4,6 +4,7 @@ import { decrypt, deriveKey, encrypt, hmacSha256, randomToken, safeEqual, sha256
 import { writeAudit, type AuditEntry } from './audit';
 import type { Mailer } from './mailer';
 import { dummyHash, hashPassword, passwordProblems, verifyPassword } from './password';
+import { maskEmail } from './mailer';
 import { base32Encode, generateTotpSecret, otpauthUri, verifyTotp } from './totp';
 
 export const SESSION_IDLE_MINUTES = 30;
@@ -14,6 +15,9 @@ export const EMAIL_TOKEN_HOURS = 24;
 export const RESET_TOKEN_MINUTES = 60;
 export const LOGIN_MAX_FAILURES = 5;
 export const MFA_MAX_FAILURES = 5;
+/** Vérifications du mot de passe actuel (changement de mot de passe, d'e-mail, codes de secours). */
+export const REAUTH_MAX_FAILURES = 5;
+export const EMAIL_CHANGE_TOKEN_HOURS = 24;
 export const THROTTLE_WINDOW_MINUTES = 15;
 export const CONSENT_VERSION = '2026-11-v1';
 
@@ -43,7 +47,7 @@ export interface SessionInfo {
   displayName: string | null;
 }
 
-export type FieldErrors = Partial<Record<'email' | 'password' | 'displayName' | 'consent' | 'form', string>>;
+export type FieldErrors = Partial<Record<'email' | 'password' | 'currentPassword' | 'displayName' | 'consent' | 'form', string>>;
 
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]+\.[^\s@]{2,}$/;
 const MIN = 60_000;
@@ -84,12 +88,18 @@ export function createAuthService(cfg: AuthConfig) {
   const audit = (tx: TransactionSql, e: AuditEntry) => writeAudit(tx, now(), e);
 
   // ───────────────────────── Jetons à usage unique ─────────────────────────
-  async function issueToken(tx: TransactionSql | Sql, accountId: string, purpose: 'email_verification' | 'password_reset', minutes: number) {
+  async function issueToken(
+    tx: TransactionSql | Sql,
+    accountId: string,
+    purpose: 'email_verification' | 'password_reset' | 'email_change',
+    minutes: number,
+    newEmail: string | null = null,
+  ) {
     const token = randomToken();
     await tx`UPDATE auth_token SET used_at = ${now()} WHERE account_id = ${accountId} AND purpose = ${purpose} AND used_at IS NULL`;
     await tx`
-      INSERT INTO auth_token (account_id, purpose, token_hash, expires_at)
-      VALUES (${accountId}, ${purpose}, ${sha256(token)}, ${addMin(minutes)})`;
+      INSERT INTO auth_token (account_id, purpose, token_hash, expires_at, new_email)
+      VALUES (${accountId}, ${purpose}, ${sha256(token)}, ${addMin(minutes)}, ${newEmail})`;
     return token;
   }
   async function consumeToken(tx: TransactionSql, token: string, purpose: string): Promise<string | null> {
@@ -479,7 +489,142 @@ export function createAuthService(cfg: AuthConfig) {
     return { ok: true };
   }
 
+  // ───────────────────────── Compte : changements depuis une session ─────────────────────────
+  type Reauth = { ok: true; email: string } | { ok: false; errors: FieldErrors };
+  /** Vérifie le mot de passe actuel (session complète exigée, tentatives limitées). */
+  async function reauthenticate(session: SessionInfo, password: string): Promise<Reauth> {
+    if (!session.mfaPassed) return { ok: false, errors: { form: 'Session incomplète : reconnectez-vous.' } };
+    if (await isThrottled('reauth', session.accountId, REAUTH_MAX_FAILURES)) return { ok: false, errors: { form: 'Trop de tentatives. Réessayez dans 15 minutes.' } };
+    const [acc] = await sql<{ email: string; password_hash: string | null }[]>`
+      SELECT email, password_hash FROM account WHERE id = ${session.accountId} AND deleted_at IS NULL`;
+    if (!acc?.password_hash || !(await verifyPassword(acc.password_hash, password))) {
+      await recordAttempt('reauth', session.accountId);
+      return { ok: false, errors: { currentPassword: 'Mot de passe actuel incorrect.' } };
+    }
+    await clearAttempts('reauth', session.accountId);
+    return { ok: true, email: acc.email };
+  }
+
+  /** Nouveau mot de passe : les autres sessions sont fermées, un e-mail prévient le titulaire. */
+  async function changePassword(session: SessionInfo, currentPassword: string, newPassword: string): Promise<{ ok: true; closedSessions: number } | { ok: false; errors: FieldErrors }> {
+    const r = await reauthenticate(session, currentPassword);
+    if (!r.ok) return r;
+    const problems = passwordProblems(newPassword, r.email);
+    if (problems.length) return { ok: false, errors: { password: problems.join(' ') } };
+    if (newPassword === currentPassword) return { ok: false, errors: { password: 'Choisissez un mot de passe différent de l’actuel.' } };
+    const hash = await hashPassword(newPassword);
+    const closed = await sql.begin(async (tx) => {
+      await tx`UPDATE account SET password_hash = ${hash}, password_changed_at = ${now()} WHERE id = ${session.accountId}`;
+      const c = await tx`UPDATE session SET revoked_at = ${now()} WHERE account_id = ${session.accountId} AND id <> ${session.sessionId} AND revoked_at IS NULL RETURNING id`;
+      await audit(tx, { accountId: session.accountId, action: 'account.password_changed', context: { closedSessions: c.length } });
+      return c.length;
+    });
+    await mailer.send({
+      to: r.email,
+      subject: 'Votre mot de passe BILANX a été modifié',
+      text: `Le mot de passe de votre compte vient d'être modifié depuis les paramètres${closed ? ` ; ${closed} autre(s) appareil(s) ont été déconnectés` : ''}.\n\nSi vous n'êtes pas à l'origine de ce changement, réinitialisez immédiatement votre mot de passe : ${cfg.appUrl}/mot-de-passe-oublie`,
+    });
+    return { ok: true, closedSessions: closed };
+  }
+
+  /**
+   * Changement d'adresse : lien de confirmation envoyé à la NOUVELLE adresse. Réponse identique si
+   * l'adresse est déjà prise (le titulaire de celle-ci est simplement prévenu) : pas de révélation de compte.
+   */
+  async function requestEmailChange(session: SessionInfo, currentPassword: string, rawNewEmail: string): Promise<{ ok: true; sentTo: string } | { ok: false; errors: FieldErrors }> {
+    const newEmail = normalizeEmail(rawNewEmail);
+    if (!EMAIL_RE.test(newEmail)) return { ok: false, errors: { email: 'Adresse e-mail invalide.' } };
+    const r = await reauthenticate(session, currentPassword);
+    if (!r.ok) return r;
+    if (newEmail === r.email) return { ok: false, errors: { email: 'C’est déjà l’adresse de votre compte.' } };
+    if (await isThrottled('email_change', session.accountId, 3, 60)) return { ok: false, errors: { form: 'Trop de demandes. Réessayez dans une heure.' } };
+    await recordAttempt('email_change', session.accountId);
+    const [taken] = await sql<{ id: string }[]>`SELECT id FROM account WHERE email = ${newEmail}`;
+    if (taken) {
+      await mailer.send({
+        to: newEmail,
+        subject: 'Tentative d’association de votre adresse à un compte BILANX',
+        text: `Quelqu'un a demandé à utiliser votre adresse pour un autre compte BILANX. Votre adresse étant déjà liée à un compte, rien n'a été modifié.\n\nSi vous n'êtes au courant de rien, vous pouvez ignorer ce message.`,
+      });
+      return { ok: true, sentTo: newEmail };
+    }
+    const token = await sql.begin(async (tx) => {
+      const t = await issueToken(tx, session.accountId, 'email_change', EMAIL_CHANGE_TOKEN_HOURS * 60, newEmail);
+      await audit(tx, { accountId: session.accountId, action: 'account.email_change_requested' });
+      return t;
+    });
+    await mailer.send({
+      to: newEmail,
+      subject: 'Confirmez votre nouvelle adresse e-mail BILANX',
+      text: `Pour utiliser cette adresse avec votre compte BILANX, ouvrez ce lien (valable ${EMAIL_CHANGE_TOKEN_HOURS} h) :\n${link('/changer-email', token)}\n\nTant que vous ne l'avez pas ouvert, votre ancienne adresse reste active. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.`,
+    });
+    return { ok: true, sentTo: newEmail };
+  }
+
+  /** Confirmation depuis le lien reçu : la nouvelle adresse remplace l'ancienne, qui est prévenue. */
+  async function confirmEmailChange(token: string): Promise<{ ok: true; email: string } | { ok: false; error: string }> {
+    const invalid = { ok: false as const, error: 'Ce lien est invalide ou a expiré. Refaites la demande depuis les paramètres.' };
+    let previous = '';
+    let next = '';
+    try {
+      const done = await sql.begin(async (tx) => {
+        const [row] = await tx<{ account_id: string; new_email: string }[]>`
+          UPDATE auth_token SET used_at = ${now()}
+          WHERE token_hash = ${sha256(token)} AND purpose = 'email_change' AND used_at IS NULL AND expires_at > ${now()}
+          RETURNING account_id, new_email`;
+        if (!row) return false;
+        const [acc] = await tx<{ email: string }[]>`SELECT email FROM account WHERE id = ${row.account_id} AND deleted_at IS NULL FOR UPDATE`;
+        if (!acc) return false;
+        previous = acc.email;
+        next = row.new_email;
+        await tx`UPDATE account SET email = ${next}, email_verified_at = ${now()} WHERE id = ${row.account_id}`;
+        await audit(tx, { accountId: row.account_id, action: 'account.email_changed' });
+        return true;
+      });
+      if (!done) return invalid;
+    } catch (e) {
+      // Adresse prise entre la demande et la confirmation.
+      if ((e as { code?: string }).code === '23505') return { ok: false, error: 'Cette adresse est désormais utilisée par un autre compte : rien n’a été modifié.' };
+      throw e;
+    }
+    await mailer.send({
+      to: previous,
+      subject: 'L’adresse e-mail de votre compte BILANX a été modifiée',
+      text: `Votre compte BILANX utilise désormais une autre adresse e-mail (${maskEmail(next)}). Les prochains messages y seront envoyés.\n\nSi vous n'êtes pas à l'origine de ce changement, répondez immédiatement à ce message ou contactez le support : votre compte a pu être compromis.`,
+    });
+    return { ok: true, email: next };
+  }
+
+  /** Nouveaux codes de secours (les anciens deviennent inutilisables). */
+  async function regenerateRecoveryCodes(session: SessionInfo, currentPassword: string): Promise<{ ok: true; recoveryCodes: string[] } | { ok: false; errors: FieldErrors }> {
+    const r = await reauthenticate(session, currentPassword);
+    if (!r.ok) return r;
+    const codes = newRecoveryCodes();
+    await sql.begin(async (tx) => {
+      await tx`DELETE FROM mfa_recovery_code WHERE account_id = ${session.accountId}`;
+      for (const c of codes) await tx`INSERT INTO mfa_recovery_code (account_id, code_hash) VALUES (${session.accountId}, ${recoveryHash(c)})`;
+      await audit(tx, { accountId: session.accountId, action: 'mfa.recovery_codes_regenerated' });
+    });
+    await mailer.send({
+      to: r.email,
+      subject: 'Nouveaux codes de secours BILANX',
+      text: `De nouveaux codes de secours viennent d'être générés ; les précédents ne fonctionnent plus.\nSi vous n'êtes pas à l'origine de cette action, réinitialisez immédiatement votre mot de passe : ${cfg.appUrl}/mot-de-passe-oublie`,
+    });
+    return { ok: true, recoveryCodes: codes };
+  }
+
+  /** Nombre de codes de secours encore utilisables. */
+  async function recoveryCodesLeft(accountId: string): Promise<number> {
+    const [r] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM mfa_recovery_code WHERE account_id = ${accountId} AND used_at IS NULL`;
+    return r?.n ?? 0;
+  }
+
   return {
+    changePassword,
+    requestEmailChange,
+    confirmEmailChange,
+    regenerateRecoveryCodes,
+    recoveryCodesLeft,
     signUp,
     verifyEmail,
     resendVerification,

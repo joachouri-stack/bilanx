@@ -23,12 +23,16 @@ L'architecture cible (doc 02) prévoit une API NestJS séparée. Pour le MVP, un
 | Réinitialisation | Jeton 60 min, usage unique, toutes les sessions fermées, MFA toujours exigée ensuite |
 | Traçabilité | `login_event` visible par l'utilisateur ; `audit_log` chaîné par hachage, non modifiable |
 | CSRF | Server Actions (contrôle d'origine Next.js) + SameSite=Lax |
+| Changement de mot de passe | Mot de passe actuel exigé (5 essais / 15 min), autres sessions fermées, e-mail au titulaire (migration 0014 : 5 nov. 2026) |
+| Changement d'adresse | Mot de passe exigé ; lien 24 h envoyé à la **nouvelle** adresse, ancienne active jusqu'à confirmation puis prévenue (nouvelle adresse masquée). Adresse déjà prise : même réponse, son titulaire est prévenu, aucun lien (pas de révélation de compte) |
+| Codes de secours | Nombre restant affiché ; régénération sur mot de passe, anciens codes invalidés, e-mail au titulaire |
 
 ## Reste à faire avant ouverture publique
-- Prestataire d'envoi d'e-mails (UE) — aujourd'hui les e-mails sont affichés dans la console.
 - Clé maîtresse dans le KMS de l'hébergeur HDS (aujourd'hui variable d'environnement).
-- Passkeys (WebAuthn), changement d'e-mail / mot de passe, reconfiguration de la MFA, gestion des consentements,
-  export et suppression du compte.
+- Passkeys (WebAuthn) ; reconfiguration de la double authentification (changement de téléphone) depuis les paramètres.
 - Vérification des mots de passe contre les fuites connues (k-anonymat).
-- Limitation par adresse IP au niveau du WAF ; rôle PostgreSQL applicatif distinct du propriétaire du schéma.
+- Limitation par adresse IP au niveau du WAF.
 - Test d'intrusion externe.
+
+Faits depuis : envoi réel des e-mails (SMTP, décision 0007), rôle PostgreSQL applicatif (0007), consentements, export
+et suppression du compte (0004), changement d'e-mail et de mot de passe, codes de secours (ci-dessus).

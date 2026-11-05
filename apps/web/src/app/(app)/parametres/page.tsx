@@ -11,6 +11,7 @@ import {
 } from '@/lib/server/actions';
 import { Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
 import { InstallApp } from '@/components/install-app';
+import { ChangeEmailForm, ChangePasswordForm, RegenerateRecoveryCodesForm } from '@/components/account-forms';
 
 export const metadata: Metadata = { title: 'Paramètres et sécurité' };
 
@@ -36,11 +37,12 @@ export default async function SettingsPage({
 }) {
   const user = await requireUser();
   const sp = await searchParams;
-  const [sessions, events, consents, deletionAt] = await Promise.all([
+  const [sessions, events, consents, deletionAt, codesLeft] = await Promise.all([
     auth().listSessions(user.accountId),
     auth().listLoginEvents(user.accountId, 15),
     privacy().listConsents(user.accountId),
     privacy().deletionStatus(user.accountId),
+    auth().recoveryCodesLeft(user.accountId),
   ]);
   const autoReading = consents.some((c) => c.purpose === 'ai_extraction' && !c.withdrawn_at);
   const fmtLong = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' });
@@ -93,9 +95,27 @@ export default async function SettingsPage({
               Se déconnecter
             </button>
           </form>
-          <Meta className="mt-4">
-            À venir : passkeys, changement d’e-mail et de mot de passe.
-          </Meta>
+          <div className="mt-5 flex flex-col gap-2.5">
+            <details className="rounded-xl border border-line p-3.5" id="mot-de-passe">
+              <summary className="cursor-pointer text-sm font-medium text-petrol">Changer mon mot de passe</summary>
+              <div className="mt-3">
+                <ChangePasswordForm />
+              </div>
+            </details>
+            <details className="rounded-xl border border-line p-3.5" id="adresse">
+              <summary className="cursor-pointer text-sm font-medium text-petrol">Changer mon adresse e-mail</summary>
+              <div className="mt-3">
+                <ChangeEmailForm current={user.email} />
+              </div>
+            </details>
+            <details className="rounded-xl border border-line p-3.5" id="codes" open={codesLeft <= 3}>
+              <summary className="cursor-pointer text-sm font-medium text-petrol">Codes de secours</summary>
+              <div className="mt-3">
+                <RegenerateRecoveryCodesForm left={codesLeft} />
+              </div>
+            </details>
+          </div>
+          <Meta className="mt-4">À venir : clés d’accès (passkeys).</Meta>
         </Card>
 
         <Card>
