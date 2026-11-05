@@ -13,6 +13,8 @@ import {
   getAnalyte,
   INSULIN_TYPES,
   insulinPeriod,
+  stepsSeries,
+  stepsStats,
   type LocalDate,
 } from '@bilanx/domain';
 import type { ModuleKey } from '@bilanx/profiles';
@@ -22,12 +24,14 @@ import { appointments, insulin, journal, profiles } from './auth';
 import { moduleAllowed, type AppContext } from './context';
 import { glucoseRangeAll, journalToEvent, labResults, type LabRow } from './data';
 import { insulinDoses, insulinProducts, toDomainDoses } from './insulin-data';
+import { stepsDaily, stepsGoal, stepsSource } from './activity-data';
 
 export const SECTION_MODULE: Record<SectionKey, ModuleKey> = {
   glucose: 'glucose',
   hba1c: 'lab',
   lab: 'lab',
   insulin: 'insulin',
+  activity: 'activity',
   journal: 'journal',
   appointments: 'appointments',
 };
@@ -106,6 +110,11 @@ export async function collectReport(ctx: AppContext, from: LocalDate, to: LocalD
         .map((c) => ({ date: c.effectiveDate, subject: name(c.subject), previous: c.previousRegimen, next: c.newRegimen, prescribedBy: c.prescribedBy, goal: c.goalNote })),
       source: isDemo ? 'demo' : 'manual',
     };
+  }
+  if (wanted.includes('activity')) {
+    const [daily, goal, src] = await Promise.all([stepsDaily(ctx, from, to, now), stepsGoal(ctx), stepsSource(ctx)]);
+    const series = stepsSeries(daily, from, to);
+    data.activity = { days: series, goal, stats: stepsStats(series, goal), source: isDemo ? 'demo' : 'import', devices: src?.sources ?? [] };
   }
   if (wanted.includes('journal')) {
     if (access) data.journal = (await journal().list(ctx.user, access.profileId, start, end)).map(journalToEvent).map((e) => ({ at: e.at, endedAt: null, title: e.label, detail: e.detail }));

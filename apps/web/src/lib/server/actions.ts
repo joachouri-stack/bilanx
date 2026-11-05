@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { ForbiddenError, MODULE_KEYS } from '@bilanx/profiles';
 import { appContext, DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
 import {
+  activity,
   appointments,
   auth,
   privacy,
@@ -554,4 +555,25 @@ export async function deleteProfileAction(_: FormState, fd: FormData): Promise<F
   }
   (await cookies()).delete(PROFILE_COOKIE);
   redirect('/famille?profil-supprime=1');
+}
+
+// ───────────── Activité ─────────────
+export async function setStepsGoalAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Profil de démonstration en lecture seule.' } };
+  try {
+    const r = await activity().setGoal(ctx.user, ctx.active.access.profileId, Number(str(fd, 'goal').replace(/\s/g, '')));
+    if (!r.ok) return { attempt: crypto.randomUUID(), errors: { form: r.error } };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message } };
+    throw e;
+  }
+  revalidatePath('/activite');
+  return { attempt: crypto.randomUUID(), ok: true, message: 'Objectif enregistré.' };
+}
+
+export async function clearActivityAction(): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await activity().clear(ctx.user, ctx.active.access.profileId);
+  redirect('/activite?efface=1');
 }

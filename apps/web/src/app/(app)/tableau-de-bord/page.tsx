@@ -4,6 +4,7 @@ import {
   addDays,
   computeGlucoseStats,
   dayBounds,
+  formatLocalDate,
   formatNumberFr,
   getAnalyte,
   glucoseForDisplay,
@@ -24,6 +25,7 @@ import { appContext, moduleAllowed } from '@/lib/server/context';
 import { glucoseDay, labResults, sensorRange, type LabRow } from '@/lib/server/data';
 import { insulinDoses, toDomainDoses } from '@/lib/server/insulin-data';
 import { appointments } from '@/lib/server/auth';
+import { stepsDaily, stepsGoal, stepsSource } from '@/lib/server/activity-data';
 import { ButtonLink, Card, CardLabel, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
 import { CapsuleGauge } from '@/components/capsule-gauge';
 
@@ -54,6 +56,11 @@ export default async function DashboardPage() {
   const insulinToday = summarizeInsulin(toDomainDoses(insulinRows), DEMO_TIMEZONE);
   // Carte affichée seulement si le profil utilise ce module (pas de carte insuline pour une personne non concernée).
   const showInsulin = isDemo || insulinRows.length > 0;
+  const showActivity = moduleAllowed(ctx.active, 'activity');
+  const [stepsToday, goal, stepsSrc] = showActivity
+    ? await Promise.all([stepsDaily(ctx, today, today, now), stepsGoal(ctx), stepsSource(ctx)])
+    : [new Map<string, number>(), 8000, null];
+  const todaySteps = stepsToday.get(formatLocalDate(today)) ?? null;
   const nextAppointment =
     ctx.active.kind === 'real' && moduleAllowed(ctx.active, 'appointments')
       ? ((await appointments().list(ctx.user, ctx.active.access.profileId)).upcoming[0] ?? null)
@@ -187,16 +194,35 @@ export default async function DashboardPage() {
         </Card>
         )}
 
-        <Card className="md:col-span-3 xl:col-span-3">
+        {showActivity && (
+        <Card href="/activite" className="md:col-span-3 xl:col-span-3">
           <CardLabel tone="sage" tag="Activité">
             Pas aujourd’hui
           </CardLabel>
-          <p className="mt-3 text-sm text-ink-2">Aucune source connectée.</p>
-          <Meta className="mt-1">
-            La synchronisation Apple Watch nécessite l’application iOS BILANX (prévue en V2). Aucune donnée n’est affichée tant
-            qu’elle n’est pas réelle.
-          </Meta>
+          {todaySteps !== null ? (
+            <>
+              <p className="tabular mt-2.5 text-4xl font-semibold">{formatNumberFr(todaySteps)}</p>
+              <div className="my-2 h-2 rounded-full bg-surface-2" role="img" aria-label={`${Math.round((todaySteps / goal) * 100)} % de l’objectif`}>
+                <div className="h-full rounded-full bg-sage" style={{ width: `${Math.min(100, (todaySteps / goal) * 100)}%` }} />
+              </div>
+              <Meta>
+                Objectif {formatNumberFr(goal)} · {Math.round((todaySteps / goal) * 100)} %
+                <br />
+                {isDemo ? 'Données fictives' : stepsSrc?.lastImportAt ? `Import Apple Santé du ${new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'short' }).format(stepsSrc.lastImportAt)}` : ''}
+              </Meta>
+            </>
+          ) : (
+            <>
+              <p className="mt-3 text-sm text-ink-2">{stepsSrc ? 'Aucun pas importé pour aujourd’hui.' : 'Aucune source de données.'}</p>
+              <Meta className="mt-1">
+                {stepsSrc?.lastImportAt
+                  ? `Dernier import Apple Santé : ${new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'short' }).format(stepsSrc.lastImportAt)}. Importez un nouvel export pour mettre à jour.`
+                  : 'Importez l’export d’Apple Santé (pas de l’iPhone et de l’Apple Watch) depuis Activité & Pas.'}
+              </Meta>
+            </>
+          )}
         </Card>
+        )}
 
 {showInsulin && (
         <Card href="/traitements" className="md:col-span-3 xl:col-span-3">

@@ -51,6 +51,7 @@ telles qu'enregistrées dans BILANX à la date indiquée dans compte.json.
     insuline.csv           injections déclarées ; insulines.csv ; modifications-prescrites.csv
     journal.csv            repas et événements
     rendez-vous.csv        rendez-vous et notes
+    activite-pas.csv       nombre de pas par jour (import Apple Santé)
     documents.csv          liste des documents ; documents/ : originaux déchiffrés
     valeurs-lues.csv       valeurs détectées dans les documents et décision prise
     journal-d-acces.csv    qui a consulté ou modifié quoi, et quand
@@ -122,6 +123,10 @@ export function createPrivacyService(cfg: PrivacyConfig) {
       ['le', 'specialite', 'professionnel', 'lieu', 'motif', 'a_preparer', 'rappel_minutes', 'notes_apres'],
       rdv.map((r) => [r.starts_at, r.specialty, r.practitioner, r.location, r.reason, r.to_prepare, r.reminder_minutes?.[0] ?? null, r.notes_after]),
     );
+
+    const steps = await P.withProfileData(actor, profileId, 'activity', 'read', (tx) =>
+      tx`SELECT to_char(day, 'YYYY-MM-DD') AS day, steps FROM activity_daily WHERE profile_id = ${profileId} ORDER BY day`);
+    files[`${dir}/activite-pas.csv`] = csv(['jour', 'pas'], steps.map((r) => [r.day, r.steps]));
 
     const docs = await cfg.documents.list(actor, profileId);
     files[`${dir}/documents.csv`] = csv(

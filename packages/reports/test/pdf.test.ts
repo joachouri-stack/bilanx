@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { agpProfile, computeGlucoseStats, insulinPeriod, type GlucoseReading, type InsulinDose } from '@bilanx/domain';
+import { agpProfile, computeGlucoseStats, insulinPeriod, stepsSeries, stepsStats, type GlucoseReading, type InsulinDose } from '@bilanx/domain';
 import { buildReportPdf, pdfText, type ReportData } from '../src';
 
 async function pdfToText(buf: Buffer): Promise<{ pages: number; text: string }> {
@@ -54,6 +54,11 @@ function sample(): ReportData {
       changes: [{ date: '2026-10-15', subject: 'Insuline lente B', previous: '18 U le soir', next: '16 U le soir', prescribedBy: 'Dr Exemple', goal: null }],
       source: 'manual',
     },
+    activity: (() => {
+      const daily = new Map([['2026-10-30', 9500], ['2026-11-02', 4200]]);
+      const days = stepsSeries(daily, { year: 2026, month: 10, day: 22 }, { year: 2026, month: 11, day: 4 });
+      return { days, goal: 8000, stats: stepsStats(days, 8000), source: 'import' as const, devices: ['Apple Watch de Jo'] };
+    })(),
     journal: [{ at: new Date('2026-11-03T11:30:00Z'), endedAt: null, title: 'Déjeuner', detail: 'Salade de lentilles · 45 g de glucides (indiqués)' }],
     appointments: [{ at: new Date('2026-11-17T09:30:00Z'), who: 'Endocrinologie — Dr Exemple', location: null, notesAfter: null, upcoming: true }],
   };
@@ -87,6 +92,10 @@ describe('rapport PDF', () => {
       'Dr Exemple',
       '45 g de glucides (indiqués)',
       'Endocrinologie — Dr Exemple',
+      'Activité physique (pas)',
+      '6 850 pas',
+      '2 / 14',
+      'Appareils : Apple Watch de Jo',
       'Page 1 /',
     ])
       expect(text, s).toContain(s);

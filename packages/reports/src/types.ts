@@ -1,4 +1,4 @@
-import type { AgpHour, DailyInsulin, GlucoseStats } from '@bilanx/domain';
+import type { AgpHour, DailyInsulin, GlucoseStats, StepsDay, StepsStats } from '@bilanx/domain';
 
 export type Source = 'manual' | 'document' | 'import' | 'demo';
 
@@ -42,17 +42,19 @@ export interface ReportData {
     changes: { date: string; subject: string; previous: string | null; next: string; prescribedBy: string | null; goal: string | null }[];
     source: Source;
   };
+  activity?: { days: StepsDay[]; goal: number; stats: StepsStats; source: Source; devices: string[] };
   journal?: { at: Date; endedAt: Date | null; title: string; detail: string }[];
   appointments?: { at: Date; who: string; location: string | null; notesAfter: string | null; upcoming: boolean }[];
 }
 
-export const SECTION_KEYS = ['glucose', 'hba1c', 'lab', 'insulin', 'journal', 'appointments'] as const;
+export const SECTION_KEYS = ['glucose', 'hba1c', 'lab', 'insulin', 'activity', 'journal', 'appointments'] as const;
 export type SectionKey = (typeof SECTION_KEYS)[number];
 export const SECTION_LABELS: Record<SectionKey, string> = {
   glucose: 'Glycémie (capteur)',
   hba1c: 'HbA1c de laboratoire',
   lab: 'Autres résultats d’analyses',
   insulin: 'Insuline et évolution du traitement',
+  activity: 'Activité physique (pas)',
   journal: 'Journal des repas et événements',
   appointments: 'Rendez-vous',
 };

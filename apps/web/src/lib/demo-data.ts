@@ -165,3 +165,22 @@ export const DEMO_MEDICATIONS = [
 ];
 
 export const DEMO_LAST_IMPORT_MINUTES_AGO = 32;
+
+/** Pas fictifs (démonstration) : une valeur par heure de 7 h à 22 h, selon le jour. */
+export function demoStepsHourly(d: LocalDate, now: Date = new Date()): Map<number, number> {
+  const out = new Map<number, number>();
+  if (compareLocalDates(d, demoFirstDay(now)) < 0 || compareLocalDates(d, demoToday(now)) > 0) return out;
+  const rnd = seeded(daySeed(d) * 7 + 3);
+  const { start } = dayBounds(d, DEMO_TIMEZONE);
+  const weekend = new Date(start.getTime() + 12 * 3_600_000).getUTCDay() % 6 === 0;
+  for (let h = 7; h <= 22; h++) {
+    const t = start.getTime() + h * 3_600_000;
+    if (t > now.getTime()) break;
+    let v = 150 + rnd() * 450;
+    if (h === 8 || h === 18) v += 900 + rnd() * 900; // trajets
+    if (h === 12) v += 400 + rnd() * 600;
+    if (weekend && h >= 10 && h <= 16) v += rnd() * 1200;
+    out.set(t, Math.round(v));
+  }
+  return out;
+}

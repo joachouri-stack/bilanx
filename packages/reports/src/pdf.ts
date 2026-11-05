@@ -37,6 +37,7 @@ export function pdfText(s: string): string {
 }
 
 const SOURCE_FR: Record<Source, string> = { manual: 'saisie manuelle (S)', document: 'bilan scanné et validé', import: 'import de fichier', demo: 'données fictives' };
+const SOURCE_ACTIVITY = 'import Apple Santé (fichier)';
 
 export async function buildReportPdf(d: ReportData): Promise<Buffer> {
   const doc = new PDFDocument({
@@ -179,13 +180,15 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
   if ('lab' in d || d.notAuthorized.includes('lab')) row('lab', !!d.lab?.length, `${d.lab?.length ?? 0} résultat(s)`, [...new Set((d.lab ?? []).map((r) => SOURCE_FR[r.source]))].join(', '));
   if ('insulin' in d || d.notAuthorized.includes('insulin'))
     row('insulin', !!d.insulin && d.insulin.total > 0, d.insulin ? `${d.insulin.daysWithData} jour(s) sur ${d.period.days} avec injections notées` : '', d.insulin ? SOURCE_FR[d.insulin.source] : '');
+  if ('activity' in d || d.notAuthorized.includes('activity'))
+    row('activity', !!d.activity?.stats.daysWithData, d.activity ? `${d.activity.stats.daysWithData} jour(s) sur ${d.period.days}` : '', d.activity ? (d.activity.source === 'demo' ? SOURCE_FR.demo : SOURCE_ACTIVITY) : '');
   if ('journal' in d || d.notAuthorized.includes('journal')) row('journal', !!d.journal?.length, `${d.journal?.length ?? 0} entrée(s)`, d.isDemo ? SOURCE_FR.demo : SOURCE_FR.manual);
   if ('appointments' in d || d.notAuthorized.includes('appointments'))
     row('appointments', !!d.appointments?.length, `${d.appointments?.length ?? 0}`, d.isDemo ? SOURCE_FR.demo : SOURCE_FR.manual);
   table([{ label: 'Rubrique', w: 3 }, { label: 'Disponibilité', w: 3.4 }, { label: 'Source', w: 2.6 }], avail, {
     emphasize: (i) => (avail[i]![1] === 'aucune donnée' || avail[i]![1] === 'non autorisé' ? C.amber : null),
   });
-  note('Activité physique, médicaments (hors insuline) : modules non encore disponibles dans BILANX.');
+  note('Médicaments (hors insuline) : module non encore disponible dans BILANX.');
 
   // ───────────────────────── Glycémie ─────────────────────────
   if (d.glucose) {
@@ -366,6 +369,42 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
         [{ label: 'Date d’effet', w: 1.2 }, { label: 'Insuline', w: 1.6 }, { label: 'Avant', w: 1.4 }, { label: 'Prescription', w: 1.6 }, { label: 'Prescrit par / objectif', w: 2.6 }],
         ins.changes.map((c) => [fmtDate(c.date), c.subject, c.previous ?? '—', c.next, [c.prescribedBy, c.goal && `objectif : ${c.goal}`].filter(Boolean).join(' · ') || '—']),
       );
+    }
+  }
+
+  // ───────────────────────── Activité ─────────────────────────
+  if (d.activity) {
+    h2(SECTION_LABELS.activity);
+    const a = d.activity;
+    if (!a.stats.daysWithData) missing('Aucun nombre de pas sur la période.');
+    else {
+      kpis([
+        ['Moyenne par jour renseigné', `${n(a.stats.averagePerDay!, 0)} pas`],
+        ['Jours renseignés', `${a.stats.daysWithData} / ${d.period.days}`],
+        [`Objectif ${n(a.goal, 0)} atteint`, `${a.stats.goalReachedDays} jour(s)`],
+        ['Meilleur jour', `${n(a.stats.best!.steps!, 0)} pas`],
+      ]);
+      ensure(130);
+      const top = doc.y + 4;
+      const ch = 90;
+      const cx = L + 34;
+      const cw = W - 38;
+      const max = Math.max(a.goal, ...a.days.map((x) => x.steps ?? 0));
+      const topV = Math.ceil(max / 2000) * 2000;
+      const bw = cw / a.days.length;
+      const y = (v: number) => top + ch - (v / topV) * ch;
+      for (const v of [0, topV / 2, topV]) {
+        doc.moveTo(cx, y(v)).lineTo(cx + cw, y(v)).lineWidth(0.4).strokeColor(C.line).stroke();
+        text(n(v, 0), { x: L, y: y(v) - 3.5, width: 30, size: 7, color: C.ink3, align: 'right' });
+      }
+      doc.moveTo(cx, y(a.goal)).lineTo(cx + cw, y(a.goal)).lineWidth(0.6).dash(3, { space: 3 }).strokeColor(C.sage).stroke().undash();
+      a.days.forEach((day, i) => {
+        if (day.steps === null || day.steps <= 0) return;
+        const x = cx + i * bw + bw * 0.15;
+        doc.rect(x, y(day.steps), Math.max(0.8, bw * 0.7), y(0) - y(day.steps)).fill(day.steps >= a.goal ? C.sage : C.petrol);
+      });
+      doc.y = top + ch + 6;
+      note(`Pas par jour (barres vertes : objectif atteint ; jours sans donnée laissés vides).${a.devices.length ? ` Appareils : ${a.devices.join(', ')}.` : ''} iPhone et Apple Watch dédoublonnés heure par heure.`);
     }
   }
 

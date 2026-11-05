@@ -5,10 +5,12 @@ import { ConsoleMailer, createAuthService, parseSecretKey, SESSION_ABSOLUTE_HOUR
 import { createSql, type Sql } from '@bilanx/db';
 import { createProfilesService, type ProfilesService } from '@bilanx/profiles';
 import {
+  createActivityService,
   createAppointmentsService,
   createInsulinService,
   createJournalService,
   createLabService,
+  type ActivityService,
   type AppointmentsService,
   type InsulinService,
   type JournalService,
@@ -21,7 +23,7 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createSql();
@@ -59,6 +61,11 @@ export function appointments(): AppointmentsService {
 export function documents(): DocumentsService {
   globalForAuth.bilanxDocs ??= createDocumentsService({ sql: sql(), profiles: profiles(), secretKey: parseSecretKey(process.env.BILANX_SECRET_KEY) });
   return globalForAuth.bilanxDocs;
+}
+
+export function activity(): ActivityService {
+  globalForAuth.bilanxActivity ??= createActivityService({ profiles: profiles() });
+  return globalForAuth.bilanxActivity;
 }
 
 export function privacy(): PrivacyService {

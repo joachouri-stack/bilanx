@@ -14,7 +14,7 @@ export const NAV: NavItem[] = [
   { href: '/glycemie', label: 'Glycémie', short: 'Glycémie', icon: 'M3 17l5-6 4 3 5-8 4 5', status: 'available', group: 'main' },
   { href: '/analyses', label: 'Analyses & Bilans', short: 'Analyses', icon: 'M9 3v6l-5 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-5-9V3M8 3h8', status: 'available', group: 'main' },
   { href: '/traitements', label: 'Insuline & Traitements', short: 'Traitements', icon: 'M18 2l4 4M17 7l-9 9-4 1 1-4 9-9z', status: 'available', group: 'main' },
-  { href: '/activite', label: 'Activité & Pas', short: 'Activité', icon: 'M13 4a2 2 0 1 0 0 .1M9 21l3-7 3 3v5M6 12l3-4 4 1 3 3', status: 'planned', group: 'main' },
+  { href: '/activite', label: 'Activité & Pas', short: 'Activité', icon: 'M13 4a2 2 0 1 0 0 .1M9 21l3-7 3 3v5M6 12l3-4 4 1 3 3', status: 'available', group: 'main' },
   { href: '/journal', label: 'Journal & Repas', short: 'Journal', icon: 'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5', status: 'available', group: 'main' },
   { href: '/documents', label: 'Documents & Scanner', short: 'Documents', icon: 'M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M4 12h16', status: 'available', group: 'main' },
   { href: '/rendez-vous', label: 'Rendez-vous', short: 'RDV', icon: 'M4 6h16v14H4zM4 10h16M9 3v4M15 3v4', status: 'available', group: 'main' },
@@ -26,6 +26,5 @@ export const NAV: NavItem[] = [
 
 /** Ce que chaque module « prévu » nécessitera — affiché honnêtement sur sa page. */
 export const PLANNED_DETAILS: Record<string, { title: string; version: string; needs: string[] }> = {
-  '/activite': { title: 'Activité & Pas', version: 'V2', needs: ["Application iOS compagnon (HealthKit) — une PWA ne peut pas lire Apple Santé", 'Android : Health Connect via application native'] },
   '/assistant': { title: 'Assistant IA', version: 'V2 (bêta)', needs: ['Analyse réglementaire préalable (MDR)', "Réponses limitées aux données enregistrées, avec citations"] },
 };

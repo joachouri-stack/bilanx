@@ -76,6 +76,7 @@ describe.skipIf(!TEST_DB)('droits RGPD : export, consentements, suppression (Pos
     expect(names).toContain('compte.json');
     expect(names).toContain('profils/Jo/analyses.csv');
     expect(names).toContain('profils/Mamie-Rose/analyses.csv');
+    expect(names).toContain('profils/Jo/activite-pas.csv');
     const compte = JSON.parse(strFromU8(files['compte.json']!));
     expect(compte.email).toBe('jo@exemple.fr');
     expect(compte.consentements.map((c: { purpose: string }) => c.purpose).sort()).toEqual(['ai_extraction', 'health_data_processing']);
