@@ -1,8 +1,8 @@
 import QRCode from 'qrcode';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { ConsoleMailer, createAuthService, parseSecretKey, SESSION_ABSOLUTE_HOURS, type AuthService, type SessionInfo } from '@bilanx/auth';
-import { createSql, type Sql } from '@bilanx/db';
+import { createAuthService, mailerFromEnv, SmtpMailer, parseSecretKey, SESSION_ABSOLUTE_HOURS, type AuthService, type SessionInfo } from '@bilanx/auth';
+import { createAppSql, type Sql } from '@bilanx/db';
 import { createProfilesService, type ProfilesService } from '@bilanx/profiles';
 import {
   createActivityService,
@@ -28,12 +28,14 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
 const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxMedications?: MedicationsService };
 
 function sql(): Sql {
-  globalForAuth.bilanxSql ??= createSql();
+  globalForAuth.bilanxSql ??= createAppSql();
   return globalForAuth.bilanxSql;
 }
 
 const appUrl = () => process.env.BILANX_APP_URL ?? 'http://localhost:3000';
-const mailer = new ConsoleMailer();
+/** SMTP si BILANX_SMTP_URL est défini ; sinon e-mails affichés dans le journal du serveur. */
+export const mailer = mailerFromEnv();
+export const mailerKind = mailer instanceof SmtpMailer ? 'smtp' : 'journal';
 
 export function profiles(): ProfilesService {
   globalForAuth.bilanxProfiles ??= createProfilesService({ sql: sql(), mailer, appUrl: appUrl() });

@@ -42,13 +42,13 @@ Sans `TEST_DATABASE_URL`, les tests d'intégration de l'authentification sont ig
 | Dossier | Contenu |
 |---|---|
 | `packages/domain` | Calculs de santé testés : unités, HbA1c % ↔ mmol/mol, statistiques glycémiques, jauge de référence, contrôles d'extraction IA, journées et changements d'heure |
-| `packages/auth` | Comptes, vérification e-mail, sessions, double authentification TOTP + codes de secours, réinitialisation, limitation des tentatives, journal d'audit chaîné |
+| `packages/auth` | Comptes, vérification e-mail, sessions, double authentification TOTP + codes de secours, réinitialisation, limitation des tentatives, journal d'audit chaîné et vérifiable, envoi des e-mails (SMTP) |
 | `packages/profiles` | Famille : profils de proches, invitations, autorisations par module, révocation, journal d'accès, accès aux données sous Row-Level Security |
 | `packages/records` | Enregistrement des données de santé : saisie manuelle des résultats d'analyses ; module insuline (insulines du profil, injections déclarées, modifications prescrites — aucune dose calculée ni suggérée) ; journal des repas et événements ; rendez-vous (export agenda .ics) ; médicaments (traitement prescrit recopié, historique, suivi déclaratif des prises, rappels .ics récurrents) ; activité (import de l'export Apple Santé, lu en flux) |
 | `packages/documents` | Documents chiffrés, lecture du texte (PDF, reconnaissance de caractères en français embarquée), proposition des valeurs et validation humaine |
 | `packages/reports` | Rapport PDF pour la consultation (PDFKit, graphiques vectoriels, sources, saisies manuelles et données manquantes signalées) |
-| `packages/privacy` | Droits RGPD : export ZIP, consentements, suppression de profil et de compte, effacement différé automatique |
-| `packages/db` | Client PostgreSQL et outil de migration |
+| `packages/privacy` | Droits RGPD : export ZIP, consentements, suppression de profil et de compte, effacement différé automatique, contrôle d'une sauvegarde restaurée (`npm run sauvegarde:verifier`) |
+| `packages/db` | Client PostgreSQL (rôle applicatif `bilanx_app`, RLS toujours appliquée) et outil de migration |
 | `apps/web` | Application Next.js — comptes, famille et accès réels ; saisie manuelle, scanner de bilans avec validation, import des pas Apple Santé ; import LibreView à venir ; profil de démonstration **fictif** disponible |
 | `db/migrations/` | Migrations PostgreSQL versionnées (`npm run db:migrate`) |
 | `design/maquettes.html` | Maquettes de référence |

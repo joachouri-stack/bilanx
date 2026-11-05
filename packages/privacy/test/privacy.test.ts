@@ -5,6 +5,7 @@ import { createProfilesService, ForbiddenError, type Actor } from '@bilanx/profi
 import { createDocumentsService, terminateOcr } from '@bilanx/documents';
 import { createJournalService, createLabService, createMedicationsService } from '../../records/src';
 import { setupAuth, TEST_DB, tokenFrom } from '../../auth/test/helpers';
+import { createSql } from '@bilanx/db';
 import { createPrivacyService } from '../src';
 
 const PDF = readFileSync(new URL('../../documents/test/fixtures/bilan-fictif.pdf', import.meta.url));
@@ -27,14 +28,15 @@ describe.skipIf(!TEST_DB)('droits RGPD : export, consentements, suppression (Pos
   }
   const count = async (table: string, profileId: string) =>
     (await ctx.sql.unsafe(`SELECT count(*)::int AS n FROM ${table} WHERE profile_id = $1`, [profileId]).catch(() => [{ n: -1 }]))[0]!.n as number;
-  // Comptage hors RLS : rôle superutilisateur indisponible ; on passe par une fonction de contrôle du propriétaire.
+  // Comptage hors RLS, par le compte propriétaire des tables (la RLS est désactivée le temps de la requête).
   async function rawCount(table: string, profileId: string): Promise<number> {
-    return ctx.sql.begin(async (tx) => {
+    const admin = createSql(TEST_DB, { max: 1 });
+    return admin.begin(async (tx) => {
       await tx.unsafe('ALTER TABLE ' + table + ' NO FORCE ROW LEVEL SECURITY');
       const [r] = await tx.unsafe(`SELECT count(*)::int AS n FROM ${table} WHERE profile_id = $1`, [profileId]);
       await tx.unsafe('ALTER TABLE ' + table + ' FORCE ROW LEVEL SECURITY');
       return r!.n as number;
-    });
+    }).finally(() => admin.end()) as Promise<number>;
   }
 
   beforeAll(async () => {

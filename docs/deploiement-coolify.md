@@ -36,6 +36,13 @@ Onglet **Environment Variables** de l'application, ajoutez :
 | `BILANX_APP_URL` | l'adresse publique exacte du site, par ex. `https://xxxx.sslip.io` (sans `/` final) |
 | `BILANX_BASIC_AUTH` | `identifiant:motdepasse` choisis par vous : le navigateur les demandera avant d'afficher le site |
 
+Facultatif, pour envoyer réellement les e-mails (voir étape 5) :
+
+| Variable | Valeur |
+|---|---|
+| `BILANX_SMTP_URL` | `smtp://identifiant:motdepasse@serveur:587` fourni par un prestataire d'e-mails transactionnels (port 587 avec STARTTLS, ou `smtps://…:465`). Encodez les caractères spéciaux du mot de passe (`@` → `%40`, `:` → `%3A`) |
+| `BILANX_MAIL_FROM` | l'expéditeur, par ex. `BILANX <no-reply@bilanx.fr>` (adresse d'un domaine validé chez le prestataire) |
+
 Uniquement si votre domaine provisoire est en **http** (sans certificat) : ajoutez aussi
 `BILANX_ALLOW_INSECURE_HTTP` = `true`. Les cookies ne seront alors pas marqués « Secure » ; à éviter dès que possible.
 
@@ -54,6 +61,10 @@ Démarrage de BILANX…
 Les migrations de base de données s'appliquent automatiquement à chaque démarrage ; celles déjà appliquées sont
 ignorées (« Base à jour. »).
 
+**Isolation des données** : l'application ne travaille pas avec le compte `postgres` (superutilisateur, pour qui
+PostgreSQL ignore la Row-Level Security) mais sous un rôle dédié, `bilanx_app`, créé automatiquement par les migrations.
+Rien à configurer : la séparation entre profils est ainsi garantie aussi par la base, en plus de l'application.
+
 Pour redéployer après une mise à jour du dépôt : bouton **Redeploy**, ou activez le déploiement automatique sur la
 branche `main` (*Webhooks* / *Auto Deploy*).
 
@@ -64,7 +75,8 @@ supprimés depuis plus de 30 jours : 1 minute après chaque démarrage, puis tou
 
 ## 5. Créer votre compte
 
-Aucun service d'envoi d'e-mails n'est encore branché : **les e-mails s'affichent dans les journaux de l'application**.
+**Sans `BILANX_SMTP_URL`** (site de démonstration) : les e-mails ne partent pas, **ils s'affichent dans les journaux de
+l'application** (le journal le rappelle au démarrage : « aucun BILANX_SMTP_URL »).
 
 1. Ouvrez le site (identifiant et mot de passe de `BILANX_BASIC_AUTH`), puis **Créer un compte**.
 2. Dans Coolify, onglet **Logs** de l'application : cherchez le message « Confirmez votre adresse e-mail BILANX » et
@@ -74,6 +86,36 @@ Aucun service d'envoi d'e-mails n'est encore branché : **les e-mails s'affichen
 
 Les invitations envoyées depuis *Famille & Profils* apparaissent de la même façon dans les journaux.
 
+**Avec `BILANX_SMTP_URL`** : les e-mails partent réellement et les liens n'apparaissent plus dans les journaux. Au
+démarrage, le journal indique « E-mails : serveur SMTP joignable, envoi réel activé. » ou, sinon, la cause (serveur
+injoignable, identifiants refusés). Un envoi en échec n'interrompt jamais un parcours : il est réessayé une fois puis
+noté dans le journal (adresse masquée, sans le contenu) ; l'utilisateur peut redemander le lien. Pour que les e-mails
+n'arrivent pas en indésirables, déclarez chez le prestataire votre domaine d'envoi (enregistrements SPF et DKIM dans
+la zone DNS, par ex. chez Hostinger).
+
+## Sauvegardes
+
+Toutes les données sont dans PostgreSQL, documents scannés compris (chiffrés). Une sauvegarde de la base suffit donc,
+**mais elle est inutilisable sans `BILANX_SECRET_KEY`** : conservez cette clé à part (gestionnaire de mots de passe),
+jamais à côté des sauvegardes.
+
+1. Page de la base PostgreSQL dans Coolify → onglet **Backups** → **Add** : fréquence quotidienne (par ex. `0 3 * * *`),
+   conservation de 14 sauvegardes.
+2. Recommandé : envoyez-les hors du VPS (**S3 Storages** de Coolify : un stockage S3 chez un autre prestataire). Une
+   sauvegarde restée sur le même serveur disparaît avec lui.
+3. **Testez la restauration**, au moins une fois puis après chaque changement important. Sur votre ordinateur, avec le
+   dépôt et PostgreSQL 16 (`docker compose up -d`) :
+
+   ```bash
+   createdb -h localhost -U bilanx restauration
+   pg_restore -h localhost -U bilanx -d restauration --no-owner sauvegarde.dump
+   DATABASE_URL=postgres://bilanx:bilanx@localhost:5432/restauration BILANX_SECRET_KEY=… npm run sauvegarde:verifier
+   ```
+
+   Le contrôle déchiffre chaque document et chaque secret de double authentification avec la clé, et vérifie le
+   chaînage du journal d'audit. Il se termine par « ✓ Sauvegarde exploitable avec cette clé. » ou explique ce qui ne va
+   pas (mauvaise clé, document altéré, journal modifié).
+
 ## 6. Plus tard : brancher bilanx.fr
 
 1. Dans la zone DNS de votre domaine chez Hostinger, créez un enregistrement **A** pour `@` (et `www` si souhaité)
@@ -81,8 +123,8 @@ Les invitations envoyées depuis *Famille & Profils* apparaissent de la même fa
 2. Dans Coolify, champ **Domains** de l'application : `https://bilanx.fr` (et `https://www.bilanx.fr`).
 3. Mettez `BILANX_APP_URL` à `https://bilanx.fr`, puis **Redeploy**.
 
-Avant d'y accueillir de vraies données de santé : hébergement certifié HDS, analyse d'impact (AIPD), prestataire
-d'e-mails, voir `docs/08-securite-conformite.md`.
+Avant d'y accueillir de vraies données de santé : voir `docs/mise-en-production.md` (hébergement certifié HDS,
+analyse d'impact, etc.).
 
 ## En cas de problème
 
@@ -92,4 +134,6 @@ d'e-mails, voir `docs/08-securite-conformite.md`.
 | « BILANX_SECRET_KEY doit faire exactement 32 octets » | clé mal générée : utilisez `openssl rand -base64 32` |
 | « BILANX_APP_URL doit être en https » | domaine en http : passez-le en https ou ajoutez `BILANX_ALLOW_INSECURE_HTTP=true` |
 | Erreur de connexion à la base au démarrage | utilisez l'adresse **internal** et vérifiez que la base est *Running* |
+| Migration `0012_app_role.sql` en échec (« permission denied to create role ») | le compte de `DATABASE_URL` n'est ni superutilisateur ni `CREATEROLE` : utilisez le compte `postgres` de la base Coolify, ou faites créer le rôle `bilanx_app` par l'administrateur de la base |
+| « E-mails : serveur SMTP injoignable ou identifiants refusés » | `BILANX_SMTP_URL` erronée, port bloqué par l'hébergeur, ou mot de passe non encodé |
 | Impossible de rester connecté | `BILANX_APP_URL` ne correspond pas à l'adresse réellement utilisée (http/https, nom de domaine) |

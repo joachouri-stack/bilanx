@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { createSql } from '@bilanx/db';
+import { createAppSql, createSql } from '@bilanx/db';
 import { migrate } from '../../db/src/migrate';
 import { createAuthService, MemoryMailer } from '../src';
 
@@ -8,9 +8,12 @@ const MIGRATIONS = fileURLToPath(new URL('../../../db/migrations', import.meta.u
 
 /** Base vierge + migrations + service avec horloge contrôlable. */
 export async function setupAuth() {
-  const sql = createSql(TEST_DB, { max: 4 });
-  await sql.unsafe('DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;');
-  await migrate(sql, MIGRATIONS);
+  const admin = createSql(TEST_DB, { max: 1 });
+  await admin.unsafe('DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;');
+  await migrate(admin, MIGRATIONS);
+  await admin.end();
+  // Comme en production : rôle applicatif, la RLS s'applique quel que soit le compte de connexion.
+  const sql = createAppSql(TEST_DB, { max: 4 });
   const mailer = new MemoryMailer();
   const clock = { t: new Date('2026-11-04T10:00:00Z') };
   const auth = createAuthService({

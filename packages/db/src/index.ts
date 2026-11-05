@@ -17,3 +17,15 @@ export function createSql(url = process.env.DATABASE_URL, options: postgres.Opti
     ...options,
   });
 }
+
+/** Rôle sous lequel l'application accède aux données (migration 0012) : la RLS s'applique toujours. */
+export const APP_DB_ROLE = 'bilanx_app';
+
+/**
+ * Client de l'application : connexion avec DATABASE_URL, mais requêtes exécutées sous le rôle
+ * `bilanx_app` (ni superutilisateur, ni BYPASSRLS, ni propriétaire des tables), même si le
+ * compte fourni par l'hébergeur est superutilisateur. Les migrations utilisent `createSql`.
+ */
+export function createAppSql(url = process.env.DATABASE_URL, options: postgres.Options<{}> = {}): Sql {
+  return createSql(url, { ...options, connection: { ...options.connection, role: APP_DB_ROLE } });
+}

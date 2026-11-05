@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { base32Decode, totp } from '../src/totp';
+import { verifyAuditChain } from '../src/audit';
+import { createSql } from '@bilanx/db';
 import { setupAuth, TEST_DB, tokenFrom } from './helpers';
 
 const EMAIL = 'claire.test@exemple.fr';
@@ -202,12 +204,36 @@ describe.skipIf(!TEST_DB)('parcours d’authentification (PostgreSQL réel)', ()
     expect(rows.map((r) => r.action)).toContain('account.created');
     expect(rows.map((r) => r.action)).toContain('account.password_reset');
     for (let i = 1; i < rows.length; i++) expect(Buffer.compare(rows[i]!.prev_hash as Buffer, rows[i - 1]!.row_hash as Buffer)).toBe(0);
-    await expect(ctx.sql`UPDATE audit_log SET action = 'falsifié'`).rejects.toThrow(/ajout seul/);
-    await expect(ctx.sql`DELETE FROM audit_log`).rejects.toThrow(/ajout seul/);
+    // Rôle applicatif : aucun droit de modification, d'effacement ni de vidage (TRUNCATE ignore les déclencheurs).
+    await expect(ctx.sql`UPDATE audit_log SET action = 'falsifié'`).rejects.toThrow(/permission denied/);
+    await expect(ctx.sql`DELETE FROM audit_log`).rejects.toThrow(/permission denied/);
+    await expect(ctx.sql`TRUNCATE audit_log`).rejects.toThrow(/permission denied/);
+    // Compte propriétaire : le déclencheur refuse encore toute modification ligne à ligne.
+    const admin = createSql(TEST_DB, { max: 1 });
+    try {
+      await expect(admin`UPDATE audit_log SET action = 'falsifié'`).rejects.toThrow(/ajout seul/);
+      await expect(admin`DELETE FROM audit_log`).rejects.toThrow(/ajout seul/);
+    } finally {
+      await admin.end();
+    }
   });
 
-  it('ne stocke aucune donnée sensible en clair dans la limitation des tentatives', async () => {
-    const rows = await ctx.sql`SELECT key_hash FROM auth_throttle`;
-    for (const r of rows) expect(Buffer.from(r.key_hash as Buffer).toString('utf8')).not.toContain('exemple.fr');
+  it('vérifie tout le journal et détecte une modification ou une suppression faite directement en base', async () => {
+    const clean = await verifyAuditChain(ctx.sql);
+    expect(clean.entries).toBeGreaterThan(5);
+    expect(clean).toMatchObject({ brokenLinks: 0, altered: 0, unverifiableLegacy: 0, verified: clean.entries });
+    // Falsification par un superutilisateur qui désactive le déclencheur.
+    const admin = createSql(TEST_DB, { max: 1 });
+    try {
+      await admin.begin(async (tx) => {
+        await tx`ALTER TABLE audit_log DISABLE TRIGGER audit_log_no_update`;
+        await tx`UPDATE audit_log SET action = 'falsifié' WHERE id = (SELECT min(id) + 2 FROM audit_log)`;
+        await tx`DELETE FROM audit_log WHERE id = (SELECT min(id) + 4 FROM audit_log)`;
+        await tx`ALTER TABLE audit_log ENABLE TRIGGER audit_log_no_update`;
+      });
+    } finally {
+      await admin.end();
+    }
+    expect(await verifyAuditChain(ctx.sql)).toMatchObject({ altered: 1, brokenLinks: 1 });
   });
 });

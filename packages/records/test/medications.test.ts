@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createProfilesService, ForbiddenError, type Actor } from '@bilanx/profiles';
+import { createSql } from '@bilanx/db';
 import { setupAuth, TEST_DB, tokenFrom } from '../../auth/test/helpers';
 import { createMedicationsService, isOngoing, lastDay } from '../src';
 
@@ -111,6 +112,28 @@ describe.skipIf(!TEST_DB)('médicaments (PostgreSQL réel)', () => {
     expect(await meds.record(marc, marcPid, newMetId, new Date('2026-11-04T07:00:00Z'), 'taken')).toBe(false);
     const [n] = await ctx.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM medication_intake WHERE recorded_by = ${marc.accountId}`;
     expect(n!.n).toBe(0);
+  });
+
+  it('la RLS s’applique au rôle applicatif, même si le compte de connexion la contournerait', async () => {
+    const admin = createSql(TEST_DB, { max: 1 });
+    try {
+      const [who] = await admin<{ bypass: boolean }[]>`SELECT rolsuper OR rolbypassrls AS bypass FROM pg_roles WHERE rolname = current_user`;
+      const [all] = await admin<{ n: number }[]>`SELECT count(*)::int AS n FROM medication`;
+      // Rôle applicatif sans contexte de compte : aucune ligne visible.
+      const [app] = await ctx.sql<{ n: number; role: string }[]>`SELECT count(*)::int AS n, current_user AS role FROM medication`;
+      expect(app).toEqual({ n: 0, role: 'bilanx_app' });
+      if (who!.bypass) expect(all!.n).toBeGreaterThan(0); // le compte de connexion, lui, voit tout
+      // Contexte d'un compte sans accès : rien ; contexte de Jo : ses traitements seulement.
+      const seen = (accountId: string) =>
+        ctx.sql.begin(async (tx) => {
+          await tx`SELECT set_config('app.account_id', ${accountId}, true)`;
+          return (await tx<{ n: number }[]>`SELECT count(*)::int AS n FROM medication`)[0]!.n;
+        });
+      expect(await seen(marc.accountId)).toBe(0);
+      expect(await seen(jo.accountId)).toBeGreaterThan(0);
+    } finally {
+      await admin.end();
+    }
   });
 });
 
