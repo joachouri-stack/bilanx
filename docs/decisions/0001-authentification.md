@@ -38,3 +38,11 @@ L'architecture cible (doc 02) prévoit une API NestJS séparée. Pour le MVP, un
 Faits depuis : envoi réel des e-mails (SMTP, décision 0007), rôle PostgreSQL applicatif (0007), consentements, export
 et suppression du compte (0004), changement d'e-mail et de mot de passe, codes de secours, changement de téléphone,
 clés d'accès (ci-dessus).
+
+## Mise à jour (novembre 2026) : double authentification facultative
+
+À la demande du propriétaire du service, la double authentification n'est plus imposée : elle est proposée à la
+première connexion, avec un bouton « Continuer sans double authentification ». Ce choix est enregistré
+(`account.mfa_opted_out_at`, entrée `mfa.opted_out` du journal d'audit) ; les connexions suivantes ne demandent
+que le mot de passe. Elle s'active à tout moment dans Paramètres, ce qui efface le choix ; un compte qui l'a activée
+ne peut plus la contourner à la connexion. Alternative recommandée et sans code : les clés d'accès (Face ID / Touch ID).

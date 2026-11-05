@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { TotpConfirmForm } from '@/components/auth-forms';
 import { currentSession, startTotpEnrollment } from '@/lib/server/auth';
+import { skipMfaAction } from '@/lib/server/actions';
 
 export const metadata: Metadata = { title: 'Configurer la double authentification' };
 export const dynamic = 'force-dynamic';
@@ -21,8 +22,8 @@ export default async function MfaSetupPage() {
         {enrollment ? (
           <>
             <p className="mt-1 text-sm text-ink-2">
-              Les données de santé exigent une double authentification. Utilisez une application d’authentification (par exemple
-              celle intégrée à votre gestionnaire de mots de passe, ou une application dédiée).
+              Recommandé pour des données de santé : en plus du mot de passe, un code à 6 chiffres affiché par une application
+              d’authentification (Google Authenticator, l’app Mots de passe de l’iPhone…).
             </p>
             <ol className="mt-5 flex flex-col gap-4 text-sm">
               <li>
@@ -42,6 +43,14 @@ export default async function MfaSetupPage() {
         ) : null}
       </section>
       <TotpConfirmForm alreadyEnrolled={s.mfaEnrolled} />
+      {enrollment && !s.mfaPassed && (
+        <form action={skipMfaAction} className="mt-6 border-t border-line pt-5 text-center">
+          <button type="submit" className="min-h-11 text-sm font-medium text-ink-2 underline">
+            Continuer sans double authentification
+          </button>
+          <p className="mt-1 text-xs text-ink-3">Seuls l’e-mail et le mot de passe seront demandés. Vous pourrez l’activer plus tard dans Paramètres.</p>
+        </form>
+      )}
     </>
   );
 }

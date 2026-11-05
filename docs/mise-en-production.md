@@ -9,7 +9,7 @@
 
 | Domaine | Ce qui est en place |
 |---|---|
-| Comptes | Mots de passe Argon2id, double authentification obligatoire (TOTP + codes de secours), sessions limitées (30 min d'inactivité, 12 h max ; « Rester connecté sur cet appareil » : 90 jours sans visite, un an max, révocables dans Paramètres), limitation des tentatives |
+| Comptes | Mots de passe Argon2id, double authentification proposée à la première connexion et recommandée (TOTP + codes de secours ; l’utilisateur peut choisir de continuer sans, choix journalisé et réversible dans Paramètres), sessions limitées (30 min d'inactivité, 12 h max ; « Rester connecté sur cet appareil » : 90 jours sans visite, un an max, révocables dans Paramètres), limitation des tentatives |
 | Isolation des profils | Contrôle par l'application **et** Row-Level Security PostgreSQL, appliquée via le rôle `bilanx_app` même si le compte fourni par l'hébergeur est superutilisateur (migration 0012) |
 | Chiffrement | Documents chiffrés par enveloppe (clé par document), secrets de double authentification chiffrés (AES-256-GCM) |
 | Traçabilité | Journal d'audit chaîné, en ajout seul (droits PostgreSQL + déclencheur), recalculable depuis une sauvegarde (migration 0013) |

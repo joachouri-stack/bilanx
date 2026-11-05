@@ -31,6 +31,7 @@ import {
   clearSessionCookie,
   clientInfo,
   requirePendingMfa,
+  currentSession,
   requireUser,
   totpQrSvg,
   sessionToken,
@@ -98,7 +99,7 @@ export async function signInAction(_: FormState, fd: FormData): Promise<FormStat
     case 'ok':
       await setSessionCookie(r.token, remember);
       await rememberNext(str(fd, 'suite') || null);
-      redirect(r.next === 'mfa_enroll' ? '/mfa/configuration' : '/mfa');
+      redirect(r.next === 'done' ? await takeNext() : r.next === 'mfa_enroll' ? '/mfa/configuration' : '/mfa');
   }
 }
 
@@ -150,11 +151,23 @@ export async function removePasskeyAction(_: FormState, fd: FormData): Promise<F
 
 // ───────────── Double authentification ─────────────
 export async function confirmTotpAction(_: FormState, fd: FormData): Promise<FormState> {
-  const s = await requirePendingMfa();
+  // À la première connexion (session en attente) ou plus tard depuis Paramètres (session ouverte, sans code).
+  const s = await currentSession();
+  if (!s) redirect('/connexion');
+  if (s.mfaEnrolled && s.mfaPassed) redirect('/tableau-de-bord');
   const r = await auth().confirmTotpEnrollment(s, str(fd, 'code'));
   if (!r.ok) return { errors: { form: r.error } };
   await setSessionCookie(r.token, s.remember);
   return { ok: true, recoveryCodes: r.recoveryCodes };
+}
+
+/** « Continuer sans double authentification » (choix de l'utilisateur, réversible dans Paramètres). */
+export async function skipMfaAction(): Promise<void> {
+  const s = await requirePendingMfa();
+  const r = await auth().skipMfa(s);
+  if (!r.ok) redirect('/mfa');
+  await setSessionCookie(r.token, s.remember);
+  redirect(await takeNext());
 }
 
 export async function verifyMfaAction(_: FormState, fd: FormData): Promise<FormState> {

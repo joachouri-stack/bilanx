@@ -91,7 +91,18 @@ export default async function SettingsPage({
             </dd>
             <dt className="text-ink-3">Double authentification</dt>
             <dd>
-              <Chip tone="sage">activée</Chip> <span className="text-ink-3">· application d’authentification</span>
+              {user.mfaEnrolled ? (
+                <>
+                  <Chip tone="sage">activée</Chip> <span className="text-ink-3">· application d’authentification</span>
+                </>
+              ) : (
+                <>
+                  <Chip tone="amber">désactivée</Chip>{' '}
+                  <Link href="/mfa/configuration" className="text-petrol underline">
+                    Activer
+                  </Link>
+                </>
+              )}
             </dd>
           </dl>
           <form action={signOutAction} className="mt-5">
@@ -134,18 +145,22 @@ export default async function SettingsPage({
                 />
               </div>
             </details>
-            <details className="rounded-xl border border-line p-3.5" id="telephone">
-              <summary className="cursor-pointer text-sm font-medium text-petrol">Changer de téléphone (double authentification)</summary>
-              <div className="mt-3">
-                <ReplaceTotpForm />
-              </div>
-            </details>
-            <details className="rounded-xl border border-line p-3.5" id="codes" open={codesLeft <= 3}>
-              <summary className="cursor-pointer text-sm font-medium text-petrol">Codes de secours</summary>
-              <div className="mt-3">
-                <RegenerateRecoveryCodesForm left={codesLeft} />
-              </div>
-            </details>
+            {user.mfaEnrolled && (
+              <>
+              <details className="rounded-xl border border-line p-3.5" id="telephone">
+                <summary className="cursor-pointer text-sm font-medium text-petrol">Changer de téléphone (double authentification)</summary>
+                <div className="mt-3">
+                  <ReplaceTotpForm />
+                </div>
+              </details>
+              <details className="rounded-xl border border-line p-3.5" id="codes" open={codesLeft <= 3}>
+                <summary className="cursor-pointer text-sm font-medium text-petrol">Codes de secours</summary>
+                <div className="mt-3">
+                  <RegenerateRecoveryCodesForm left={codesLeft} />
+                </div>
+              </details>
+              </>
+            )}
           </div>
         </Card>
 

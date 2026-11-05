@@ -224,7 +224,7 @@ export function createAuthService(cfg: AuthConfig) {
 
   // ───────────────────────── Connexion ─────────────────────────
   type SignInResult =
-    | { status: 'ok'; token: string; next: 'mfa_verify' | 'mfa_enroll' }
+    | { status: 'ok'; token: string; next: 'mfa_verify' | 'mfa_enroll' | 'done' }
     | { status: 'invalid' }
     | { status: 'throttled' }
     | { status: 'unverified' };
@@ -233,8 +233,8 @@ export function createAuthService(cfg: AuthConfig) {
     const email = normalizeEmail(input.email);
     if (await isThrottled('login', email, LOGIN_MAX_FAILURES)) return { status: 'throttled' };
 
-    const [acc] = await sql<{ id: string; password_hash: string | null; email_verified_at: Date | null }[]>`
-      SELECT id, password_hash, email_verified_at FROM account WHERE email = ${email} AND deleted_at IS NULL`;
+    const [acc] = await sql<{ id: string; password_hash: string | null; email_verified_at: Date | null; mfa_opted_out_at: Date | null }[]>`
+      SELECT id, password_hash, email_verified_at, mfa_opted_out_at FROM account WHERE email = ${email} AND deleted_at IS NULL`;
     const ok = acc?.password_hash ? await verifyPassword(acc.password_hash, input.password) : (await verifyPassword(await dummyHash(), input.password), false);
     if (!acc || !ok) {
       await recordAttempt('login', email);
@@ -247,15 +247,19 @@ export function createAuthService(cfg: AuthConfig) {
     const token = randomToken();
     const [mfa] = await sql<{ n: number }[]>`
       SELECT count(*)::int AS n FROM mfa_factor WHERE account_id = ${acc.id} AND kind = 'totp' AND confirmed_at IS NOT NULL`;
+    const enrolled = (mfa?.n ?? 0) > 0;
+    // Sans double authentification, par choix explicite de l'utilisateur : session complète dès le mot de passe.
+    const direct = !enrolled && !!acc.mfa_opted_out_at;
+    const remember = !!input.remember;
     await sql.begin(async (tx) => {
       await tx`
-        INSERT INTO session (account_id, token_hash, mfa_passed, remember, ip_hash, user_agent, created_at, last_seen_at, expires_at, absolute_expires_at)
-        VALUES (${acc.id}, ${sha256(token)}, false, ${!!input.remember}, ${ipHash(input.ip)}, ${input.userAgent ?? null}, ${now()}, ${now()},
-                ${addMin(PRE_MFA_MINUTES)}, ${addMin(sessionLifetimeMinutes(!!input.remember))})`;
+        INSERT INTO session (account_id, token_hash, mfa_passed, mfa_passed_at, remember, ip_hash, user_agent, created_at, last_seen_at, expires_at, absolute_expires_at)
+        VALUES (${acc.id}, ${sha256(token)}, ${direct}, ${direct ? now() : null}, ${remember}, ${ipHash(input.ip)}, ${input.userAgent ?? null}, ${now()}, ${now()},
+                ${addMin(direct ? idleMinutes(remember) : PRE_MFA_MINUTES)}, ${addMin(sessionLifetimeMinutes(remember))})`;
       await tx`INSERT INTO login_event (account_id, success, method, user_agent, occurred_at) VALUES (${acc.id}, true, 'password', ${input.userAgent ?? null}, ${now()})`;
-      await audit(tx, { accountId: acc.id, action: 'session.password_ok' });
+      await audit(tx, { accountId: acc.id, action: direct ? 'session.password_only_ok' : 'session.password_ok' });
     });
-    return { status: 'ok', token, next: (mfa?.n ?? 0) > 0 ? 'mfa_verify' : 'mfa_enroll' };
+    return { status: 'ok', token, next: direct ? 'done' : enrolled ? 'mfa_verify' : 'mfa_enroll' };
   }
 
   async function getSession(token: string | undefined | null): Promise<SessionInfo | null> {
@@ -317,6 +321,22 @@ export function createAuthService(cfg: AuthConfig) {
     return token;
   }
 
+  /**
+   * « Continuer sans double authentification » : choix explicite, uniquement pour un compte qui n'en a pas.
+   * Les connexions suivantes ne demanderont que le mot de passe ; activable à tout moment dans Paramètres.
+   */
+  async function skipMfa(session: SessionInfo): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+    if (session.mfaEnrolled) return { ok: false, error: 'La double authentification est activée sur ce compte.' };
+    if (session.mfaPassed) return { ok: false, error: 'Session déjà ouverte.' };
+    const token = await sql.begin(async (tx) => {
+      await tx`UPDATE account SET mfa_opted_out_at = ${now()} WHERE id = ${session.accountId}`;
+      await tx`DELETE FROM mfa_factor WHERE account_id = ${session.accountId} AND kind = 'totp' AND confirmed_at IS NULL`;
+      await audit(tx, { accountId: session.accountId, action: 'mfa.opted_out' });
+      return promoteSession(tx, session.sessionId);
+    });
+    return { ok: true, token };
+  }
+
   // ───────────────────────── MFA (TOTP + codes de secours) ─────────────────────────
   async function beginTotpEnrollment(session: SessionInfo): Promise<{ secret: string; uri: string }> {
     if (session.mfaEnrolled) throw new Error('La double authentification est déjà configurée.');
@@ -367,6 +387,7 @@ export function createAuthService(cfg: AuthConfig) {
     const codes = newRecoveryCodes();
     const token = await sql.begin(async (tx) => {
       await tx`UPDATE mfa_factor SET confirmed_at = ${now()}, last_used_step = ${step}, last_used_at = ${now()} WHERE id = ${f.id}`;
+      await tx`UPDATE account SET mfa_opted_out_at = NULL WHERE id = ${session.accountId}`;
       await tx`DELETE FROM mfa_recovery_code WHERE account_id = ${session.accountId}`;
       for (const c of codes) await tx`INSERT INTO mfa_recovery_code (account_id, code_hash) VALUES (${session.accountId}, ${recoveryHash(c)})`;
       await tx`INSERT INTO login_event (account_id, success, method, occurred_at) VALUES (${session.accountId}, true, 'totp', ${now()})`;
@@ -879,6 +900,7 @@ export function createAuthService(cfg: AuthConfig) {
     getSession,
     beginTotpEnrollment,
     confirmTotpEnrollment,
+    skipMfa,
     verifyMfa,
     signOut,
     listSessions,
