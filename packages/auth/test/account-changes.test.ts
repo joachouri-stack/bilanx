@@ -11,7 +11,7 @@ describe.skipIf(!TEST_DB)('compte : mot de passe, adresse e-mail, codes de secou
   let token = '';
 
   /** Inscription, confirmation, connexion et double authentification : session complète. */
-  async function fullSession(email: string, password = PW): Promise<{ s: SessionInfo; token: string }> {
+  async function fullSession(email: string, password = PW): Promise<{ s: SessionInfo; token: string; secret: Buffer }> {
     await ctx.auth.signUp({ email, password, displayName: 'Jo', acceptHealthProcessing: true, acceptAiExtraction: false });
     await ctx.auth.verifyEmail(tokenFrom(ctx.mailer.last(email)?.text));
     const r = await ctx.auth.signIn({ email, password, userAgent: 'Test', ip: '203.0.113.5' });
@@ -20,7 +20,7 @@ describe.skipIf(!TEST_DB)('compte : mot de passe, adresse e-mail, codes de secou
     const { secret } = await ctx.auth.beginTotpEnrollment(pending);
     const ok = await ctx.auth.confirmTotpEnrollment(pending, totp(base32Decode(secret), ctx.clock.t));
     if (!ok.ok) throw new Error('MFA attendue');
-    return { s: (await ctx.auth.getSession(ok.token))!, token: ok.token };
+    return { s: (await ctx.auth.getSession(ok.token))!, token: ok.token, secret: base32Decode(secret) };
   }
 
   beforeAll(async () => {
@@ -97,5 +97,43 @@ describe.skipIf(!TEST_DB)('compte : mot de passe, adresse e-mail, codes de secou
     if (signIn.status !== 'ok') throw new Error('connexion attendue');
     expect((await ctx.auth.verifyMfa((await ctx.auth.getSession(signIn.token))!, r.recoveryCodes[0]!)).ok).toBe(true);
     expect(await ctx.auth.recoveryCodesLeft(s.accountId)).toBe(9);
+  });
+
+  it('changement de téléphone : l’ancienne application reste valable jusqu’à confirmation de la nouvelle', async () => {
+    const c = await fullSession('claire@exemple.fr');
+    const login = async () => {
+      const r = await ctx.auth.signIn({ email: 'claire@exemple.fr', password: PW, userAgent: 'x', ip: null });
+      if (r.status !== 'ok') throw new Error('connexion attendue');
+      return (await ctx.auth.getSession(r.token))!;
+    };
+    expect(await ctx.auth.beginTotpReplacement(c.s, 'faux')).toMatchObject({ ok: false, errors: { currentPassword: expect.any(String) } });
+    const b = await ctx.auth.beginTotpReplacement(c.s, PW);
+    if (!b.ok) throw new Error('début attendu');
+    expect(b.uri).toContain('claire%40exemple.fr');
+    const fresh = base32Decode(b.secret);
+    ctx.advance(1);
+    // Pendant le changement, l'ancienne application fonctionne toujours.
+    expect((await ctx.auth.verifyMfa(await login(), totp(c.secret, ctx.clock.t))).ok).toBe(true);
+    ctx.advance(1);
+    // Un code de l'ANCIENNE application ne confirme pas la nouvelle.
+    expect(await ctx.auth.confirmTotpReplacement(c.s, totp(c.secret, ctx.clock.t))).toMatchObject({ ok: false, error: expect.stringMatching(/NOUVELLE/) });
+    expect(await ctx.auth.confirmTotpReplacement(c.s, totp(fresh, ctx.clock.t))).toEqual({ ok: true });
+    expect(ctx.mailer.last('claire@exemple.fr')?.subject).toMatch(/nouveau téléphone/);
+    expect(await ctx.auth.getSession(c.token)).not.toBeNull(); // session conservée
+    ctx.advance(1);
+    expect((await ctx.auth.verifyMfa(await login(), totp(c.secret, ctx.clock.t))).ok).toBe(false); // ancienne refusée
+    ctx.advance(1);
+    expect((await ctx.auth.verifyMfa(await login(), totp(fresh, ctx.clock.t))).ok).toBe(true); // nouvelle acceptée
+    expect(await ctx.auth.recoveryCodesLeft(c.s.accountId)).toBe(10); // codes de secours intacts
+    const [n] = await ctx.sql<{ n: number }[]>`SELECT count(*)::int AS n FROM mfa_factor WHERE account_id = ${c.s.accountId} AND kind = 'totp'`;
+    expect(n!.n).toBe(1);
+  });
+
+  it('changement de téléphone : délai de 15 minutes pour confirmer', async () => {
+    const c = await fullSession('lea@exemple.fr');
+    const b = await ctx.auth.beginTotpReplacement(c.s, PW);
+    if (!b.ok) throw new Error('début attendu');
+    ctx.advance(16);
+    expect(await ctx.auth.confirmTotpReplacement(c.s, totp(base32Decode(b.secret), ctx.clock.t))).toMatchObject({ ok: false, error: expect.stringMatching(/Délai dépassé/) });
   });
 });

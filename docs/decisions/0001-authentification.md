@@ -25,14 +25,16 @@ L'architecture cible (doc 02) prévoit une API NestJS séparée. Pour le MVP, un
 | CSRF | Server Actions (contrôle d'origine Next.js) + SameSite=Lax |
 | Changement de mot de passe | Mot de passe actuel exigé (5 essais / 15 min), autres sessions fermées, e-mail au titulaire (migration 0014 : 5 nov. 2026) |
 | Changement d'adresse | Mot de passe exigé ; lien 24 h envoyé à la **nouvelle** adresse, ancienne active jusqu'à confirmation puis prévenue (nouvelle adresse masquée). Adresse déjà prise : même réponse, son titulaire est prévenu, aucun lien (pas de révélation de compte) |
+| Changement de téléphone | Mot de passe exigé ; nouvelle clé préparée sans désactiver l'ancienne ; un code de la NOUVELLE application (15 min) la rend active et supprime l'ancienne ; codes de secours et session conservés ; e-mail au titulaire. Téléphone perdu : connexion par code de secours, puis changement |
 | Codes de secours | Nombre restant affiché ; régénération sur mot de passe, anciens codes invalidés, e-mail au titulaire |
 
 ## Reste à faire avant ouverture publique
 - Clé maîtresse dans le KMS de l'hébergeur HDS (aujourd'hui variable d'environnement).
-- Passkeys (WebAuthn) ; reconfiguration de la double authentification (changement de téléphone) depuis les paramètres.
+- Passkeys (WebAuthn).
 - Vérification des mots de passe contre les fuites connues (k-anonymat).
 - Limitation par adresse IP au niveau du WAF.
 - Test d'intrusion externe.
 
 Faits depuis : envoi réel des e-mails (SMTP, décision 0007), rôle PostgreSQL applicatif (0007), consentements, export
-et suppression du compte (0004), changement d'e-mail et de mot de passe, codes de secours (ci-dessus).
+et suppression du compte (0004), changement d'e-mail et de mot de passe, codes de secours, changement de téléphone
+(ci-dessus).

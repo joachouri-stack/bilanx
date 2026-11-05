@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useActionState } from 'react';
 import {
+  beginTotpReplacementAction,
   changePasswordAction,
+  confirmTotpReplacementAction,
   confirmEmailChangeAction,
   regenerateRecoveryCodesAction,
   requestEmailChangeAction,
@@ -107,6 +109,46 @@ export function RegenerateRecoveryCodesForm({ left }: { left: number }) {
       {state.errors?.form && <Alert tone="error">{state.errors.form}</Alert>}
       <Field label="Mot de passe actuel" name="currentPassword" type="password" autoComplete="current-password" error={state.errors?.currentPassword} />
       <SubmitButton pendingLabel="Création…">Créer de nouveaux codes de secours</SubmitButton>
+    </form>
+  );
+}
+
+/** Changement de téléphone pour la double authentification, en deux étapes. */
+export function ReplaceTotpForm() {
+  const [start, begin] = useActionState(beginTotpReplacementAction, initial);
+  const [done, confirm] = useActionState(confirmTotpReplacementAction, initial);
+  if (done.ok) return <Alert tone="success">{done.message}</Alert>;
+  if (start.ok && start.values?.qrSvg) {
+    return (
+      <div className="flex flex-col gap-3.5">
+        <ol className="list-decimal space-y-1 pl-5 text-sm text-ink-2">
+          <li>Sur le nouveau téléphone, ouvrez votre application d’authentification et ajoutez un compte.</li>
+          <li>Scannez ce QR code, ou saisissez la clé à la main.</li>
+          <li>Saisissez ci-dessous le code à 6 chiffres affiché par la nouvelle application.</li>
+        </ol>
+        {/* SVG produit par le serveur à partir de la clé (bibliothèque qrcode), sans contenu fourni par l'utilisateur. */}
+        <div className="mx-auto w-44 rounded-xl border border-line bg-white p-2" role="img" aria-label="QR code de la nouvelle clé" dangerouslySetInnerHTML={{ __html: start.values.qrSvg }} />
+        <p className="text-center text-xs text-ink-3">
+          Clé : <code className="break-all font-mono text-ink">{start.values.secret}</code>
+        </p>
+        <form action={confirm} className="flex flex-col gap-3.5" key={done.attempt ?? 'initial'}>
+          {done.errors?.form && <Alert tone="error">{done.errors.form}</Alert>}
+          <Field label="Code de la nouvelle application" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={7} />
+          <SubmitButton pendingLabel="Vérification…">Utiliser ce nouveau téléphone</SubmitButton>
+        </form>
+        <p className="text-xs text-ink-3">Votre ancienne application reste valable tant que ce code n’a pas été validé (15 minutes).</p>
+      </div>
+    );
+  }
+  return (
+    <form action={begin} className="flex flex-col gap-3.5" key={start.attempt ?? 'initial'}>
+      <p className="text-sm text-ink-2">
+        Nouveau téléphone, ou application réinstallée ? Votre application actuelle continue de fonctionner jusqu’à la validation de la
+        nouvelle. Téléphone perdu : connectez-vous avec un code de secours, puis faites ce changement.
+      </p>
+      {start.errors?.form && <Alert tone="error">{start.errors.form}</Alert>}
+      <Field label="Mot de passe actuel" name="currentPassword" type="password" autoComplete="current-password" error={start.errors?.currentPassword} />
+      <SubmitButton pendingLabel="Préparation…">Configurer un nouveau téléphone</SubmitButton>
     </form>
   );
 }

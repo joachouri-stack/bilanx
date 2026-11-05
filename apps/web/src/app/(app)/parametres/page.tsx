@@ -11,7 +11,7 @@ import {
 } from '@/lib/server/actions';
 import { Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
 import { InstallApp } from '@/components/install-app';
-import { ChangeEmailForm, ChangePasswordForm, RegenerateRecoveryCodesForm } from '@/components/account-forms';
+import { ChangeEmailForm, ChangePasswordForm, RegenerateRecoveryCodesForm, ReplaceTotpForm } from '@/components/account-forms';
 
 export const metadata: Metadata = { title: 'Paramètres et sécurité' };
 
@@ -106,6 +106,12 @@ export default async function SettingsPage({
               <summary className="cursor-pointer text-sm font-medium text-petrol">Changer mon adresse e-mail</summary>
               <div className="mt-3">
                 <ChangeEmailForm current={user.email} />
+              </div>
+            </details>
+            <details className="rounded-xl border border-line p-3.5" id="telephone">
+              <summary className="cursor-pointer text-sm font-medium text-petrol">Changer de téléphone (double authentification)</summary>
+              <div className="mt-3">
+                <ReplaceTotpForm />
               </div>
             </details>
             <details className="rounded-xl border border-line p-3.5" id="codes" open={codesLeft <= 3}>

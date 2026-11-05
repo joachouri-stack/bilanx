@@ -24,6 +24,7 @@ import {
   clientInfo,
   requirePendingMfa,
   requireUser,
+  totpQrSvg,
   sessionToken,
   setSessionCookie,
 } from './auth';
@@ -552,6 +553,22 @@ export async function regenerateRecoveryCodesAction(_: FormState, fd: FormData):
   const r = await auth().regenerateRecoveryCodes(s, str(fd, 'currentPassword'));
   if (!r.ok) return { attempt: crypto.randomUUID(), errors: r.errors };
   return { ok: true, attempt: crypto.randomUUID(), recoveryCodes: r.recoveryCodes };
+}
+
+/** Changement de téléphone, étape 1 : nouvelle clé et QR code (l'ancienne application reste valable). */
+export async function beginTotpReplacementAction(_: FormState, fd: FormData): Promise<FormState> {
+  const s = await requireUser();
+  const r = await auth().beginTotpReplacement(s, str(fd, 'currentPassword'));
+  if (!r.ok) return { attempt: crypto.randomUUID(), errors: r.errors };
+  return { ok: true, attempt: crypto.randomUUID(), values: { secret: r.secret, qrSvg: await totpQrSvg(r.uri) } };
+}
+
+/** Changement de téléphone, étape 2 : un code de la nouvelle application la rend active. */
+export async function confirmTotpReplacementAction(_: FormState, fd: FormData): Promise<FormState> {
+  const s = await requireUser();
+  const r = await auth().confirmTotpReplacement(s, str(fd, 'code'));
+  if (!r.ok) return { attempt: crypto.randomUUID(), errors: { form: r.error } };
+  return { ok: true, message: 'Nouveau téléphone enregistré : l’ancienne application ne fonctionne plus. Vos codes de secours restent valables.' };
 }
 
 // ───────────── Médicaments ─────────────

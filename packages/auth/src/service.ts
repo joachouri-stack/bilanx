@@ -613,6 +613,57 @@ export function createAuthService(cfg: AuthConfig) {
     return { ok: true, recoveryCodes: codes };
   }
 
+  /** Délai pour scanner et confirmer le nouveau téléphone. */
+  const TOTP_REPLACEMENT_MINUTES = 15;
+
+  /**
+   * Changement de téléphone (étape 1) : mot de passe exigé ; une nouvelle clé est préparée SANS toucher
+   * à l'application actuelle, qui reste valable tant que la nouvelle n'est pas confirmée.
+   */
+  async function beginTotpReplacement(session: SessionInfo, currentPassword: string): Promise<{ ok: true; secret: string; uri: string } | { ok: false; errors: FieldErrors }> {
+    const r = await reauthenticate(session, currentPassword);
+    if (!r.ok) return r;
+    const secret = generateTotpSecret();
+    await sql.begin(async (tx) => {
+      await tx`DELETE FROM mfa_factor WHERE account_id = ${session.accountId} AND kind = 'totp' AND confirmed_at IS NULL`;
+      await tx`
+        INSERT INTO mfa_factor (account_id, kind, secret_enc, label, created_at)
+        VALUES (${session.accountId}, 'totp', ${encrypt(keys.totp, secret, session.accountId)}, 'Application d’authentification', ${now()})`;
+    });
+    return { ok: true, secret: base32Encode(secret), uri: otpauthUri(secret, r.email) };
+  }
+
+  /**
+   * Changement de téléphone (étape 2) : un code de la NOUVELLE application remplace l'ancienne.
+   * Codes de secours inchangés ; session en cours conservée ; titulaire prévenu par e-mail.
+   */
+  async function confirmTotpReplacement(session: SessionInfo, code: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!session.mfaPassed) return { ok: false, error: 'Session incomplète : reconnectez-vous.' };
+    if (await isThrottled('mfa', session.accountId, MFA_MAX_FAILURES)) return { ok: false, error: 'Trop de tentatives. Réessayez dans 15 minutes.' };
+    const [f] = await sql<{ id: string; secret_enc: Buffer }[]>`
+      SELECT id, secret_enc FROM mfa_factor
+      WHERE account_id = ${session.accountId} AND kind = 'totp' AND confirmed_at IS NULL AND created_at > ${addMin(-TOTP_REPLACEMENT_MINUTES)}
+      ORDER BY created_at DESC LIMIT 1`;
+    if (!f) return { ok: false, error: 'Délai dépassé : recommencez le changement de téléphone.' };
+    const step = verifyTotp(decrypt(keys.totp, f.secret_enc, session.accountId), code, now(), null);
+    if (step === null) {
+      await recordAttempt('mfa', session.accountId);
+      return { ok: false, error: 'Code incorrect. Saisissez le code affiché par la NOUVELLE application, et vérifiez l’heure du téléphone.' };
+    }
+    await sql.begin(async (tx) => {
+      await tx`DELETE FROM mfa_factor WHERE account_id = ${session.accountId} AND kind = 'totp' AND confirmed_at IS NOT NULL`;
+      await tx`UPDATE mfa_factor SET confirmed_at = ${now()}, last_used_step = ${step}, last_used_at = ${now()} WHERE id = ${f.id}`;
+      await audit(tx, { accountId: session.accountId, action: 'mfa.totp_replaced' });
+    });
+    await clearAttempts('mfa', session.accountId);
+    await mailer.send({
+      to: session.email,
+      subject: 'Double authentification : nouveau téléphone enregistré',
+      text: `Votre compte BILANX utilise désormais une nouvelle application d'authentification ; l'ancienne ne fonctionne plus. Vos codes de secours restent valables.\n\nSi vous n'êtes pas à l'origine de ce changement, réinitialisez immédiatement votre mot de passe : ${cfg.appUrl}/mot-de-passe-oublie`,
+    });
+    return { ok: true };
+  }
+
   /** Nombre de codes de secours encore utilisables. */
   async function recoveryCodesLeft(accountId: string): Promise<number> {
     const [r] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM mfa_recovery_code WHERE account_id = ${accountId} AND used_at IS NULL`;
@@ -620,6 +671,8 @@ export function createAuthService(cfg: AuthConfig) {
   }
 
   return {
+    beginTotpReplacement,
+    confirmTotpReplacement,
     changePassword,
     requestEmailChange,
     confirmEmailChange,

@@ -156,8 +156,12 @@ export async function clientInfo(): Promise<{ ip: string | null; userAgent: stri
 /** Démarre l'enrôlement TOTP (appelé au rendu serveur de la page de configuration). */
 export async function startTotpEnrollment(s: SessionInfo): Promise<{ secret: string; qrSvg: string }> {
   const { secret, uri } = await auth().beginTotpEnrollment(s);
-  const qrSvg = await QRCode.toString(uri, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#1B2A30', light: '#FFFFFF' } });
-  return { secret, qrSvg };
+  return { secret, qrSvg: await totpQrSvg(uri) };
+}
+
+/** QR code (SVG) d'une adresse otpauth://, généré côté serveur : la clé ne passe par aucun service tiers. */
+export function totpQrSvg(uri: string): Promise<string> {
+  return QRCode.toString(uri, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#1B2A30', light: '#FFFFFF' } });
 }
 
 
