@@ -134,7 +134,7 @@ export default async function DashboardPage() {
         )}
 
 {showGlucose && (
-        <Card href="/glycemie" className="md:col-span-3 xl:col-span-4">
+        <Card href="/glycemie?periode=14" className="md:col-span-3 xl:col-span-4">
           <CardLabel tone="glucose" tag="Glycémie">
             14 derniers jours
           </CardLabel>

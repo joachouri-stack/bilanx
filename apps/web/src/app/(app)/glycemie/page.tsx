@@ -13,7 +13,8 @@ import {
 } from '@bilanx/domain';
 import { DEMO_TIMEZONE, demoFirstDay, demoToday } from '@/lib/demo-data';
 import { appContext, displayUnits, moduleAllowed } from '@/lib/server/context';
-import { glucoseDay } from '@/lib/server/data';
+import { glucoseDay, sensorRange } from '@/lib/server/data';
+import { GlucosePeriod } from './periode';
 import { ModuleForbidden } from '@/components/module-forbidden';
 import { Card, Chip, Meta, PageHeader, RangeBar, pct } from '@/components/ui';
 import { GlucoseDayChart } from '@/components/glucose-day-chart';
@@ -23,7 +24,7 @@ export const dynamic = 'force-dynamic';
 
 const TARGETS = { veryLow: 54, low: 70, high: 180, veryHigh: 250 };
 
-export default async function GlucosePage({ searchParams }: { searchParams: Promise<{ jour?: string; unite?: string }> }) {
+export default async function GlucosePage({ searchParams }: { searchParams: Promise<{ jour?: string; unite?: string; periode?: string }> }) {
   const ctx = await appContext();
   if (!moduleAllowed(ctx.active, 'glucose')) return <ModuleForbidden title="Glycémie" profileName={ctx.active.kind === 'real' ? ctx.active.access.displayName : ''} />;
   const isDemo = ctx.active.kind === 'demo';
@@ -49,21 +50,61 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
   const g = (v: number | null) => (v === null ? '—' : formatGlucose(v, unit));
   const navBtn = 'inline-grid min-h-11 min-w-11 place-items-center rounded-xl border border-line bg-surface px-3 font-medium hover:bg-surface-2';
 
+  const periode = [7, 14, 30, 90].includes(Number(sp.periode)) ? Number(sp.periode) : null;
+  const periodNav = (
+    <nav aria-label="Période" className="inline-flex rounded-xl bg-surface-2 p-1 text-sm">
+      {([[null, 'Jour'], [7, '7 j'], [14, '14 j'], [30, '30 j'], [90, '90 j']] as const).map(([n, l]) => (
+        <Link
+          key={l}
+          href={n ? `/glycemie?periode=${n}${unitParam}` : `/glycemie?${unitParam.slice(1)}`}
+          aria-current={periode === n ? 'page' : undefined}
+          className={`rounded-lg px-3 py-1.5 ${periode === n ? 'bg-surface shadow-sm' : 'text-ink-3'}`}
+        >
+          {l}
+        </Link>
+      ))}
+    </nav>
+  );
+  const unitSwitch = (base: string) => (
+    <span className="inline-flex rounded-xl bg-surface-2 p-1 text-sm" aria-label="Unité d’affichage">
+      {Object.entries(UNIT_PARAM).map(([k, u]) => (
+        <Link
+          key={k}
+          href={`${base}unite=${k}`}
+          aria-current={unit === u ? 'true' : undefined}
+          className={`rounded-lg px-3 py-1.5 ${unit === u ? 'bg-surface shadow-sm' : 'text-ink-3'}`}
+        >
+          {u}
+        </Link>
+      ))}
+    </span>
+  );
+
+  if (periode) {
+    // Un jour civil de plus de chaque côté : la fenêtre glissante commence en cours de journée.
+    const pFrom = addDays(today, -periode);
+    const [readings, previous] = await Promise.all([
+      sensorRange(ctx, pFrom, today, now),
+      sensorRange(ctx, addDays(pFrom, -periode), addDays(pFrom, -1), now),
+    ]);
+    return (
+      <div className="fade-in">
+        <PageHeader title="Glycémie" subtitle={`${periode} derniers jours — mesures du capteur uniquement.`} actions={periodNav} />
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <Chip tone="glucose">● Capteur</Chip>
+          {unitSwitch(`/glycemie?periode=${periode}&`)}
+        </div>
+        <GlucosePeriod days={periode} today={today} now={now} readings={readings} previous={previous} unit={unit} unitParam={unitParam} isDemo={isDemo} />
+      </div>
+    );
+  }
+
   return (
     <div className="fade-in">
       <PageHeader
         title="Glycémie"
         subtitle="Mesures du capteur — distinctes des glycémies capillaires et de l’HbA1c de laboratoire."
-        actions={
-          <nav aria-label="Période" className="inline-flex rounded-xl bg-surface-2 p-1 text-sm">
-            <span className="rounded-lg bg-surface px-3 py-1.5 shadow-sm">Jour</span>
-            {['7 j', '14 j', '30 j', '90 j'].map((l) => (
-              <span key={l} className="px-3 py-1.5 text-ink-3" title="Vue en cours de développement">
-                {l}
-              </span>
-            ))}
-          </nav>
-        }
+        actions={periodNav}
       />
 
       <Card>
@@ -117,18 +158,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
           <div className="flex flex-wrap items-center gap-2">
             <Chip tone="glucose">● Capteur</Chip>
             <Chip tone="neutral">◆ Capillaire</Chip>
-            <span className="inline-flex rounded-xl bg-surface-2 p-1 text-sm" aria-label="Unité d’affichage">
-              {Object.entries(UNIT_PARAM).map(([k, u]) => (
-                <Link
-                  key={k}
-                  href={`/glycemie?jour=${formatLocalDate(day)}&unite=${k}`}
-                  aria-current={unit === u ? 'true' : undefined}
-                  className={`rounded-lg px-3 py-1.5 ${unit === u ? 'bg-surface shadow-sm' : 'text-ink-3'}`}
-                >
-                  {u}
-                </Link>
-              ))}
-            </span>
+            {unitSwitch(`/glycemie?jour=${formatLocalDate(day)}&`)}
           </div>
         </div>
 

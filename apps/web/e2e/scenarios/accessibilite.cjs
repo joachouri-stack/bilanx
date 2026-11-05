@@ -24,7 +24,7 @@ for(const [vw,tag,scheme] of [[{width:1280,height:900},'bureau','light'],[{width
  // Profil de démonstration (données)
  if(tag.includes('mobile')){await p.locator('main summary').first().click()}else{await p.locator('aside summary').click()}
  await p.getByRole('button',{name:/Claire/}).first().click();await p.getByText('Profil de démonstration —').waitFor();
- for(const u of ['/tableau-de-bord','/glycemie','/glycemie?vue=semaine','/analyses','/analyses/hba1c','/analyses/ferritin','/traitements','/medicaments','/activite','/journal','/rendez-vous','/rapports'])
+ for(const u of ['/tableau-de-bord','/glycemie','/glycemie?periode=14','/glycemie?periode=90','/analyses','/analyses/hba1c','/analyses/ferritin','/traitements','/medicaments','/activite','/journal','/rendez-vous','/rapports'])
   {await p.goto(B+u);await p.waitForLoadState('networkidle');await audit(p,`${tag} démo ${u}`,results)}
  await ctx.close()}
 const out=Object.entries(results).sort((a,b)=>({critical:0,serious:1,moderate:2,minor:3}[a[1].impact]-({critical:0,serious:1,moderate:2,minor:3}[b[1].impact])));

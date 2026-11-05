@@ -25,7 +25,7 @@ const BASE = `http://localhost:${PORT}`;
 // Ordre d'exécution ; « application-installable » tourne sur un second serveur protégé par mot de passe.
 const ALL = [
   'comptes', 'famille', 'analyses', 'documents', 'insuline', 'journal', 'rendez-vous', 'rapports', 'rgpd', 'activite',
-  'medicaments', 'compte-securite', 'telephone-2fa', 'cles-acces', 'partage', 'ordonnances', 'rappels', 'unites',
+  'medicaments', 'compte-securite', 'telephone-2fa', 'cles-acces', 'partage', 'ordonnances', 'rappels', 'unites', 'glycemie',
   'accessibilite', 'application-installable',
 ];
 const wanted = process.argv.slice(2).filter((a) => !a.startsWith('-'));
