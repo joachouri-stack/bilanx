@@ -11,12 +11,14 @@ import {
   createJournalService,
   createLabService,
   createMedicationsService,
+  createSharingService,
   type ActivityService,
   type AppointmentsService,
   type InsulinService,
   type JournalService,
   type LabService,
   type MedicationsService,
+  type SharingService,
 } from '@bilanx/records';
 import { createDocumentsService, type DocumentsService } from '@bilanx/documents';
 import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
@@ -25,7 +27,7 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxMedications?: MedicationsService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createAppSql();
@@ -75,6 +77,11 @@ export function activity(): ActivityService {
 export function medications(): MedicationsService {
   globalForAuth.bilanxMedications ??= createMedicationsService({ profiles: profiles() });
   return globalForAuth.bilanxMedications;
+}
+
+export function sharing(): SharingService {
+  globalForAuth.bilanxSharing ??= createSharingService({ sql: sql(), profiles: profiles(), secretKey: parseSecretKey(process.env.BILANX_SECRET_KEY), mailer, appUrl: appUrl() });
+  return globalForAuth.bilanxSharing;
 }
 
 export function privacy(): PrivacyService {

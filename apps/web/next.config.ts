@@ -39,8 +39,11 @@ const config: NextConfig = {
     return [
       { source: '/:path*', headers: securityHeaders },
       // Intégration interdite partout, sauf les originaux affichés dans BILANX même.
-      { source: '/((?!api/documents/).*)', headers: [{ key: 'X-Frame-Options', value: 'DENY' }] },
+      { source: '/((?!api/documents/|partage/).*)', headers: [{ key: 'X-Frame-Options', value: 'DENY' }] },
       { source: '/api/documents/:path*', headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }] },
+      // Rapport partagé : la page elle-même n'est jamais intégrable ; seul son PDF l'est, par BILANX.
+      { source: '/partage/:jeton', headers: [{ key: 'X-Frame-Options', value: 'DENY' }] },
+      { source: '/partage/:jeton/rapport', headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }] },
       // Service worker : toujours revalidé, pour que les mises à jour soient prises en compte.
       {
         source: '/sw.js',

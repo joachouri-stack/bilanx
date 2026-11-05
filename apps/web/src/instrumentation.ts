@@ -1,11 +1,12 @@
 /**
  * Au démarrage : vérification de l'envoi des e-mails.
  * Tâches de fond du serveur : effacement différé (comptes dont le délai de grâce est écoulé,
- * profils supprimés depuis plus de 30 jours). Exécuté au démarrage puis toutes les 6 heures.
+ * profils supprimés depuis plus de 30 jours, rapports partagés expirés). Exécuté au démarrage puis toutes
+ * les 6 heures.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs' || !process.env.DATABASE_URL || !process.env.BILANX_SECRET_KEY) return;
-  const { privacy, mailer } = await import('./lib/server/auth');
+  const { privacy, mailer, sharing } = await import('./lib/server/auth');
   const { SmtpMailer } = await import('@bilanx/auth');
   if (mailer instanceof SmtpMailer) {
     void mailer.verify().then((ok) => ok && console.info('E-mails : serveur SMTP joignable, envoi réel activé.'));
@@ -19,6 +20,8 @@ export async function register() {
     try {
       const r = await privacy().purge();
       if (r.accounts || r.profiles) console.info(`Effacement différé : ${r.accounts} compte(s), ${r.profiles} profil(s).`);
+      const shared = await sharing().purgeExpired();
+      if (shared) console.info(`Partages expirés : ${shared} rapport(s) effacé(s).`);
     } catch (e) {
       console.error('Effacement différé en échec :', (e as Error).message);
     }

@@ -84,6 +84,8 @@ describe.skipIf(!TEST_DB)('droits RGPD : export, consentements, suppression (Pos
     expect(names).toContain('profils/Jo/activite-pas.csv');
     expect(names).toContain('profils/Jo/medicaments.csv');
     expect(names).toContain('profils/Jo/prises-medicaments.csv');
+    expect(names).toContain('profils/Jo/partages.csv');
+    expect(names).toContain('profils/Jo/partages-acces.csv');
     const compte = JSON.parse(strFromU8(files['compte.json']!));
     expect(compte.email).toBe('jo@exemple.fr');
     expect(compte.consentements.map((c: { purpose: string }) => c.purpose).sort()).toEqual(['ai_extraction', 'health_data_processing']);

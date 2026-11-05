@@ -53,6 +53,7 @@ telles qu'enregistrées dans BILANX à la date indiquée dans compte.json.
     medicaments.csv        traitements prescrits (posologie recopiée, horaires, période, arrêt)
     prises-medicaments.csv prises renseignées (prise / non prise)
     rendez-vous.csv        rendez-vous et notes
+    partages.csv           rapports partagés avec des professionnels (destinataire, dates) et journal des accès
     activite-pas.csv       nombre de pas par jour (import Apple Santé)
     documents.csv          liste des documents ; documents/ : originaux déchiffrés
     valeurs-lues.csv       valeurs détectées dans les documents et décision prise
@@ -136,6 +137,20 @@ export function createPrivacyService(cfg: PrivacyConfig) {
     files[`${dir}/prises-medicaments.csv`] = csv(
       ['prevue_le', 'medicament', 'dosage', 'statut', 'notee_prise_le', 'renseignee_le'],
       intakes.map((r) => [r.scheduled_at, r.name, r.strength, r.status, r.taken_at, r.recorded_at]),
+    );
+
+    const [shares, shareAccesses] = await P.withProfileData(actor, profileId, 'reports', 'read', async (tx) => [
+      await tx`SELECT s.id, s.recipient, s.created_at, s.expires_at, s.revoked_at, s.max_views, r.period_start::text, r.period_end::text, r.sections
+               FROM share_link s JOIN report r ON r.id = s.report_id WHERE s.profile_id = ${profileId} ORDER BY s.created_at`,
+      await tx`SELECT share_id, occurred_at, success, user_agent FROM share_access WHERE profile_id = ${profileId} ORDER BY occurred_at`,
+    ]);
+    files[`${dir}/partages.csv`] = csv(
+      ['partage', 'destinataire', 'cree_le', 'expire_le', 'revoque_le', 'ouvertures_max', 'periode_debut', 'periode_fin', 'rubriques'],
+      shares.map((r) => [r.id, r.recipient, r.created_at, r.expires_at, r.revoked_at, r.max_views, r.period_start, r.period_end, (r.sections as string[]).join(' ; ')]),
+    );
+    files[`${dir}/partages-acces.csv`] = csv(
+      ['partage', 'le', 'resultat', 'navigateur'],
+      shareAccesses.map((r) => [r.share_id, r.occurred_at, r.success ? 'rapport ouvert' : 'code erroné', r.user_agent]),
     );
 
     const rdv = await P.withProfileData(actor, profileId, 'appointments', 'read', (tx) =>

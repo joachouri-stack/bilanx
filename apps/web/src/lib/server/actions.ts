@@ -7,6 +7,11 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { ForbiddenError, MODULE_KEYS } from '@bilanx/profiles';
 import { appContext, DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
+import { addDays, formatLocalDate } from '@bilanx/domain';
+import { buildReportPdf, SECTION_KEYS, type SectionKey } from '@bilanx/reports';
+import { SHARE_VIEWER_MINUTES } from '@bilanx/records';
+import { collectReport } from './report-data';
+import { demoToday } from '@/lib/demo-data';
 import {
   activity,
   appointments,
@@ -18,6 +23,7 @@ import {
   lab,
   medications,
   profiles,
+  sharing,
   rememberNext,
   takeNext,
   COOKIE_SECURE,
@@ -605,6 +611,76 @@ export async function confirmTotpReplacementAction(_: FormState, fd: FormData): 
   const r = await auth().confirmTotpReplacement(s, str(fd, 'code'));
   if (!r.ok) return { attempt: crypto.randomUUID(), errors: { form: r.error } };
   return { ok: true, message: 'Nouveau téléphone enregistré : l’ancienne application ne fonctionne plus. Vos codes de secours restent valables.' };
+}
+
+// ───────────── Partage sécurisé avec un professionnel de santé ─────────────
+/** Crée un rapport figé et son lien de partage. Le lien et le code ne sont affichés qu'une fois. */
+export async function createShareAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  const values = { recipient: str(fd, 'recipient'), duration: str(fd, 'duration'), maxViews: str(fd, 'maxViews'), jours: str(fd, 'jours') };
+  if (ctx.active.kind !== 'real') return { attempt: crypto.randomUUID(), errors: { form: 'Le profil de démonstration ne peut pas être partagé.' }, values };
+  const days = [7, 30, 90, 180].includes(Number(values.jours)) ? Number(values.jours) : 30;
+  const sections = fd.getAll('s').map(String).filter((x): x is SectionKey => (SECTION_KEYS as readonly string[]).includes(x));
+  if (!sections.length) return { attempt: crypto.randomUUID(), errors: { form: 'Choisissez au moins une rubrique.' }, values };
+  const to = demoToday();
+  const from = addDays(to, -(days - 1));
+  let r;
+  try {
+    const data = await collectReport(ctx, from, to, sections);
+    // Seules les rubriques réellement autorisées figurent dans le rapport (les autres sont signalées).
+    const pdf = await buildReportPdf(data);
+    r = await sharing().create(ctx.user, ctx.active.access.profileId, {
+      pdf,
+      periodStart: formatLocalDate(from),
+      periodEnd: formatLocalDate(to),
+      sections: sections.filter((x) => !data.notAuthorized.includes(x)),
+      recipient: values.recipient,
+      duration: values.duration,
+      maxViews: values.maxViews,
+      sharerName: ctx.active.access.displayName,
+    });
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values };
+    throw e;
+  }
+  if (!r.ok) return { attempt: crypto.randomUUID(), errors: { form: r.error }, values };
+  revalidatePath('/rapports');
+  const base = (process.env.BILANX_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '');
+  return {
+    ok: true,
+    attempt: crypto.randomUUID(),
+    values: {
+      link: `${base}/partage/${r.token}`,
+      code: r.code,
+      expires: new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', dateStyle: 'long', timeStyle: 'short' }).format(r.expiresAt),
+    },
+  };
+}
+
+export async function revokeShareAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await sharing().revoke(ctx.user, ctx.active.access.profileId, str(fd, 'id'));
+  redirect('/rapports?partage=revoque#partages');
+}
+
+const viewerCookie = (token: string) => ({ name: 'bilanx_partage', path: `/partage/${token}` });
+
+/** Page publique : saisie du code transmis par le patient. */
+export async function openShareAction(token: string, _: FormState, fd: FormData): Promise<FormState> {
+  const r = await sharing().open(String(token), str(fd, 'code'), await clientInfo());
+  const messages: Record<string, string> = {
+    not_found: 'Ce lien de partage n’existe pas.',
+    expired: 'Ce partage a expiré. Demandez un nouveau lien à votre patient.',
+    revoked: 'Ce partage a été révoqué par la personne qui l’avait créé.',
+    locked: 'Trop de codes erronés : ce partage est verrouillé. Demandez un nouveau lien à votre patient.',
+    exhausted: 'Le nombre d’ouvertures autorisé est atteint. Demandez un nouveau lien à votre patient.',
+  };
+  if (r.status === 'wrong_code')
+    return { attempt: crypto.randomUUID(), errors: { form: `Code incorrect. Encore ${r.attemptsLeft} essai${r.attemptsLeft > 1 ? 's' : ''} avant verrouillage.` } };
+  if (r.status !== 'ok') return { attempt: crypto.randomUUID(), errors: { form: messages[r.status] ?? 'Accès impossible.' } };
+  const c = viewerCookie(String(token));
+  (await cookies()).set(c.name, r.viewerToken, { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'strict', path: c.path, maxAge: SHARE_VIEWER_MINUTES * 60 });
+  redirect(`/partage/${encodeURIComponent(String(token))}`);
 }
 
 // ───────────── Médicaments ─────────────
