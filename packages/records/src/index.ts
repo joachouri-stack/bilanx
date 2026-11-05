@@ -6,3 +6,4 @@ export * from './apple-health';
 export * from './activity';
 export * from './medications';
 export * from './sharing';
+export * from './reminders';

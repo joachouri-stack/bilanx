@@ -125,10 +125,14 @@ export default async function MedicationPage({
 
           {active && m.schedule.length > 0 && (
             <Card>
-              <h2 className="font-semibold">Rappels sur le téléphone</h2>
+              <h2 className="font-semibold">Rappels dans l’agenda du téléphone</h2>
               <p className="mt-1 text-sm text-ink-2">
                 Ajoutez à votre agenda un rappel quotidien à chaque heure de prise{until ? `, jusqu’au ${dateFr(until)} inclus` : ''}. C’est votre agenda qui
-                déclenche l’alerte, même sans ouvrir BILANX.
+                déclenche l’alerte, même sans ouvrir BILANX. Autre possibilité : les{' '}
+                <Link href="/medicaments#rappels" className="text-petrol underline">
+                  notifications BILANX
+                </Link>
+                , qui s’adaptent aux changements de traitement.
               </p>
               {isDemo ? (
                 <p className="mt-3 text-sm text-ink-3">Non disponible pour le profil de démonstration.</p>

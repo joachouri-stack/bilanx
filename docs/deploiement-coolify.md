@@ -103,6 +103,9 @@ marche à suivre (iPhone : Safari → Partager → **Sur l'écran d'accueil** ; 
 - Avec `BILANX_BASIC_AUTH`, le mot de passe de démonstration est demandé à la première ouverture de l'application
   installée.
 - Aucune donnée de santé n'est conservée sur le téléphone : une connexion internet reste nécessaire.
+- **Rappels de prise** : Médicaments → « Rappels sur ce téléphone » → Activer, puis « Envoyer une notification de
+  test ». Rien à configurer côté serveur. Sur iPhone, l'activation ne fonctionne qu'une fois BILANX installé sur
+  l'écran d'accueil et ouvert depuis son icône.
 
 ## Sauvegardes
 

@@ -24,6 +24,7 @@ import {
   medications,
   profiles,
   sharing,
+  reminders,
   rememberNext,
   takeNext,
   COOKIE_SECURE,
@@ -722,6 +723,53 @@ export async function openShareAction(token: string, _: FormState, fd: FormData)
   const c = viewerCookie(String(token));
   (await cookies()).set(c.name, r.viewerToken, { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'strict', path: c.path, maxAge: SHARE_VIEWER_MINUTES * 60 });
   redirect(`/partage/${encodeURIComponent(String(token))}`);
+}
+
+// ───────────── Rappels par notification ─────────────
+/** Appelées par le composant client après l'autorisation du navigateur. */
+export async function pushSubscribeAction(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, showNames: boolean): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { ok: false, error: 'Indisponible pour le profil de démonstration.' };
+  const r = await reminders().subscribe(ctx.user, sub, (await clientInfo()).userAgent);
+  if (!r.ok) return r;
+  try {
+    await reminders().setPrefs(ctx.user, ctx.active.access.profileId, true, !!showNames);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { ok: false, error: e.message };
+    throw e;
+  }
+  revalidatePath('/medicaments');
+  return { ok: true };
+}
+
+export async function reminderPrefsAction(enabled: boolean, showNames: boolean): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { ok: false, error: 'Indisponible pour le profil de démonstration.' };
+  try {
+    await reminders().setPrefs(ctx.user, ctx.active.access.profileId, !!enabled, !!showNames);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { ok: false, error: e.message };
+    throw e;
+  }
+  revalidatePath('/medicaments');
+  return { ok: true };
+}
+
+export async function pushUnsubscribeAction(endpoint: string): Promise<void> {
+  const user = await requireUser();
+  await reminders().unsubscribe({ accountId: user.accountId, email: user.email, displayName: user.displayName ?? '' }, String(endpoint));
+  revalidatePath('/medicaments');
+}
+
+export async function sendTestPushAction(): Promise<{ sent: number; devices: number }> {
+  const user = await requireUser();
+  return reminders().sendTest({ accountId: user.accountId, email: user.email, displayName: user.displayName ?? '' });
+}
+
+export async function removeDeviceAction(fd: FormData): Promise<void> {
+  const user = await requireUser();
+  await reminders().removeDevice({ accountId: user.accountId, email: user.email, displayName: user.displayName ?? '' }, str(fd, 'id'));
+  redirect('/medicaments#rappels');
 }
 
 // ───────────── Médicaments ─────────────

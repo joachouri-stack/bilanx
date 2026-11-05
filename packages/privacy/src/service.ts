@@ -43,7 +43,8 @@ const README = `Export de vos données BILANX
 Cette archive contient les données de votre compte et de chacun des profils que vous gérez,
 telles qu'enregistrées dans BILANX à la date indiquée dans compte.json.
 
-- compte.json : compte, consentements, historique des connexions, profils partagés avec vous.
+- compte.json : compte, consentements, historique des connexions, profils partagés avec vous,
+  appareils recevant les rappels de prise.
 - profils/<nom>/ : un dossier par profil géré
     profil.json            informations du profil et personnes ayant accès
     analyses.csv           résultats d'analyses (valeur, unité, références du laboratoire, source)
@@ -194,6 +195,8 @@ export function createPrivacyService(cfg: PrivacyConfig) {
     if (!acc) throw new ForbiddenError();
     const consents = await sql`SELECT purpose, version, given_at, withdrawn_at FROM consent WHERE account_id = ${actor.accountId} ORDER BY given_at`;
     const logins = await sql`SELECT occurred_at, success, method, user_agent FROM login_event WHERE account_id = ${actor.accountId} ORDER BY occurred_at DESC LIMIT 500`;
+    const pushDevices = await sql`SELECT user_agent, created_at, last_success_at FROM push_subscription WHERE account_id = ${actor.accountId} ORDER BY created_at`;
+    const reminderPrefs = await sql`SELECT p.display_name, r.show_names, r.created_at FROM reminder_pref r JOIN profile p ON p.id = r.profile_id WHERE r.account_id = ${actor.accountId}`;
     const list = await profiles.listProfiles(actor.accountId);
     const owned = list.filter((p) => p.role === 'owner');
     const files: Zippable = { 'LISEZ-MOI.txt': strToU8(README) };
@@ -207,6 +210,9 @@ export function createPrivacyService(cfg: PrivacyConfig) {
       connexions: logins,
       profilsGeres: owned.map((p) => p.displayName),
       profilsPartagesAvecMoi: list.filter((p) => p.role !== 'owner').map((p) => ({ profil: p.displayName, role: p.role, autorisations: p.permissions, jusquA: p.expiresAt })),
+      // Appareils recevant les rappels (le point d'envoi technique n'est pas reproduit).
+      appareilsNotifications: pushDevices.map((d) => ({ navigateur: d.user_agent, depuis: d.created_at, dernierEnvoiReussi: d.last_success_at })),
+      rappelsDePrise: reminderPrefs.map((r) => ({ profil: r.display_name, nomDuMedicamentAffiche: r.show_names, depuis: r.created_at })),
     });
     const used = new Set<string>();
     for (const p of owned) {
@@ -318,6 +324,9 @@ export function createPrivacyService(cfg: PrivacyConfig) {
         await tx`DELETE FROM auth_token WHERE account_id = ${id}`;
         await tx`DELETE FROM login_event WHERE account_id = ${id}`;
         await tx`DELETE FROM dashboard_module WHERE account_id = ${id}`;
+        // Compte anonymisé (non supprimé) : ses appareils et rappels doivent être effacés explicitement.
+        await tx`DELETE FROM push_subscription WHERE account_id = ${id}`;
+        await tx`DELETE FROM reminder_pref WHERE account_id = ${id}`;
         // Le compte est anonymisé plutôt que supprimé : d'autres profils peuvent conserver des
         // saisies faites par ce compte (en tant qu'aidant), qui le référencent.
         await tx`

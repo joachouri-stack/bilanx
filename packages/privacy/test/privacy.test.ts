@@ -156,9 +156,12 @@ describe.skipIf(!TEST_DB)('droits RGPD : export, consentements, suppression (Pos
     if (!r.ok) throw new Error('création attendue');
     await lab.addManual(jo, r.profileId, { analyteCode: 'ferritin', value: '40', unit: 'µg/L', sampledOn: '2026-09-03' });
     expect(await privacy.deleteProfile(jo, r.profileId, 'Léo')).toEqual({ ok: true });
+    // Un appareil abonné aux rappels : il doit disparaître avec le compte (anonymisé, pas supprimé).
+    await ctx.sql`INSERT INTO push_subscription (account_id, endpoint, p256dh, auth) VALUES (${jo.accountId}, 'https://push.exemple/jo', 'cle', 'secret')`;
     expect((await privacy.requestAccountDeletion(jo, 'cheval-agrafe-batterie')).ok).toBe(true);
     ctx.advance(8 * 24 * 60);
     expect(await privacy.purge()).toEqual({ profiles: 2, accounts: 1 }); // son profil + Léo
+    expect((await ctx.sql`SELECT count(*)::int AS n FROM push_subscription WHERE account_id = ${jo.accountId}`)[0]!.n).toBe(0);
     expect((await ctx.sql`SELECT count(*)::int AS n FROM profile WHERE id = ${r.profileId}`)[0]!.n).toBe(0);
     expect(await rawCount('lab_result', r.profileId)).toBe(0);
     // Isolation : les données d'un autre compte ne sont pas touchées.

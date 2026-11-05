@@ -6,6 +6,8 @@ import { demoToday } from '@/lib/demo-data';
 import { appContext, moduleAllowed } from '@/lib/server/context';
 import { medicationDay, medicationFollowUp, medicationList } from '@/lib/server/medication-data';
 import { recordIntakeAction } from '@/lib/server/actions';
+import { reminders } from '@/lib/server/auth';
+import { ReminderSetup } from '@/components/reminder-setup';
 import { Card, Chip, Meta, PageHeader } from '@/components/ui';
 import { MedicationForm } from '@/components/medication-forms';
 import { ModuleForbidden } from '@/components/module-forbidden';
@@ -105,6 +107,7 @@ export default async function MedicationsPage({ searchParams }: { searchParams: 
   const follow = (FOLLOW as readonly number[]).includes(Number(sp.suivi)) ? Number(sp.suivi) : 7;
 
   const [{ current, past }, doses, f] = await Promise.all([medicationList(ctx), medicationDay(ctx, day, now), medicationFollowUp(ctx, follow, now)]);
+  const reminderPrefs = ctx.active.kind === 'real' ? await reminders().prefs(ctx.user, ctx.active.access.profileId) : null;
   const isToday = compareLocalDates(day, today) === 0;
   const prev = formatLocalDate(addDays(day, -1));
   const next = formatLocalDate(addDays(day, 1));
@@ -216,6 +219,16 @@ export default async function MedicationsPage({ searchParams }: { searchParams: 
                   comptée comme oubliée : BILANX ne sait simplement pas.
                 </Meta>
               </>
+            )}
+          </Card>
+          <Card>
+            <h2 className="mb-2 font-semibold" id="rappels">
+              🔔 Rappels sur ce téléphone
+            </h2>
+            {reminderPrefs ? (
+              <ReminderSetup vapidKey={reminders().vapidPublicKey()} enabled={reminderPrefs.enabled} showNames={reminderPrefs.showNames} profileName={name} />
+            ) : (
+              <p className="text-sm text-ink-3">Non disponible pour le profil de démonstration.</p>
             )}
           </Card>
           <Card>

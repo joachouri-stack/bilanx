@@ -12,6 +12,7 @@ import {
   createLabService,
   createMedicationsService,
   createSharingService,
+  createRemindersService,
   type ActivityService,
   type AppointmentsService,
   type InsulinService,
@@ -19,6 +20,7 @@ import {
   type LabService,
   type MedicationsService,
   type SharingService,
+  type RemindersService,
 } from '@bilanx/records';
 import { createDocumentsService, type DocumentsService } from '@bilanx/documents';
 import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
@@ -27,7 +29,7 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createAppSql();
@@ -82,6 +84,17 @@ export function medications(): MedicationsService {
 export function sharing(): SharingService {
   globalForAuth.bilanxSharing ??= createSharingService({ sql: sql(), profiles: profiles(), secretKey: parseSecretKey(process.env.BILANX_SECRET_KEY), mailer, appUrl: appUrl() });
   return globalForAuth.bilanxSharing;
+}
+
+export function reminders(): RemindersService {
+  globalForAuth.bilanxReminders ??= createRemindersService({
+    sql: sql(),
+    profiles: profiles(),
+    secretKey: parseSecretKey(process.env.BILANX_SECRET_KEY),
+    appUrl: appUrl(),
+    contact: `mailto:${(process.env.BILANX_MAIL_FROM?.match(/<([^>]+)>/)?.[1] ?? process.env.BILANX_MAIL_FROM ?? 'no-reply@bilanx.fr').trim()}`,
+  });
+  return globalForAuth.bilanxReminders;
 }
 
 export function privacy(): PrivacyService {
