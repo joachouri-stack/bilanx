@@ -147,4 +147,5 @@ analyse d'impact, etc.).
 | Erreur de connexion à la base au démarrage | utilisez l'adresse **internal** et vérifiez que la base est *Running* |
 | Migration `0012_app_role.sql` en échec (« permission denied to create role ») | le compte de `DATABASE_URL` n'est ni superutilisateur ni `CREATEROLE` : utilisez le compte `postgres` de la base Coolify, ou faites créer le rôle `bilanx_app` par l'administrateur de la base |
 | « E-mails : serveur SMTP injoignable ou identifiants refusés » | `BILANX_SMTP_URL` erronée, port bloqué par l'hébergeur, ou mot de passe non encodé |
+| Clé d'accès refusée ou introuvable sur le téléphone | la clé est liée au domaine de `BILANX_APP_URL` : une clé créée sur le domaine provisoire ne fonctionnera plus après le passage à bilanx.fr (en recréer une) ; le site doit être en https |
 | Impossible de rester connecté | `BILANX_APP_URL` ne correspond pas à l'adresse réellement utilisée (http/https, nom de domaine) |

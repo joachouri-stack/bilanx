@@ -10,26 +10,27 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@bilanx/domain": "0.1.0",
-    "next": "16.4.5",
-    "react": "19.3.1",
-    "react-dom": "19.3.1",
     "@bilanx/auth": "0.1.0",
     "@bilanx/db": "0.1.0",
-    "qrcode": "1.5.4",
+    "@bilanx/documents": "0.1.0",
+    "@bilanx/domain": "0.1.0",
+    "@bilanx/privacy": "0.1.0",
     "@bilanx/profiles": "0.1.0",
     "@bilanx/records": "0.1.0",
-    "@bilanx/documents": "0.1.0",
     "@bilanx/reports": "0.1.0",
-    "@bilanx/privacy": "0.1.0"
+    "@simplewebauthn/browser": "14.0.0",
+    "next": "16.4.5",
+    "qrcode": "1.5.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.4",
     "@types/node": "22.20.5",
+    "@types/qrcode": "1.5.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "tailwindcss": "4.3.4",
-    "typescript": "5.9.3",
-    "@types/qrcode": "1.5.6"
+    "typescript": "5.9.3"
   }
 }

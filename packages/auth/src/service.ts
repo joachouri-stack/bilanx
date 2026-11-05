@@ -5,6 +5,16 @@ import { writeAudit, type AuditEntry } from './audit';
 import type { Mailer } from './mailer';
 import { dummyHash, hashPassword, passwordProblems, verifyPassword } from './password';
 import { maskEmail } from './mailer';
+import {
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
+  type AuthenticationResponseJSON,
+  type PublicKeyCredentialCreationOptionsJSON,
+  type PublicKeyCredentialRequestOptionsJSON,
+  type RegistrationResponseJSON,
+} from '@simplewebauthn/server';
 import { base32Encode, generateTotpSecret, otpauthUri, verifyTotp } from './totp';
 
 export const SESSION_IDLE_MINUTES = 30;
@@ -64,6 +74,7 @@ export function createAuthService(cfg: AuthConfig) {
     recovery: deriveKey(cfg.secretKey, 'recovery-code'),
     throttle: deriveKey(cfg.secretKey, 'throttle'),
     ip: deriveKey(cfg.secretKey, 'ip'),
+    passkey: deriveKey(cfg.secretKey, 'passkey-public-key'),
   };
   const link = (path: string, token: string) => `${cfg.appUrl.replace(/\/$/, '')}${path}?jeton=${encodeURIComponent(token)}`;
   const addMin = (m: number) => new Date(now().getTime() + m * MIN);
@@ -613,6 +624,173 @@ export function createAuthService(cfg: AuthConfig) {
     return { ok: true, recoveryCodes: codes };
   }
 
+  // ───────────────────────── Clés d'accès (passkeys, WebAuthn) ─────────────────────────
+  // Le domaine et l'origine viennent de l'URL publique : une clé ne fonctionne que sur le vrai site
+  // (protection contre l'hameçonnage).
+  const appOrigin = new URL(cfg.appUrl).origin;
+  const rpID = new URL(cfg.appUrl).hostname;
+  const CHALLENGE_MINUTES = 5;
+
+  async function storeChallenge(purpose: 'register' | 'login', accountId: string | null, challenge: string): Promise<string> {
+    await sql`DELETE FROM webauthn_challenge WHERE expires_at < ${addMin(-60)}`;
+    const [r] = await sql<{ id: string }[]>`
+      INSERT INTO webauthn_challenge (account_id, purpose, challenge, expires_at)
+      VALUES (${accountId}, ${purpose}, ${challenge}, ${addMin(CHALLENGE_MINUTES)}) RETURNING id`;
+    return r!.id;
+  }
+  /** Défi à usage unique : consommé même si la vérification échoue ensuite. */
+  async function takeChallenge(id: string, purpose: 'register' | 'login', accountId: string | null): Promise<string | null> {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const [r] = await sql<{ challenge: string }[]>`
+      UPDATE webauthn_challenge SET used_at = ${now()}
+      WHERE id = ${id} AND purpose = ${purpose} AND used_at IS NULL AND expires_at > ${now()}
+        AND account_id IS NOT DISTINCT FROM ${accountId}
+      RETURNING challenge`;
+    return r?.challenge ?? null;
+  }
+  const uuidBytes = (id: string) => Uint8Array.from(Buffer.from(id.replace(/-/g, ''), 'hex'));
+
+  /** Étape 1 de l'ajout d'une clé d'accès (mot de passe exigé). */
+  async function passkeyRegistrationOptions(
+    session: SessionInfo,
+    currentPassword: string,
+  ): Promise<{ ok: true; challengeId: string; options: PublicKeyCredentialCreationOptionsJSON } | { ok: false; errors: FieldErrors }> {
+    const r = await reauthenticate(session, currentPassword);
+    if (!r.ok) return r;
+    const existing = await sql<{ credential_id: string; transports: string[] | null }[]>`
+      SELECT credential_id, transports FROM mfa_factor WHERE account_id = ${session.accountId} AND kind = 'webauthn'`;
+    if (existing.length >= 10) return { ok: false, errors: { form: '10 clés d’accès au maximum : supprimez-en une d’abord.' } };
+    const options = await generateRegistrationOptions({
+      rpName: 'BILANX',
+      rpID,
+      userName: r.email,
+      userID: uuidBytes(session.accountId),
+      userDisplayName: session.displayName ?? r.email,
+      attestationType: 'none',
+      excludeCredentials: existing.map((c) => ({ id: c.credential_id, transports: c.transports ?? undefined })),
+      // Clé « découvrable » (connexion sans saisir l'adresse) et vérification de l'utilisateur
+      // (Face ID, empreinte, code de l'appareil) obligatoires.
+      authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
+    });
+    return { ok: true, challengeId: await storeChallenge('register', session.accountId, options.challenge), options };
+  }
+
+  /** Étape 2 : enregistrement de la clé créée par l'appareil. */
+  async function passkeyRegister(session: SessionInfo, challengeId: string, response: RegistrationResponseJSON, rawLabel: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!session.mfaPassed) return { ok: false, error: 'Session incomplète : reconnectez-vous.' };
+    const challenge = await takeChallenge(challengeId, 'register', session.accountId);
+    if (!challenge) return { ok: false, error: 'Délai dépassé : recommencez.' };
+    let v;
+    try {
+      v = await verifyRegistrationResponse({ response, expectedChallenge: challenge, expectedOrigin: appOrigin, expectedRPID: rpID, requireUserVerification: true });
+    } catch {
+      return { ok: false, error: 'La clé d’accès n’a pas pu être vérifiée. Recommencez.' };
+    }
+    if (!v.verified) return { ok: false, error: 'La clé d’accès n’a pas pu être vérifiée. Recommencez.' };
+    const c = v.registrationInfo.credential;
+    const label = rawLabel.trim().slice(0, 60) || 'Clé d’accès';
+    try {
+      await sql.begin(async (tx) => {
+        await tx`
+          INSERT INTO mfa_factor (account_id, kind, secret_enc, label, created_at, confirmed_at, credential_id, sign_count, transports)
+          VALUES (${session.accountId}, 'webauthn', ${encrypt(keys.passkey, Buffer.from(c.publicKey), session.accountId)}, ${label}, ${now()}, ${now()},
+                  ${c.id}, ${c.counter}, ${c.transports ?? null})`;
+        await audit(tx, { accountId: session.accountId, action: 'mfa.passkey_added' });
+      });
+    } catch (e) {
+      if ((e as { code?: string }).code === '23505') return { ok: false, error: 'Cette clé d’accès est déjà enregistrée.' };
+      throw e;
+    }
+    await mailer.send({
+      to: session.email,
+      subject: 'Nouvelle clé d’accès sur votre compte BILANX',
+      text: `Une clé d'accès (« ${label} ») vient d'être ajoutée à votre compte : elle permet de se connecter sans mot de passe.\n\nSi vous n'êtes pas à l'origine de cet ajout, supprimez-la dans Paramètres et réinitialisez votre mot de passe : ${cfg.appUrl}/mot-de-passe-oublie`,
+    });
+    return { ok: true };
+  }
+
+  async function listPasskeys(accountId: string) {
+    return sql<{ id: string; label: string | null; created_at: Date; last_used_at: Date | null }[]>`
+      SELECT id, label, created_at, last_used_at FROM mfa_factor WHERE account_id = ${accountId} AND kind = 'webauthn' ORDER BY created_at`;
+  }
+
+  async function removePasskey(session: SessionInfo, currentPassword: string, factorId: string): Promise<{ ok: true } | { ok: false; errors: FieldErrors }> {
+    const r = await reauthenticate(session, currentPassword);
+    if (!r.ok) return r;
+    if (!/^[0-9a-f-]{36}$/i.test(factorId)) return { ok: false, errors: { form: 'Clé introuvable.' } };
+    const label = await sql.begin(async (tx) => {
+      const [d] = await tx<{ label: string | null }[]>`
+        DELETE FROM mfa_factor WHERE id = ${factorId} AND account_id = ${session.accountId} AND kind = 'webauthn' RETURNING label`;
+      if (d) await audit(tx, { accountId: session.accountId, action: 'mfa.passkey_removed' });
+      return d ? (d.label ?? 'Clé d’accès') : null;
+    });
+    if (label === null) return { ok: false, errors: { form: 'Clé introuvable.' } };
+    await mailer.send({
+      to: r.email,
+      subject: 'Clé d’accès supprimée de votre compte BILANX',
+      text: `La clé d'accès « ${label} » a été supprimée de votre compte.\nSi vous n'êtes pas à l'origine de cette suppression, réinitialisez votre mot de passe : ${cfg.appUrl}/mot-de-passe-oublie`,
+    });
+    return { ok: true };
+  }
+
+  /** Connexion par clé d'accès, étape 1 : défi (le compte n'est pas encore connu). */
+  async function passkeyLoginOptions(client: ClientInfo = {}): Promise<{ challengeId: string; options: PublicKeyCredentialRequestOptionsJSON } | null> {
+    // Point d'entrée public : limité par adresse IP (chaque défi est écrit en base).
+    if (client.ip) {
+      const key = ipHash(client.ip)!.toString('hex');
+      if (await isThrottled('passkey_options', key, 30)) return null;
+      await recordAttempt('passkey_options', key);
+    }
+    const options = await generateAuthenticationOptions({ rpID, userVerification: 'required' });
+    return { challengeId: await storeChallenge('login', null, options.challenge), options };
+  }
+
+  /**
+   * Connexion par clé d'accès, étape 2. La clé (appareil + Face ID / empreinte / code) vaut double
+   * authentification : la session est complète d'emblée.
+   */
+  async function passkeySignIn(challengeId: string, response: AuthenticationResponseJSON, client: ClientInfo): Promise<{ status: 'ok'; token: string } | { status: 'invalid' }> {
+    const challenge = await takeChallenge(challengeId, 'login', null);
+    if (!challenge || typeof response?.id !== 'string') return { status: 'invalid' };
+    const [f] = await sql<{ id: string; account_id: string; secret_enc: Buffer; sign_count: string; transports: string[] | null; email_verified_at: Date | null }[]>`
+      SELECT f.id, f.account_id, f.secret_enc, f.sign_count, f.transports, a.email_verified_at
+      FROM mfa_factor f JOIN account a ON a.id = f.account_id AND a.deleted_at IS NULL
+      WHERE f.kind = 'webauthn' AND f.credential_id = ${response.id}`;
+    if (!f || !f.email_verified_at) return { status: 'invalid' };
+    const fail = async () => {
+      await sql`INSERT INTO login_event (account_id, success, method, user_agent, occurred_at) VALUES (${f.account_id}, false, 'passkey', ${client.userAgent ?? null}, ${now()})`;
+      return { status: 'invalid' as const };
+    };
+    // La clé doit appartenir au compte qu'elle annonce.
+    const handle = response.response?.userHandle;
+    if (handle && Buffer.from(handle, 'base64url').toString('hex') !== f.account_id.replace(/-/g, '')) return fail();
+    let v;
+    try {
+      v = await verifyAuthenticationResponse({
+        response,
+        expectedChallenge: challenge,
+        expectedOrigin: appOrigin,
+        expectedRPID: rpID,
+        requireUserVerification: true,
+        credential: { id: response.id, publicKey: new Uint8Array(decrypt(keys.passkey, f.secret_enc, f.account_id)), counter: Number(f.sign_count), transports: f.transports ?? undefined },
+      });
+    } catch {
+      return fail();
+    }
+    if (!v.verified) return fail();
+    const token = randomToken();
+    await sql.begin(async (tx) => {
+      await tx`UPDATE mfa_factor SET sign_count = ${v.authenticationInfo.newCounter}, last_used_at = ${now()} WHERE id = ${f.id}`;
+      await tx`
+        INSERT INTO session (account_id, token_hash, mfa_passed, mfa_passed_at, ip_hash, user_agent, created_at, last_seen_at, expires_at, absolute_expires_at)
+        VALUES (${f.account_id}, ${sha256(token)}, true, ${now()}, ${ipHash(client.ip)}, ${client.userAgent ?? null}, ${now()}, ${now()},
+                ${addMin(SESSION_IDLE_MINUTES)}, ${addMin(SESSION_ABSOLUTE_HOURS * 60)})`;
+      await tx`INSERT INTO login_event (account_id, success, method, user_agent, occurred_at) VALUES (${f.account_id}, true, 'passkey', ${client.userAgent ?? null}, ${now()})`;
+      await audit(tx, { accountId: f.account_id, action: 'session.passkey_ok' });
+    });
+    return { status: 'ok', token };
+  }
+
   /** Délai pour scanner et confirmer le nouveau téléphone. */
   const TOTP_REPLACEMENT_MINUTES = 15;
 
@@ -671,6 +849,12 @@ export function createAuthService(cfg: AuthConfig) {
   }
 
   return {
+    passkeyRegistrationOptions,
+    passkeyRegister,
+    listPasskeys,
+    removePasskey,
+    passkeyLoginOptions,
+    passkeySignIn,
     beginTotpReplacement,
     confirmTotpReplacement,
     changePassword,

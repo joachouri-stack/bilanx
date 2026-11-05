@@ -26,15 +26,15 @@ L'architecture cible (doc 02) prévoit une API NestJS séparée. Pour le MVP, un
 | Changement de mot de passe | Mot de passe actuel exigé (5 essais / 15 min), autres sessions fermées, e-mail au titulaire (migration 0014 : 5 nov. 2026) |
 | Changement d'adresse | Mot de passe exigé ; lien 24 h envoyé à la **nouvelle** adresse, ancienne active jusqu'à confirmation puis prévenue (nouvelle adresse masquée). Adresse déjà prise : même réponse, son titulaire est prévenu, aucun lien (pas de révélation de compte) |
 | Changement de téléphone | Mot de passe exigé ; nouvelle clé préparée sans désactiver l'ancienne ; un code de la NOUVELLE application (15 min) la rend active et supprime l'ancienne ; codes de secours et session conservés ; e-mail au titulaire. Téléphone perdu : connexion par code de secours, puis changement |
+| Clés d'accès (passkeys) | WebAuthn (SimpleWebAuthn) : clé découvrable, vérification de l'utilisateur obligatoire (Face ID, empreinte, code de l'appareil) → vaut double authentification, session complète d'emblée. Ajout et suppression sur mot de passe, e-mail au titulaire ; 10 clés max. Liée au domaine de `BILANX_APP_URL` (anti-hameçonnage) ; défis à usage unique (5 min) ; compteur de signatures (clé clonée refusée) ; la clé doit correspondre au compte qu'elle annonce ; clé publique chiffrée ; demandes de connexion limitées à 30 / 15 min par adresse IP. Le mot de passe + code reste toujours possible (migration 0015) |
 | Codes de secours | Nombre restant affiché ; régénération sur mot de passe, anciens codes invalidés, e-mail au titulaire |
 
 ## Reste à faire avant ouverture publique
 - Clé maîtresse dans le KMS de l'hébergeur HDS (aujourd'hui variable d'environnement).
-- Passkeys (WebAuthn).
 - Vérification des mots de passe contre les fuites connues (k-anonymat).
 - Limitation par adresse IP au niveau du WAF.
 - Test d'intrusion externe.
 
 Faits depuis : envoi réel des e-mails (SMTP, décision 0007), rôle PostgreSQL applicatif (0007), consentements, export
-et suppression du compte (0004), changement d'e-mail et de mot de passe, codes de secours, changement de téléphone
-(ci-dessus).
+et suppression du compte (0004), changement d'e-mail et de mot de passe, codes de secours, changement de téléphone,
+clés d'accès (ci-dessus).

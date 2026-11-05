@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@bilanx/auth';
 import type { FieldErrors } from '@bilanx/auth';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
@@ -97,6 +98,41 @@ export async function signOutAction(): Promise<void> {
   await auth().signOut(await sessionToken());
   await clearSessionCookie();
   redirect('/connexion');
+}
+
+// ───────────── Clés d'accès (passkeys) ─────────────
+// Appelées directement par le composant client (WebAuthn se déroule dans le navigateur).
+export async function passkeyLoginOptionsAction() {
+  const r = await auth().passkeyLoginOptions(await clientInfo());
+  return r ?? { error: 'Trop de tentatives. Réessayez dans 15 minutes.' };
+}
+
+export async function passkeySignInAction(challengeId: string, response: AuthenticationResponseJSON, suite: string | null): Promise<{ ok: true; next: string } | { ok: false; error: string }> {
+  const r = await auth().passkeySignIn(String(challengeId), response, await clientInfo());
+  if (r.status !== 'ok') return { ok: false, error: 'Clé d’accès non reconnue. Connectez-vous avec votre mot de passe.' };
+  await setSessionCookie(r.token);
+  await rememberNext(suite);
+  return { ok: true, next: await takeNext() };
+}
+
+export async function passkeyRegistrationOptionsAction(currentPassword: string) {
+  const s = await requireUser();
+  return auth().passkeyRegistrationOptions(s, String(currentPassword));
+}
+
+export async function passkeyRegisterAction(challengeId: string, response: RegistrationResponseJSON, label: string) {
+  const s = await requireUser();
+  const r = await auth().passkeyRegister(s, String(challengeId), response, String(label ?? ''));
+  if (r.ok) revalidatePath('/parametres');
+  return r;
+}
+
+export async function removePasskeyAction(_: FormState, fd: FormData): Promise<FormState> {
+  const s = await requireUser();
+  const r = await auth().removePasskey(s, str(fd, 'currentPassword'), str(fd, 'id'));
+  if (!r.ok) return { attempt: crypto.randomUUID(), errors: r.errors };
+  revalidatePath('/parametres');
+  return { ok: true, attempt: crypto.randomUUID(), message: 'Clé d’accès supprimée.' };
 }
 
 // ───────────── Double authentification ─────────────

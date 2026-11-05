@@ -11,12 +11,14 @@ import {
 } from '@/lib/server/actions';
 import { Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
 import { InstallApp } from '@/components/install-app';
+import { PasskeyManager } from '@/components/passkey-forms';
 import { ChangeEmailForm, ChangePasswordForm, RegenerateRecoveryCodesForm, ReplaceTotpForm } from '@/components/account-forms';
 
 export const metadata: Metadata = { title: 'Paramètres et sécurité' };
 
 const METHOD: Record<string, string> = {
   password: 'Mot de passe',
+  passkey: 'Clé d’accès',
   totp: 'Double authentification',
   recovery_code: 'Code de secours',
   mfa: 'Double authentification',
@@ -37,12 +39,13 @@ export default async function SettingsPage({
 }) {
   const user = await requireUser();
   const sp = await searchParams;
-  const [sessions, events, consents, deletionAt, codesLeft] = await Promise.all([
+  const [sessions, events, consents, deletionAt, codesLeft, passkeys] = await Promise.all([
     auth().listSessions(user.accountId),
     auth().listLoginEvents(user.accountId, 15),
     privacy().listConsents(user.accountId),
     privacy().deletionStatus(user.accountId),
     auth().recoveryCodesLeft(user.accountId),
+    auth().listPasskeys(user.accountId),
   ]);
   const autoReading = consents.some((c) => c.purpose === 'ai_extraction' && !c.withdrawn_at);
   const fmtLong = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Paris' });
@@ -108,6 +111,21 @@ export default async function SettingsPage({
                 <ChangeEmailForm current={user.email} />
               </div>
             </details>
+            <details className="rounded-xl border border-line p-3.5" id="cles">
+              <summary className="cursor-pointer text-sm font-medium text-petrol">
+                Clés d’accès (Face ID, empreinte){passkeys.length ? ` · ${passkeys.length}` : ''}
+              </summary>
+              <div className="mt-3">
+                <PasskeyManager
+                  keys={passkeys.map((k) => ({
+                    id: k.id,
+                    label: k.label ?? 'Clé d’accès',
+                    createdAt: fmt.format(k.created_at),
+                    lastUsedAt: k.last_used_at ? fmt.format(k.last_used_at) : null,
+                  }))}
+                />
+              </div>
+            </details>
             <details className="rounded-xl border border-line p-3.5" id="telephone">
               <summary className="cursor-pointer text-sm font-medium text-petrol">Changer de téléphone (double authentification)</summary>
               <div className="mt-3">
@@ -121,7 +139,6 @@ export default async function SettingsPage({
               </div>
             </details>
           </div>
-          <Meta className="mt-4">À venir : clés d’accès (passkeys).</Meta>
         </Card>
 
         <Card>

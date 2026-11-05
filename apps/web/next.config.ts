@@ -13,7 +13,7 @@ const config: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: fileURLToPath(new URL('../../', import.meta.url)),
   transpilePackages: ['@bilanx/domain', '@bilanx/auth', '@bilanx/db', '@bilanx/profiles', '@bilanx/records', '@bilanx/documents', '@bilanx/reports', '@bilanx/privacy'],
-  serverExternalPackages: ['nodemailer', '@node-rs/argon2', 'postgres', 'tesseract.js', 'tesseract.js-core', 'pdfjs-dist', 'pdfkit'],
+  serverExternalPackages: ['nodemailer', '@simplewebauthn/server', '@node-rs/argon2', 'postgres', 'tesseract.js', 'tesseract.js-core', 'pdfjs-dist', 'pdfkit'],
   // Fichiers chargés dynamiquement (données de langue, moteur WebAssembly, fil d'exécution) :
   // à inclure explicitement dans l'image autonome.
   outputFileTracingIncludes: {
