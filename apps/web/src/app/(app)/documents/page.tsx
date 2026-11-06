@@ -160,7 +160,7 @@ export default async function DocumentsPage({
                         <span className="min-w-0">
                           <span className="block truncate font-semibold">
                             {title}
-                            {d.kind === 'imaging' && d.exam_type && title !== EXAM_LABELS[d.exam_type] ? ` · ${EXAM_LABELS[d.exam_type]}` : ''}
+                            {d.kind === 'imaging' && d.exam_type && !title.toLowerCase().includes(EXAM_LABELS[d.exam_type]!.toLowerCase()) ? ` · ${EXAM_LABELS[d.exam_type]}` : ''}
                           </span>
                           <span className="block truncate text-sm text-ink-2">
                             {d.document_date ? fmtDay(d.document_date) : `Ajouté le ${fmt.format(d.uploaded_at)}`}
