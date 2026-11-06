@@ -42,7 +42,7 @@ const EVENT_ICON: Record<ChartEvent['kind'], IconName> = {
   medication: 'pill',
   other: 'journal',
 };
-const PAD = { l: 48, r: 14, t: 12, b: 96 };
+const PAD = { l: 58, r: 14, t: 12, b: 96 };
 const Y_MAX = 300; // mg/dL ; les valeurs supérieures restent tracées en haut (rares)
 const HOUR = 3_600_000;
 

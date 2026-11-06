@@ -27,7 +27,7 @@ export const SHARE_DURATIONS: Record<string, { label: string; hours: number }> =
   '7': { label: '7 jours', hours: 7 * 24 },
   '30': { label: '30 jours', hours: 30 * 24 },
 };
-export const SHARE_MAX_VIEWS: Record<string, string> = { '': 'Sans limite (pendant la durée choisie)', '1': '1 ouverture', '3': '3 ouvertures', '10': '10 ouvertures' };
+export const SHARE_MAX_VIEWS: Record<string, string> = { '': 'Sans limite', '1': '1 ouverture', '3': '3 ouvertures', '10': '10 ouvertures' };
 export const SHARE_MAX_CODE_FAILURES = 5;
 /** Durée de consultation après saisie du bon code. */
 export const SHARE_VIEWER_MINUTES = 30;

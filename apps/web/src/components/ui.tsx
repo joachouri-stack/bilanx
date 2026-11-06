@@ -221,7 +221,8 @@ const VARIANTS: Record<ButtonVariant, string> = {
  */
 export function buttonClass({ variant = 'secondary', size = 'md', className = '' }: { variant?: ButtonVariant; size?: ButtonSize; className?: string } = {}): string {
   return [
-    'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50',
+    // « whitespace-nowrap » par défaut ; un « whitespace-… » passé dans className le remplace (sinon l'ordre du CSS l'emporterait).
+    `inline-flex select-none items-center justify-center gap-2 ${/(^|\s)whitespace-/.test(className) ? '' : 'whitespace-nowrap '}transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50`,
     VARIANTS[variant],
     size === 'lg' ? 'min-h-14 px-6 text-[17px]' : '',
     className,
