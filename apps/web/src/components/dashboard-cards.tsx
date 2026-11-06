@@ -965,8 +965,8 @@ const SHORTCUT_TONES: Record<DocShortcut['tone'], string> = {
  */
 export function DocumentsCard({ docs }: { docs: DashboardDocs }) {
   return (
-    <Card>
-      <CardHeader title="Documents" icon="folder" iconTone="neutral" />
+    <Card accent="petrol">
+      <CardHeader title="Documents" icon="folder" iconTone="petrol" />
       <ul className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {DOC_SHORTCUTS.map((s) => {
           const n = docs.counts[s.key] ?? 0;
