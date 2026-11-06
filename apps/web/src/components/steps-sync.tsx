@@ -130,10 +130,15 @@ export function StepsSync({ endpoint, tokens }: { endpoint: string; tokens: Step
                 Date de début : <strong className="text-ink">est aujourd’hui</strong>
               </li>
               <li>
-                Grouper par : <strong className="text-ink">Jour</strong> (indispensable : évite de compter deux fois iPhone et Apple Watch)
+                Grouper par : <strong className="text-ink">Jour</strong>
               </li>
               <li>
                 Fichier manquant : <strong className="text-ink">désactivé</strong> (gris)
+              </li>
+              <li>
+                <strong className="text-ink">Ajouter un filtre</strong>, touchez le premier mot du filtre et choisissez <strong className="text-ink">Source</strong> est{' '}
+                <strong className="text-ink">votre Apple Watch</strong> (ou votre iPhone si vous ne portez pas de montre) : sinon les pas de l’iPhone et de la Montre
+                s’additionnent et le total est doublé
               </li>
             </ul>
           </li>
