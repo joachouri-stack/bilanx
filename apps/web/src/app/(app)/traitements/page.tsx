@@ -28,7 +28,7 @@ function Delta({ cur, prev }: { cur: number | null; prev: number | null }) {
 
 const summaryCls = 'flex min-h-11 cursor-pointer list-none items-center gap-2 font-medium text-petrol [&::-webkit-details-marker]:hidden';
 
-export default async function TreatmentsPage({ searchParams }: { searchParams: Promise<{ periode?: string; journal?: string }> }) {
+export default async function TreatmentsPage({ searchParams }: { searchParams: Promise<{ periode?: string; journal?: string; ajout?: string }> }) {
   const ctx = await appContext();
   const name = ctx.active.kind === 'real' ? ctx.active.access.displayName : 'Claire';
   if (!moduleAllowed(ctx.active, 'insulin')) return <ModuleForbidden title="Insuline" profileName={name} />;
@@ -63,7 +63,7 @@ export default async function TreatmentsPage({ searchParams }: { searchParams: P
             Indiquez l’insuline prescrite (nom écrit sur le stylo ou l’ordonnance). Vous pourrez ensuite noter vos injections. {NO_DOSE}
           </p>
           {canWrite ? (
-            <ProductForm />
+            <ProductForm first />
           ) : (
             <EmptyState title="Aucune insuline enregistrée pour ce profil." description="Vous pouvez consulter cette page, mais pas y ajouter d’insuline." />
           )}
@@ -93,6 +93,11 @@ export default async function TreatmentsPage({ searchParams }: { searchParams: P
   return (
     <div className="fade-in">
       <PageHeader title="Insuline" />
+      {sp.ajout === 'insuline' && (
+        <p role="status" className="mb-4 rounded-xl bg-sage-2 px-4 py-3 text-sm">
+          Insuline ajoutée. Vous pouvez maintenant noter vos injections.
+        </p>
+      )}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="min-w-0 xl:col-start-2 xl:row-start-1">
           <Card className="scroll-mt-20 xl:sticky xl:top-6" id="injection">

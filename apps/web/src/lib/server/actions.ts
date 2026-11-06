@@ -537,6 +537,8 @@ export async function addProductAction(_: FormState, fd: FormData): Promise<Form
     throw e;
   }
   revalidatePath('/traitements');
+  // Première insuline : la page change entièrement (journal des injections), la confirmation y est affichée.
+  if (str(fd, 'first') === '1') redirect('/traitements?ajout=insuline');
   return { attempt: crypto.randomUUID(), ok: true, message: 'Insuline ajoutée.' };
 }
 

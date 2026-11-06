@@ -21,7 +21,7 @@ const iso=(days)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Paris'}).for
 const pdfText=async(buf)=>{const pdfjs=await import(process.env.E2E_REPO+'/node_modules/pdfjs-dist/legacy/build/pdf.mjs');const t=pdfjs.getDocument({data:new Uint8Array(buf),disableFontFace:true});const d=await t.promise;let s='';for(let p=1;p<=d.numPages;p++){s+=(await (await d.getPage(p)).getTextContent()).items.map(i=>i.str).join(' ')+' '}const n=d.numPages;await t.destroy();return {n,s:s.replace(/\s+/g,' ').replace(/μ/g,'µ')}};
 
 (async()=>{const b=await chromium.launch();let A;const email=`jo+${T}@exemple.fr`;
-await step('compte créé ; tableau de bord : pas de source',async()=>{A=await account(b,'Jo',email);await A.getByText('Aucun pas enregistré pour aujourd’hui.').waitFor()});
+await step('compte créé ; tableau de bord : pas de source',async()=>{A=await account(b,'Jo',email);await A.getByText('Aucun pas noté ces 14 derniers jours.').waitFor()});
 await step('import refusé sans session',async()=>{const r=await fetch(B+'/api/activite/import',{method:'POST',body:'x'});if(r.status!==401)throw Error(r.status)});
 await step('page Activité vide, honnête',async()=>{await A.goto(B+'/activite');await A.getByText('Aucune donnée d’activité pour ce profil.').waitFor()});
 await step('fichier invalide refusé avec explication',async()=>{require('fs').writeFileSync('pasunexport.zip','bonjour');await A.locator('input[type=file]').setInputFiles('pasunexport.zip');await A.getByText(/Aucun nombre de pas|n’a pas pu être lu/).waitFor()});

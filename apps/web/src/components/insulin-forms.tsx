@@ -91,10 +91,12 @@ export function DoseForm({ products, today, nowTime }: { products: ProductOption
   );
 }
 
-export function ProductForm() {
+/** `first` : première insuline du profil — la page se recharge sur le journal, avec la confirmation en haut. */
+export function ProductForm({ first = false }: { first?: boolean }) {
   const [state, action] = useActionState(addProductAction, {} as FormState);
   return (
     <form action={action} className="flex flex-col gap-3" key={state.attempt ?? 'initial'}>
+      {first && <input type="hidden" name="first" value="1" />}
       {state.ok && <Alert tone="success">{state.message}</Alert>}
       {state.errors?.form && !state.ok && <Alert tone="error">{state.errors.form}</Alert>}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_200px]">
