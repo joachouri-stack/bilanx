@@ -147,4 +147,25 @@ describe.skipIf(!TEST_DB)('documents et scanner de bilans (PostgreSQL, PDF et re
     const n = await profiles.withProfileData(jo, pid, 'lab', 'read', (tx) => tx`SELECT count(*)::int AS n FROM lab_result`);
     expect(n[0]!.n).toBe(6);
   });
+
+  it('spécialité médicale : enregistrée à l’import, modifiée au classement, valeur inconnue refusée', async () => {
+    const r = await docs.upload(jo, pid, [{ name: 'orl.jpg', data: PHOTO() }], { kind: 'medical_report', title: 'Consultation ORL', specialty: 'orl' });
+    expect(r).toMatchObject({ ok: true, status: 'stored' });
+    const id = r.ok ? r.documentId : '';
+    expect((await docs.get(jo, pid, id))?.document.specialty).toBe('orl');
+    expect((await docs.list(jo, pid)).find((d) => d.id === id)?.specialty).toBe('orl');
+
+    expect(await docs.updateDetails(jo, pid, id, { kind: 'medical_report', specialty: 'urologie' })).toEqual({ ok: true });
+    expect((await docs.get(jo, pid, id))?.document.specialty).toBe('urologie');
+    expect(await docs.updateDetails(jo, pid, id, { kind: 'medical_report', specialty: null })).toEqual({ ok: true });
+    expect((await docs.get(jo, pid, id))?.document.specialty).toBeNull();
+
+    const bad = 'chirurgie' as never;
+    expect(await docs.upload(jo, pid, [{ name: 'x.jpg', data: PHOTO() }], { kind: 'other', specialty: bad })).toEqual({ ok: false, error: 'Spécialité inconnue.' });
+    expect(await docs.updateDetails(jo, pid, id, { kind: 'medical_report', specialty: bad })).toEqual({ ok: false, error: 'Spécialité inconnue.' });
+    // Contrainte de la base, au cas où la validation serait contournée.
+    await expect(
+      profiles.withProfileData(jo, pid, 'documents', 'write', (tx) => tx`UPDATE document SET specialty = 'chirurgie' WHERE id = ${id}`),
+    ).rejects.toThrow();
+  });
 });

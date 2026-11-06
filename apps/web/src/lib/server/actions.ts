@@ -10,7 +10,7 @@ import { appContext, DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
 import { addDays, formatLocalDate, isGlucoseUnit } from '@bilanx/domain';
 import { buildReportPdf, SECTION_KEYS, type SectionKey } from '@bilanx/reports';
 import { SHARE_VIEWER_MINUTES } from '@bilanx/records';
-import type { DocumentCategory, ExamType } from '@bilanx/documents';
+import type { DocumentCategory, ExamType, Specialty } from '@bilanx/documents';
 import { collectReport } from './report-data';
 import { demoToday } from '@/lib/demo-data';
 import {
@@ -352,8 +352,14 @@ export async function uploadDocumentAction(_: FormState, fd: FormData): Promise<
   if (ctx.active.kind !== 'real') return { errors: { form: 'Choisissez votre profil (ou celui d’un proche) : le profil de démonstration est en lecture seule.' } };
   const files = fd.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
   const payload = await Promise.all(files.map(async (f) => ({ name: f.name || 'document', data: Buffer.from(await f.arrayBuffer()) })));
-  const values = { kind: str(fd, 'kind'), title: str(fd, 'title'), date: str(fd, 'date'), examType: str(fd, 'examType') };
-  const details = { kind: (values.kind || null) as DocumentCategory | null, title: values.title || null, date: values.date || null, examType: (values.examType || null) as ExamType | null };
+  const values = { kind: str(fd, 'kind'), title: str(fd, 'title'), date: str(fd, 'date'), examType: str(fd, 'examType'), specialty: str(fd, 'specialty') };
+  const details = {
+    kind: (values.kind || null) as DocumentCategory | null,
+    title: values.title || null,
+    date: values.date || null,
+    examType: (values.examType || null) as ExamType | null,
+    specialty: (values.specialty || null) as Specialty | null,
+  };
   let r;
   try {
     r = await documents().upload(ctx.user, ctx.active.access.profileId, payload, details);
@@ -377,6 +383,7 @@ export async function updateDocumentDetailsAction(_: FormState, fd: FormData): P
       title: str(fd, 'title') || null,
       date: str(fd, 'date') || null,
       examType: (str(fd, 'examType') || null) as ExamType | null,
+      specialty: (str(fd, 'specialty') || null) as Specialty | null,
       issuer: str(fd, 'issuer') || null,
     });
     if (!r.ok) return { errors: { form: r.error } };
@@ -386,6 +393,7 @@ export async function updateDocumentDetailsAction(_: FormState, fd: FormData): P
   }
   revalidatePath(`/documents/${id}`);
   revalidatePath('/documents');
+  revalidatePath('/tableau-de-bord');
   return { ok: true, message: 'Classement enregistré.' };
 }
 

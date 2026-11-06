@@ -9,7 +9,7 @@ import { Icon, type IconName } from '@/components/icon';
 import {
   DashboardHero,
   AppointmentCard,
-  DocumentsRow,
+  DocumentsCard,
   FirstStepsCard,
   GlucoseCard,
   GymCard,
@@ -107,7 +107,7 @@ export default async function DashboardPage() {
         {data.showLab && data.watch.length > 0 && <WatchCard watch={data.watch} />}
       </div>
 
-      {data.docs && data.docs.length > 0 && <DocumentsRow docs={data.docs} />}
+      {data.docs && <DocumentsCard docs={data.docs} />}
     </div>
   );
 }

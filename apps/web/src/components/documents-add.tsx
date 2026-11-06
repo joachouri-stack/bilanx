@@ -14,7 +14,21 @@ const MOBILE = '(max-width: 1023.98px)';
  *   (la page n'est plus allongée par le formulaire). L'ancre #ajouter (bouton ＋ de la barre d'onglets) ouvre la feuille.
  * - Ordinateur (≥ 1024 px) : le formulaire reste affiché dans une carte latérale (id « ajouter »).
  */
-export function DocumentsAdd({ today, defaultKind = '', label = 'Ajouter un document', className = '' }: { today: string; defaultKind?: string; label?: string; className?: string }) {
+export function DocumentsAdd({
+  today,
+  defaultKind = '',
+  defaultExamType,
+  defaultSpecialty,
+  label = 'Ajouter un document',
+  className = '',
+}: {
+  today: string;
+  defaultKind?: string;
+  defaultExamType?: string;
+  defaultSpecialty?: string;
+  label?: string;
+  className?: string;
+}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -52,12 +66,12 @@ export function DocumentsAdd({ today, defaultKind = '', label = 'Ajouter un docu
       </Button>
       <Sheet open={open} onClose={close} title={label} id="feuille-ajout-document">
         <p className="mb-4 text-sm text-ink-2">Prenez une photo de chaque page, ou choisissez un PDF ou une image.</p>
-        <UploadForm today={today} defaultKind={defaultKind} />
+        <UploadForm today={today} defaultKind={defaultKind} defaultExamType={defaultExamType} defaultSpecialty={defaultSpecialty} />
       </Sheet>
       <Card id="ajouter" className="hidden scroll-mt-4 lg:block">
         <CardHeader title={label} />
         <p className="-mt-1 mb-4 text-sm text-ink-2">Prenez une photo de chaque page, ou choisissez un PDF ou une image.</p>
-        {!open && <UploadForm today={today} defaultKind={defaultKind} />}
+        {!open && <UploadForm today={today} defaultKind={defaultKind} defaultExamType={defaultExamType} defaultSpecialty={defaultSpecialty} />}
       </Card>
     </div>
   );
