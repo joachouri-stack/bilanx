@@ -325,9 +325,15 @@ export interface HeroItem {
   href: string;
 }
 
-const HERO_DOT: Record<NonNullable<HeroItem['dot']>, string> = { ok: 'bg-[#7fd6a4]', high: 'bg-[#ffb36b]', low: 'bg-[#ff8a7a]' };
+const HERO_DOT: Record<NonNullable<HeroItem['dot']>, string> = { ok: 'bg-sage', high: 'bg-amber', low: 'bg-red' };
+/** Couleur de chaque pastille (liseré du haut, rond de l'icône). */
+const HERO_TONE: Record<string, { bar: string; chip: string }> = {
+  flask: { bar: 'var(--petrol)', chip: 'bg-petrol-2 text-petrol' },
+  drop: { bar: 'var(--glucose)', chip: 'bg-glucose-2 text-glucose' },
+  calendar: { bar: 'var(--amber)', chip: 'bg-amber-2 text-amber' },
+};
 
-/** Bandeau coloré en haut du tableau de bord : salutation, date et 3 chiffres clés au plus. */
+/** Bandeau coloré en haut du tableau de bord : salutation, date et 3 chiffres clés au plus (cartes pleines, bien contrastées). */
 export function DashboardHero({ title, subtitle, items }: { title: string; subtitle: React.ReactNode; items: HeroItem[] }) {
   return (
     <section
@@ -335,34 +341,41 @@ export function DashboardHero({ title, subtitle, items }: { title: string; subti
       className="mb-4 overflow-hidden rounded-[var(--radius-card,18px)] bg-[linear-gradient(135deg,#0c4a56_0%,#13697a_55%,#1f5fa6_100%)] p-5 text-white shadow-[var(--shadow-card)] sm:p-6"
     >
       <h1 className="font-display text-[28px] font-semibold leading-tight sm:text-[34px]">{title}</h1>
-      <p className="mt-1 text-white/85 first-letter:uppercase">{subtitle}</p>
+      <p className="mt-1 text-white/90 first-letter:uppercase">{subtitle}</p>
       {items.length > 0 && (
         <ul className={`mt-4 grid gap-2 sm:gap-3 ${items.length === 3 ? 'grid-cols-3' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {items.map((it) => (
-            <li key={it.label} className="min-w-0">
-              <Link
-                href={it.href}
-                className="flex h-full min-h-[104px] flex-col rounded-2xl bg-white/10 px-2.5 py-3 ring-1 ring-inset ring-white/20 backdrop-blur-sm transition hover:bg-white/15 active:scale-[0.98] sm:p-4"
-              >
-                <span className="flex items-center gap-1 text-[12.5px] font-medium text-white/85 sm:gap-1.5 sm:text-[13px]">
-                  <Icon name={it.icon} className="size-3.5 shrink-0 sm:size-4" />
-                  <span className="truncate">{it.label}</span>
-                </span>
-                <span className="mt-auto pt-2">
-                  <span className="tabular block whitespace-nowrap leading-none">
-                    <span className="text-[26px] font-semibold tracking-tight sm:text-3xl">{it.value}</span>
-                    {it.dot && (
-                      <span className={`ml-1.5 inline-block size-2.5 -translate-y-1 rounded-full ring-2 ring-white/30 ${HERO_DOT[it.dot]}`} title={it.dotLabel}>
-                        <span className="sr-only">{it.dotLabel}</span>
-                      </span>
-                    )}
-                    {it.unit && <span className="ml-1 text-[13px] font-medium text-white/80">{it.unit}</span>}
+          {items.map((it) => {
+            const tone = HERO_TONE[it.icon] ?? HERO_TONE.flask!;
+            return (
+              <li key={it.label} className="min-w-0">
+                <Link
+                  href={it.href}
+                  style={{ boxShadow: `inset 0 3px 0 ${tone.bar}, 0 6px 16px rgba(0,0,0,0.22)` }}
+                  className="flex h-full min-h-[112px] flex-col rounded-2xl border border-black/5 bg-surface px-2.5 py-3 text-ink transition hover:-translate-y-0.5 active:scale-[0.98] sm:p-4"
+                >
+                  <span className="flex items-center gap-1 sm:gap-1.5">
+                    {/* Téléphone : petite icône colorée (place pour le libellé) ; plus large : icône dans un rond coloré. */}
+                    <span className={`grid shrink-0 place-items-center rounded-lg sm:size-7 ${tone.chip} max-sm:!bg-transparent`} aria-hidden>
+                      <Icon name={it.icon} className="size-4" />
+                    </span>
+                    <span className="truncate text-[12.5px] font-semibold text-ink-2 sm:text-[13px]">{it.label}</span>
                   </span>
-                  {it.sub && <span className="mt-1.5 block truncate text-[12px] leading-tight text-white/85">{it.sub}</span>}
-                </span>
-              </Link>
-            </li>
-          ))}
+                  <span className="mt-auto pt-2">
+                    <span className="tabular block whitespace-nowrap leading-none">
+                      <span className="text-[26px] font-bold tracking-tight sm:text-3xl">{it.value}</span>
+                      {it.unit && <span className="ml-1 text-[13px] font-medium text-ink-3">{it.unit}</span>}
+                      {it.dot && (
+                        <span className={`ml-1.5 inline-block size-2.5 -translate-y-1 rounded-full ${HERO_DOT[it.dot]}`} title={it.dotLabel}>
+                          <span className="sr-only">{it.dotLabel}</span>
+                        </span>
+                      )}
+                    </span>
+                    {it.sub && <span className="mt-1.5 block truncate text-[12px] font-medium leading-tight text-ink-2">{it.sub}</span>}
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
