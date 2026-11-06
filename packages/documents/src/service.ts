@@ -44,6 +44,12 @@ export const DOCUMENT_CATEGORIES = ['prescription', 'lab_report', 'imaging', 'me
 export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
 export const EXAM_TYPES = ['irm', 'scanner', 'radio', 'echo', 'autre'] as const;
 export type ExamType = (typeof EXAM_TYPES)[number];
+/** Spécialités médicales (liste fixe, voir db/migrations/0026_document_specialty.sql). */
+export const SPECIALTIES = [
+  'generaliste', 'cardiologie', 'dermatologie', 'endocrinologie', 'gastro', 'gynecologie', 'nephrologie', 'neurologie',
+  'ophtalmologie', 'orl', 'pneumologie', 'rhumatologie', 'urologie', 'podologie', 'dentaire', 'psychiatrie', 'radiologie', 'autre',
+] as const;
+export type Specialty = (typeof SPECIALTIES)[number];
 
 export interface DocumentDetails {
   /** Catégorie choisie ; absente = détection automatique. */
@@ -52,6 +58,8 @@ export interface DocumentDetails {
   /** AAAA-MM-JJ : date du document (ordonnance, prélèvement, examen). */
   date?: string | null;
   examType?: ExamType | null;
+  /** Spécialité médicale (facultative) : urologie, ophtalmologie, ORL… */
+  specialty?: Specialty | null;
 }
 
 export type UploadResult =
@@ -139,7 +147,7 @@ export function createDocumentsService(cfg: DocumentsConfig) {
   }
 
   // ───────────────────────── Dépôt ─────────────────────────
-  function cleanDetails(d: DocumentDetails | undefined): { ok: true; kind: DocumentCategory | null; title: string | null; date: string | null; examType: ExamType | null } | { ok: false; error: string } {
+  function cleanDetails(d: DocumentDetails | undefined): { ok: true; kind: DocumentCategory | null; title: string | null; date: string | null; examType: ExamType | null; specialty: Specialty | null } | { ok: false; error: string } {
     const kind = d?.kind && (DOCUMENT_CATEGORIES as readonly string[]).includes(d.kind) ? d.kind : null;
     if (d?.kind && !kind) return { ok: false, error: 'Catégorie de document inconnue.' };
     const title = d?.title?.trim().slice(0, 200) || null;
@@ -151,7 +159,9 @@ export function createDocumentsService(cfg: DocumentsConfig) {
       date = d.date;
     }
     const examType = kind === 'imaging' && d?.examType && (EXAM_TYPES as readonly string[]).includes(d.examType) ? d.examType : null;
-    return { ok: true, kind, title, date, examType };
+    const specialty = d?.specialty && (SPECIALTIES as readonly string[]).includes(d.specialty) ? d.specialty : null;
+    if (d?.specialty && !specialty) return { ok: false, error: 'Spécialité inconnue.' };
+    return { ok: true, kind, title, date, examType, specialty };
   }
 
   async function upload(actor: Actor, profileId: string, files: UploadFile[], details?: DocumentDetails): Promise<UploadResult> {
@@ -182,10 +192,10 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     const documentId = await profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
       const [doc] = await tx<{ id: string }[]>`
         INSERT INTO document (profile_id, kind, title, storage_key, dek_enc, sha256, mime_type, page_count, size_bytes, uploaded_by, uploaded_at,
-                              document_date, exam_type, kind_by_user)
+                              document_date, exam_type, specialty, kind_by_user)
         VALUES (${profileId}, ${meta.kind ?? 'unknown'}, ${meta.title ?? files[0]!.name.slice(0, 200)}, 'db', ${Buffer.alloc(0)}, ${sha256(Buffer.concat(files.map((f) => f.data)))},
                 ${isPdf ? 'application/pdf' : mimes[0]!}, ${files.length}, ${total}, ${actor.accountId}, ${now()},
-                ${meta.date}, ${meta.examType}, ${meta.kind !== null})
+                ${meta.date}, ${meta.examType}, ${meta.specialty}, ${meta.kind !== null})
         RETURNING id`;
       const id = doc!.id;
       await tx`UPDATE document SET dek_enc = ${encrypt(kek, dek, id)}, storage_key = ${`db:${id}`} WHERE id = ${id}`;
@@ -333,8 +343,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
   // ───────────────────────── Consultation ─────────────────────────
   async function list(actor: Actor, profileId: string) {
     return profiles.withProfileData(actor, profileId, 'documents', 'read', (tx) =>
-      tx<{ id: string; title: string; kind: string; exam_type: ExamType | null; mime_type: string; page_count: number; uploaded_at: Date; document_date: string | null; issuer: string | null; job_status: string | null; pending: number }[]>`
-        SELECT d.id, d.title, d.kind, d.exam_type, d.mime_type, d.page_count, d.uploaded_at, to_char(d.document_date, 'YYYY-MM-DD') AS document_date, d.issuer,
+      tx<{ id: string; title: string; kind: string; exam_type: ExamType | null; specialty: Specialty | null; mime_type: string; page_count: number; uploaded_at: Date; document_date: string | null; issuer: string | null; job_status: string | null; pending: number }[]>`
+        SELECT d.id, d.title, d.kind, d.exam_type, d.specialty, d.mime_type, d.page_count, d.uploaded_at, to_char(d.document_date, 'YYYY-MM-DD') AS document_date, d.issuer,
                j.status AS job_status,
                (SELECT count(*)::int FROM extracted_value_draft v WHERE v.job_id = j.id AND v.status = 'proposed')
                  + (SELECT count(*)::int FROM medication_draft m WHERE m.job_id = j.id AND m.status = 'proposed') AS pending
@@ -348,8 +358,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
   async function get(actor: Actor, profileId: string, documentId: string) {
     if (!/^[0-9a-f-]{36}$/i.test(documentId)) return null;
     return profiles.withProfileData(actor, profileId, 'documents', 'read', async (tx) => {
-      const [doc] = await tx<{ id: string; title: string; kind: string; exam_type: ExamType | null; kind_by_user: boolean; mime_type: string; page_count: number; uploaded_at: Date; document_date: string | null; issuer: string | null }[]>`
-        SELECT id, title, kind, exam_type, kind_by_user, mime_type, page_count, uploaded_at, to_char(document_date, 'YYYY-MM-DD') AS document_date, issuer
+      const [doc] = await tx<{ id: string; title: string; kind: string; exam_type: ExamType | null; specialty: Specialty | null; kind_by_user: boolean; mime_type: string; page_count: number; uploaded_at: Date; document_date: string | null; issuer: string | null }[]>`
+        SELECT id, title, kind, exam_type, specialty, kind_by_user, mime_type, page_count, uploaded_at, to_char(document_date, 'YYYY-MM-DD') AS document_date, issuer
         FROM document WHERE id = ${documentId} AND profile_id = ${profileId} AND deleted_at IS NULL`;
       if (!doc) return null;
       const [job] = await tx<{ id: string; status: string; method: string | null; detected_lab: string | null; detected_sampling_date: string | null; warnings: unknown; error: string | null }[]>`
@@ -405,7 +415,7 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     });
   }
 
-  /** Classement d'un document : catégorie, titre, date, type d'examen (la catégorie devient celle de l'utilisateur). */
+  /** Classement d'un document : catégorie, titre, date, type d'examen, spécialité (la catégorie devient celle de l'utilisateur). */
   async function updateDetails(actor: Actor, profileId: string, documentId: string, details: DocumentDetails & { issuer?: string | null }): Promise<{ ok: true } | { ok: false; error: string }> {
     if (!/^[0-9a-f-]{36}$/i.test(documentId)) return { ok: false, error: 'Document introuvable.' };
     const meta = cleanDetails(details);
@@ -414,7 +424,7 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     const issuer = details.issuer?.trim().slice(0, 120) || null;
     const rows = await profiles.withProfileData(actor, profileId, 'documents', 'write', (tx) =>
       tx`UPDATE document SET kind = ${meta.kind}, kind_by_user = true, title = COALESCE(${meta.title}, title), document_date = ${meta.date},
-                             exam_type = ${meta.examType}, issuer = ${issuer}
+                             exam_type = ${meta.examType}, specialty = ${meta.specialty}, issuer = ${issuer}
          WHERE id = ${documentId} AND profile_id = ${profileId} AND deleted_at IS NULL RETURNING id`,
     );
     return rows.length ? { ok: true } : { ok: false, error: 'Document introuvable.' };

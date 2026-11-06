@@ -1,7 +1,7 @@
 import type { IconName } from '@/components/icon';
 
-/** Icône d'une catégorie : une icône du composant `Icon`, ou « imaging » (tracé local, components/documents-icons.tsx). */
-export type DocCategoryIcon = IconName | 'imaging';
+/** Icône d'une catégorie : une icône du composant `Icon`, ou un tracé local de components/documents-icons.tsx. */
+export type DocCategoryIcon = IconName | 'imaging' | 'scanner' | 'eye' | 'ear' | 'kidney';
 
 /** Catégories de documents affichées (ordre d'affichage) et libellés. */
 export interface DocCategory {
@@ -28,6 +28,78 @@ export const DOC_CATEGORIES: DocCategory[] = [
 ];
 
 export const EXAM_LABELS: Record<string, string> = { irm: 'IRM', scanner: 'Scanner', radio: 'Radiographie', echo: 'Échographie', autre: 'Autre examen' };
+
+/** Spécialités médicales (codes de la migration 0026) : titre de page, libellé du formulaire, complément « d’urologie ». */
+export interface SpecialtyInfo {
+  code: string;
+  /** Titre de page et de liste : « Urologie ». */
+  title: string;
+  /** Libellé du choix dans le formulaire : « Urologie (urologue) ». */
+  label: string;
+  /** Complément du nom : « d’urologie », « de cardiologie ». */
+  of: string;
+}
+
+export const SPECIALTIES: SpecialtyInfo[] = [
+  { code: 'generaliste', title: 'Médecine générale', label: 'Médecine générale (généraliste)', of: 'de médecine générale' },
+  { code: 'cardiologie', title: 'Cardiologie', label: 'Cardiologie (cardiologue)', of: 'de cardiologie' },
+  { code: 'dermatologie', title: 'Dermatologie', label: 'Dermatologie (dermatologue)', of: 'de dermatologie' },
+  { code: 'endocrinologie', title: 'Endocrinologie', label: 'Endocrinologie (diabète, thyroïde)', of: 'd’endocrinologie' },
+  { code: 'gastro', title: 'Gastro-entérologie', label: 'Gastro-entérologie (gastro)', of: 'de gastro-entérologie' },
+  { code: 'gynecologie', title: 'Gynécologie', label: 'Gynécologie (gynécologue)', of: 'de gynécologie' },
+  { code: 'nephrologie', title: 'Néphrologie', label: 'Néphrologie (reins)', of: 'de néphrologie' },
+  { code: 'neurologie', title: 'Neurologie', label: 'Neurologie (neurologue)', of: 'de neurologie' },
+  { code: 'ophtalmologie', title: 'Ophtalmologie', label: 'Ophtalmologie (ophtalmo)', of: 'd’ophtalmologie' },
+  { code: 'orl', title: 'ORL', label: 'ORL (oreilles, nez, gorge)', of: 'd’ORL' },
+  { code: 'pneumologie', title: 'Pneumologie', label: 'Pneumologie (poumons)', of: 'de pneumologie' },
+  { code: 'rhumatologie', title: 'Rhumatologie', label: 'Rhumatologie (rhumatologue)', of: 'de rhumatologie' },
+  { code: 'urologie', title: 'Urologie', label: 'Urologie (urologue)', of: 'd’urologie' },
+  { code: 'podologie', title: 'Podologie', label: 'Podologie (pieds)', of: 'de podologie' },
+  { code: 'dentaire', title: 'Dentaire', label: 'Dentaire (dentiste)', of: 'dentaire' },
+  { code: 'psychiatrie', title: 'Psychiatrie', label: 'Psychiatrie (psychiatre)', of: 'de psychiatrie' },
+  { code: 'radiologie', title: 'Radiologie', label: 'Radiologie (radiologue)', of: 'de radiologie' },
+  { code: 'autre', title: 'Autre spécialité', label: 'Autre spécialité', of: 'd’une autre spécialité' },
+];
+
+export function specialtyByCode(code: string | null | undefined): SpecialtyInfo | null {
+  return SPECIALTIES.find((s) => s.code === code) ?? null;
+}
+
+/** Document tel que renvoyé par `documents().list()` (champs utiles aux filtres). */
+export interface DocLike {
+  kind: string;
+  exam_type?: string | null;
+  specialty?: string | null;
+}
+
+/**
+ * Raccourcis « Documents » du tableau de bord (ordre d'affichage). Chacun ouvre la liste filtrée,
+ * du plus récent au plus ancien ; `match` sert aux compteurs.
+ */
+export interface DocShortcut {
+  key: string;
+  /** Libellé court de la tuile : « Urologue ». */
+  label: string;
+  href: string;
+  icon: DocCategoryIcon;
+  tone: 'amber' | 'petrol' | 'glucose' | 'sage' | 'neutral';
+  match: (d: DocLike) => boolean;
+}
+
+const isKind = (key: string) => (d: DocLike) => categoryByKey(key)!.kinds.includes(d.kind);
+const isExam = (exam: string) => (d: DocLike) => d.kind === 'imaging' && d.exam_type === exam;
+const isSpecialty = (code: string) => (d: DocLike) => d.specialty === code;
+
+export const DOC_SHORTCUTS: DocShortcut[] = [
+  { key: 'ordonnances', label: 'Ordonnances', href: '/ordonnances', icon: 'prescription', tone: 'amber', match: isKind('ordonnances') },
+  { key: 'analyses', label: 'Bilans sanguins', href: '/documents?cat=analyses', icon: 'flask', tone: 'petrol', match: isKind('analyses') },
+  { key: 'comptes-rendus', label: 'Comptes rendus', href: '/documents?cat=comptes-rendus', icon: 'document', tone: 'sage', match: isKind('comptes-rendus') },
+  { key: 'irm', label: 'IRM', href: '/documents?cat=imagerie&examen=irm', icon: 'imaging', tone: 'glucose', match: isExam('irm') },
+  { key: 'scanner', label: 'Scanner', href: '/documents?cat=imagerie&examen=scanner', icon: 'scanner', tone: 'glucose', match: isExam('scanner') },
+  { key: 'urologie', label: 'Urologue', href: '/documents?specialite=urologie', icon: 'kidney', tone: 'neutral', match: isSpecialty('urologie') },
+  { key: 'ophtalmologie', label: 'Ophtalmo', href: '/documents?specialite=ophtalmologie', icon: 'eye', tone: 'neutral', match: isSpecialty('ophtalmologie') },
+  { key: 'orl', label: 'ORL', href: '/documents?specialite=orl', icon: 'ear', tone: 'neutral', match: isSpecialty('orl') },
+];
 
 export function categoryOf(kind: string): DocCategory {
   return DOC_CATEGORIES.find((c) => c.kinds.includes(kind)) ?? DOC_CATEGORIES.at(-1)!;

@@ -25,6 +25,7 @@ import {
 } from '@bilanx/domain';
 import type { AppointmentRow, DoseOfDay } from '@bilanx/records';
 import { DEMO_NEXT_APPOINTMENT, DEMO_TIMEZONE, demoDay, demoToday } from '@/lib/demo-data';
+import { DOC_SHORTCUTS } from '@/lib/document-categories';
 import { appointments, documents, glucose, profiles } from './auth';
 import { moduleAllowed, type AppContext } from './context';
 import { labResults, sensorRange, type LabRow } from './data';
@@ -126,13 +127,10 @@ export interface FirstStep {
   done: boolean;
 }
 
-export interface DashboardDoc {
-  id: string;
-  title: string | null;
-  kind: string;
-  exam_type: string | null;
-  document_date: string | null;
-  uploaded_at: Date;
+/** Carte « Documents » : nombre de documents par raccourci (clés de `DOC_SHORTCUTS`), et total. */
+export interface DashboardDocs {
+  counts: Record<string, number>;
+  total: number;
 }
 
 export interface DashboardData {
@@ -151,7 +149,7 @@ export interface DashboardData {
   appointments: AppointmentsSummary | null;
   steps: StepsSummary | null;
   gym: GymSummary | null;
-  docs: DashboardDoc[] | null;
+  docs: DashboardDocs | null;
   firstSteps: FirstStep[];
 }
 
@@ -366,7 +364,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     appointments: appointmentsSummary,
     steps: stepsSummary,
     gym: gymSummary,
-    docs: docs ? docs.slice(0, 3).map((d) => ({ id: d.id, title: d.title, kind: d.kind, exam_type: d.exam_type, document_date: d.document_date, uploaded_at: d.uploaded_at })) : null,
+    docs: docs ? { counts: Object.fromEntries(DOC_SHORTCUTS.map((s) => [s.key, docs.filter(s.match).length])), total: docs.length } : null,
     firstSteps: firstSteps.some((s) => !s.done) ? firstSteps : [],
   };
 }

@@ -17,8 +17,9 @@ import {
 } from '@bilanx/domain';
 import { GLUCOSE_CONTEXTS } from '@bilanx/domain';
 import { DEMO_TIMEZONE } from '@/lib/demo-data';
-import { documentTitle } from '@/lib/document-categories';
-import type { DashboardDoc, FirstStep, GymSummary, Hba1cPoint, AppointmentsSummary, MeterSummary, SensorSummary, StepsSummary, TodaySummary } from '@/lib/server/dashboard-data';
+import { DOC_SHORTCUTS, type DocShortcut } from '@/lib/document-categories';
+import { DocIcon } from '@/components/documents-icons';
+import type { DashboardDocs, FirstStep, GymSummary, Hba1cPoint, AppointmentsSummary, MeterSummary, SensorSummary, StepsSummary, TodaySummary } from '@/lib/server/dashboard-data';
 import { toggleGymAction } from '@/lib/server/actions';
 import { GymSubmit } from '@/components/gym-forms';
 import { GYM_INITIALS, GYM_WEEKDAYS_SHORT, gymDayLong, gymMonthName, gymPlural, gymRemainingLabel, gymWeekBar, gymWeekSentence } from '@/components/gym-shared';
@@ -922,36 +923,55 @@ export function SummaryCard({ sentences }: { sentences: React.ReactNode[] }) {
 
 /* ------------------------------------------------------------------ Documents */
 
-export function DocumentsRow({ docs }: { docs: DashboardDoc[] }) {
-  const fmt = (d: DashboardDoc) =>
-    d.document_date
-      ? new Intl.DateTimeFormat('fr-FR', { timeZone: 'UTC', dateStyle: 'short' }).format(new Date(`${d.document_date}T12:00:00Z`))
-      : `Ajouté le ${dateShort(d.uploaded_at)}`;
+const SHORTCUT_TONES: Record<DocShortcut['tone'], string> = {
+  amber: 'bg-amber-2 text-amber',
+  petrol: 'bg-petrol-2 text-petrol',
+  glucose: 'bg-glucose-2 text-glucose',
+  sage: 'bg-sage-2 text-sage',
+  neutral: 'bg-surface-2 text-ink-2',
+};
+
+/**
+ * Raccourcis par type de document : chaque tuile ouvre la liste filtrée (du plus récent au plus ancien)
+ * et indique combien de documents elle contient. Affichée même sans document (« Aucun »).
+ */
+export function DocumentsCard({ docs }: { docs: DashboardDocs }) {
   return (
     <Card>
-      <CardHeader title="Derniers documents" icon="folder" iconTone="neutral" />
-      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {docs.map((d) => (
-          <li key={d.id} className="min-w-0">
-            <Link href={`/documents/${d.id}`} className="flex min-h-11 items-center gap-3 rounded-xl border border-line px-3 py-2.5 hover:bg-surface-2">
-              <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${d.kind === 'prescription' ? 'bg-amber-2 text-amber' : d.kind === 'lab_report' ? 'bg-petrol-2 text-petrol' : 'bg-surface-2 text-ink-2'}`} aria-hidden>
-                <Icon name={d.kind === 'prescription' ? 'prescription' : 'document'} className="size-5" />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{documentTitle(d)}</span>
-                <span className="block text-[13px] text-ink-3">{fmt(d)}</span>
-              </span>
-            </Link>
-          </li>
-        ))}
+      <CardHeader title="Documents" icon="folder" iconTone="neutral" />
+      <ul className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        {DOC_SHORTCUTS.map((s) => {
+          const n = docs.counts[s.key] ?? 0;
+          return (
+            <li key={s.key} className="min-w-0">
+              <Link
+                href={s.href}
+                className="flex h-full min-h-14 items-center gap-3 rounded-xl border border-line px-3 py-2.5 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-petrol"
+              >
+                <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${SHORTCUT_TONES[s.tone]}`} aria-hidden>
+                  <DocIcon name={s.icon} className="size-5" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-medium leading-5 [overflow-wrap:anywhere]">{s.label}</span>
+                  <span className="block text-[13px] text-ink-3">
+                    {n ? (
+                      <>
+                        <span className="tabular">{n}</span>
+                        <span className="sr-only"> {n > 1 ? 'documents' : 'document'}</span>
+                      </>
+                    ) : (
+                      'Aucun'
+                    )}
+                  </span>
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
-      <div className="mt-2 flex flex-wrap gap-x-2">
+      <div className="mt-2 flex justify-center">
         <ButtonLink href="/documents" variant="ghost">
           Tous les documents
-        </ButtonLink>
-        <ButtonLink href="/ordonnances" variant="ghost">
-          <Icon name="prescription" className="size-5" />
-          Ordonnances
         </ButtonLink>
       </div>
     </Card>

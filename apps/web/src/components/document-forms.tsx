@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useRef, useState } from 'react';
 import { ANALYTES, getAnalyte, unitsFor } from '@bilanx/domain';
 import { reviewDocumentAction, updateDocumentDetailsAction, uploadDocumentAction, type FormState } from '@/lib/server/actions';
-import { DOC_CATEGORIES, EXAM_LABELS } from '@/lib/document-categories';
+import { DOC_CATEGORIES, EXAM_LABELS, SPECIALTIES } from '@/lib/document-categories';
 import { Alert } from './forms';
 import { useFormStatus } from 'react-dom';
 import { Icon } from './icon';
@@ -22,7 +22,7 @@ function Submit({ children, pending, disabled }: { children: React.ReactNode; pe
 
 const field = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-surface px-3';
 
-/** Catégorie, date, titre (et type d'examen pour l'imagerie) : partagés par l'import et la modification. */
+/** Catégorie, spécialité, date, titre (et type d'examen pour l'imagerie) : partagés par l'import et la modification. */
 function DetailsFields({ kind, setKind, today, values, allowAuto }: { kind: string; setKind: (k: string) => void; today: string; values: Record<string, string>; allowAuto: boolean }) {
   const choice = (selected: boolean) =>
     `flex min-h-12 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-[15px] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-petrol ${selected ? 'border-petrol bg-petrol-2 font-semibold text-petrol' : 'border-line'}`;
@@ -59,6 +59,22 @@ function DetailsFields({ kind, setKind, today, values, allowAuto }: { kind: stri
           </select>
         </label>
       )}
+      <label className="flex flex-col gap-1 text-sm font-medium">
+        <span>
+          Spécialité <span className="font-normal text-ink-3">(facultatif)</span>
+        </span>
+        <select name="specialty" defaultValue={values.specialty ?? ''} aria-describedby="aide-specialite" className={`${field} min-h-11 text-base`}>
+          <option value="">Aucune</option>
+          {SPECIALTIES.map((sp) => (
+            <option key={sp.code} value={sp.code}>
+              {sp.label}
+            </option>
+          ))}
+        </select>
+        <span id="aide-specialite" className="font-normal text-ink-3">
+          Le médecin concerné : urologue, ophtalmo, ORL… pour retrouver ses documents en un instant.
+        </span>
+      </label>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           <span>
@@ -78,14 +94,32 @@ function DetailsFields({ kind, setKind, today, values, allowAuto }: { kind: stri
 }
 
 /** Modifier le classement d'un document déjà importé. */
-export function DocumentDetailsForm({ documentId, today, kind: initialKind, title, date, examType, issuer }: { documentId: string; today: string; kind: string; title: string; date: string | null; examType: string | null; issuer: string | null }) {
+export function DocumentDetailsForm({
+  documentId,
+  today,
+  kind: initialKind,
+  title,
+  date,
+  examType,
+  specialty,
+  issuer,
+}: {
+  documentId: string;
+  today: string;
+  kind: string;
+  title: string;
+  date: string | null;
+  examType: string | null;
+  specialty: string | null;
+  issuer: string | null;
+}) {
   const [state, action] = useActionState(updateDocumentDetailsAction, {} as FormState);
   const known = DOC_CATEGORIES.some((c) => c.kind === initialKind) ? initialKind : DOC_CATEGORIES.find((c) => c.kinds.includes(initialKind))?.kind ?? 'other';
   const [kind, setKind] = useState(known);
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="documentId" value={documentId} />
-      <DetailsFields kind={kind} setKind={setKind} today={today} values={{ title, date: date ?? '', examType: examType ?? 'irm' }} allowAuto={false} />
+      <DetailsFields kind={kind} setKind={setKind} today={today} values={{ title, date: date ?? '', examType: examType ?? 'irm', specialty: specialty ?? '' }} allowAuto={false} />
       <label className="flex flex-col gap-1 text-sm font-medium">
         <span>
           Médecin, laboratoire ou centre <span className="font-normal text-ink-3">(facultatif)</span>
@@ -99,7 +133,19 @@ export function DocumentDetailsForm({ documentId, today, kind: initialKind, titl
   );
 }
 
-export function UploadForm({ defaultKind = '', today }: { defaultKind?: string; today: string }) {
+export function UploadForm({
+  defaultKind = '',
+  defaultExamType,
+  defaultSpecialty,
+  today,
+}: {
+  defaultKind?: string;
+  /** Type d'examen présélectionné (imagerie), ex. « irm » depuis /documents?examen=irm. */
+  defaultExamType?: string;
+  /** Spécialité présélectionnée, ex. « urologie » depuis /documents?specialite=urologie. */
+  defaultSpecialty?: string;
+  today: string;
+}) {
   const [state, action] = useActionState(uploadDocumentAction, {} as FormState);
   const [kind, setKind] = useState(state.values?.kind ?? defaultKind);
   const [files, setFiles] = useState<File[]>([]);
@@ -152,7 +198,13 @@ export function UploadForm({ defaultKind = '', today }: { defaultKind?: string; 
           ))}
         </ol>
       )}
-      <DetailsFields kind={kind} setKind={setKind} today={today} values={state.values ?? {}} allowAuto />
+      <DetailsFields
+        kind={kind}
+        setKind={setKind}
+        today={today}
+        values={state.values ?? { ...(defaultExamType ? { examType: defaultExamType } : {}), ...(defaultSpecialty ? { specialty: defaultSpecialty } : {}) }}
+        allowAuto
+      />
       <Submit pending={kind === 'prescription' || kind === 'lab_report' || kind === '' ? 'Envoi et lecture du document…' : 'Envoi du document…'} disabled={files.length === 0}>
         Enregistrer {files.length > 1 ? `les ${files.length} pages` : 'le document'}
       </Submit>
