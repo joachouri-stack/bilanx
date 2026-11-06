@@ -57,19 +57,23 @@ export interface QuickAddItem {
   svg: IconName;
   /** Rubrique d'appartenance : l'ajout est masqué si cette rubrique est interdite pour le profil affiché. */
   base: string;
+  /** Couleur de la pastille : la même que la carte correspondante du tableau de bord. */
+  tone: 'glucose' | 'petrol' | 'sage' | 'violet' | 'rose';
+  /** Feuille « Ajouter » : « gym » coche la séance du jour sans changer de page ; « documents » ouvre le choix du dossier. */
+  special?: 'gym' | 'documents';
 }
 
 /** Ajouts rapides (feuille « Ajouter » du bouton ＋ sur téléphone, pastilles du tableau de bord). */
 export const QUICK_ADD: QuickAddItem[] = [
-  { href: '/glycemie#ajouter-glycemie', label: 'Glycémie', icon: '🩸', svg: 'drop', base: '/glycemie' },
-  { href: '/analyses/ajouter?analyse=hba1c', label: 'HbA1c', icon: '🧪', svg: 'flask', base: '/analyses' },
-  { href: '/activite#saisir-pas', label: 'Pas du jour', icon: '👟', svg: 'steps', base: '/activite' },
-  { href: '/salle-de-sport', label: 'Séance de sport', icon: '🏋️', svg: 'dumbbell', base: '/salle-de-sport' },
-  { href: '/journal#ajouter-journal', label: 'Repas ou événement', icon: '🍽️', svg: 'meal', base: '/journal' },
-  { href: '/medicaments#prises', label: 'Prise de médicament', icon: '💊', svg: 'pill', base: '/medicaments' },
-  { href: '/traitements#injection', label: 'Injection d’insuline', icon: '💉', svg: 'syringe', base: '/traitements' },
-  { href: '/rendez-vous#nouveau-rendez-vous', label: 'Rendez-vous', icon: '📅', svg: 'calendar', base: '/rendez-vous' },
-  { href: '/documents#ajouter', label: 'Document ou photo', icon: '📄', svg: 'camera', base: '/documents' },
+  { href: '/glycemie#ajouter-glycemie', label: 'Glycémie', icon: '🩸', svg: 'drop', base: '/glycemie', tone: 'glucose' },
+  { href: '/activite#saisir-pas', label: 'Pas du jour', icon: '👟', svg: 'steps', base: '/activite', tone: 'sage' },
+  { href: '/salle-de-sport', label: 'Séance de sport', icon: '🏋️', svg: 'dumbbell', base: '/salle-de-sport', tone: 'sage', special: 'gym' },
+  { href: '/traitements#injection', label: 'Injection d’insuline', icon: '💉', svg: 'syringe', base: '/traitements', tone: 'petrol' },
+  { href: '/journal#ajouter-journal', label: 'Repas ou événement', icon: '🍽️', svg: 'meal', base: '/journal', tone: 'petrol' },
+  { href: '/medicaments#prises', label: 'Prise de médicament', icon: '💊', svg: 'pill', base: '/medicaments', tone: 'petrol' },
+  { href: '/analyses/ajouter?analyse=hba1c', label: 'HbA1c', icon: '🧪', svg: 'flask', base: '/analyses', tone: 'petrol' },
+  { href: '/rendez-vous#nouveau-rendez-vous', label: 'Rendez-vous', icon: '📅', svg: 'calendar', base: '/rendez-vous', tone: 'violet' },
+  { href: '/documents#ajouter', label: 'Document ou photo', icon: '📄', svg: 'camera', base: '/documents', tone: 'rose', special: 'documents' },
 ];
 
 /** Ce que chaque module « prévu » nécessitera — affiché honnêtement sur sa page. */

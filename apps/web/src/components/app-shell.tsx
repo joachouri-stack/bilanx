@@ -7,6 +7,7 @@ import { MOBILE_TABS, NAV, NAV_SECTIONS, QUICK_ADD, type NavItem } from '@/lib/n
 import { signOutAction, switchProfileAction } from '@/lib/server/actions';
 import { Icon } from './icon';
 import { Sheet } from './sheet';
+import { QuickAddContent } from './quick-add';
 
 export interface ShellUser {
   email: string;
@@ -125,7 +126,7 @@ export function AppShell({
               aria-haspopup="dialog"
               aria-expanded={sheet === 'add'}
               aria-controls="ajout-rapide"
-              aria-label="Ajouter : glycémie, HbA1c, pas, repas, médicament, insuline, rendez-vous, document"
+              aria-label="Ajouter : glycémie, pas, séance de sport, insuline, repas, médicament, HbA1c, rendez-vous, document"
               className="-mt-4 grid size-14 place-items-center rounded-full bg-petrol text-on-accent shadow-lg ring-4 ring-bg active:scale-95"
             >
               <Icon name="plus" className="size-7" strokeWidth={2.2} />
@@ -148,22 +149,8 @@ export function AppShell({
 
       <Sheet open={sheet === 'add'} onClose={closeSheet} title="Ajouter" id="ajout-rapide">
         {quick.length ? (
-          <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            {quick.map((q) => (
-              <li key={q.href}>
-                <Link
-                  href={q.href}
-                  onClick={closeSheet}
-                  className="flex h-full min-h-24 flex-col items-center justify-center gap-2 rounded-2xl border border-line bg-surface-2 p-3 text-center text-[15px] font-medium leading-tight active:scale-[0.98]"
-                >
-                  <span className="grid size-10 place-items-center rounded-full bg-petrol-2 text-petrol">
-                    <Icon name={q.svg} className="size-6" />
-                  </span>
-                  {q.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          // Clé : revient au premier écran à chaque ouverture de la feuille.
+          <QuickAddContent key={sheet === 'add' ? 'ouvert' : 'ferme'} items={quick} onDone={closeSheet} />
         ) : (
           <p className="text-sm text-ink-3">Aucun ajout possible pour ce profil.</p>
         )}
