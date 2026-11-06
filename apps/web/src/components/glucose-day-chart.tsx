@@ -144,6 +144,8 @@ export function GlucoseDayChart(p: Props) {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
+    // Souris : on garde le glisser même hors du graphique (au doigt, le navigateur gère le défilement vertical).
+    if (e.pointerType === 'mouse') (e.target as Element).setPointerCapture?.(e.pointerId);
     pointers.current.set(e.pointerId, e.clientX);
     if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()] as [number, number];

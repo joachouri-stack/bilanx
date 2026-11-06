@@ -65,7 +65,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
   /** Choix d'unité discret, replié en bas de page : la préférence se règle dans la fiche du profil. */
   const unitChoice = (base: string) => (
     <details className="group" open={temporaryUnit}>
-      <summary className={buttonClass({ variant: 'ghost', className: '-ml-3 cursor-pointer list-none text-sm' })}>Unité d’affichage : {unit}</summary>
+      <summary className={buttonClass({ variant: 'ghost', className: '-ml-3 cursor-pointer list-none text-sm' })}>Unité d’affichage : {unit}</summary>
       <nav aria-label="Unité d’affichage" className="mt-2 inline-flex rounded-xl bg-surface-2 p-1 text-sm">
         {Object.entries(UNIT_PARAM).map(([k, u]) => (
           <Link
@@ -133,7 +133,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
       <CardHeader title="Ajouter une glycémie" tag="◆ Lecteur (doigt)" />
       {sp.ajoute && (
         <p role="status" className="mb-3 rounded-xl bg-sage-2 px-4 py-3 text-sm">
-          Glycémie enregistrée : {sp.ajoute.slice(0, 40)}.
+          Glycémie enregistrée : {sp.ajoute.slice(0, 40)}.
         </p>
       )}
       <p className="mb-3 text-sm text-ink-2">La valeur affichée par votre lecteur, au bout du doigt.</p>
@@ -196,7 +196,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
 
         {(canWrite || meter.length > 0) && (
           <Card>
-            <CardHeader title="Lecteur (doigt) : mesures du jour" />
+            <CardHeader title="Lecteur (doigt) : mesures du jour" />
             {meter.length === 0 ? (
               <p className="text-sm text-ink-2">Aucune glycémie du lecteur ce jour-là.</p>
             ) : (

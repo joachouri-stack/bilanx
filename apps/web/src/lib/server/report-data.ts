@@ -13,6 +13,7 @@ import {
   getAnalyte,
   INSULIN_TYPES,
   insulinPeriod,
+  meterStats,
   stepsSeries,
   stepsStats,
   type LocalDate,
@@ -22,7 +23,7 @@ import type { ReportData, ReportLab, SectionKey, Source } from '@bilanx/reports'
 import { DEMO_NEXT_APPOINTMENT, DEMO_TIMEZONE, demoDay } from '@/lib/demo-data';
 import { appointments, insulin, journal, profiles } from './auth';
 import { displayUnits, moduleAllowed, type AppContext } from './context';
-import { glucoseRangeAll, journalToEvent, labResults, type LabRow } from './data';
+import { glucoseRangeAll, journalToEvent, labResults, meterRange, type LabRow } from './data';
 import { insulinDoses, insulinProducts, toDomainDoses } from './insulin-data';
 import { stepsDaily, stepsGoal, stepsSource } from './activity-data';
 import { medicationFollowUpRange, medicationList } from './medication-data';
@@ -77,14 +78,17 @@ export async function collectReport(ctx: AppContext, from: LocalDate, to: LocalD
   };
 
   if (wanted.includes('glucose')) {
-    const all = await glucoseRangeAll(ctx, from, to, now);
+    const [all, meter] = await Promise.all([glucoseRangeAll(ctx, from, to, now), meterRange(ctx, from, to, now)]);
     const sensor = all.filter((r) => r.kind === 'sensor');
+    const targets = { low: 70, high: 180 };
     data.glucose = {
       stats: computeGlucoseStats(sensor, { periodStart: start, periodEnd }),
       agp: agpProfile(sensor, DEMO_TIMEZONE),
-      capillaryCount: all.length - sensor.length,
+      capillaryCount: meter.length,
+      // Lecteur (doigt) : statistiques à part et liste datée avec le moment de la mesure.
+      meter: { stats: meterStats(meter, targets, DEMO_TIMEZONE), readings: meter, source: isDemo ? 'demo' : 'manual' },
       source: isDemo ? 'demo' : 'import',
-      targets: { low: 70, high: 180 },
+      targets,
       unit: displayUnits(ctx.active).glucose,
     };
   }

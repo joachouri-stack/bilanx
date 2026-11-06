@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { agpProfile, computeGlucoseStats, insulinPeriod, stepsSeries, stepsStats, type GlucoseReading, type InsulinDose } from '@bilanx/domain';
+import { agpProfile, computeGlucoseStats, insulinPeriod, meterStats, stepsSeries, stepsStats, type GlucoseReading, type InsulinDose } from '@bilanx/domain';
 import { buildReportPdf, pdfText, type ReportData } from '../src';
 
 async function pdfToText(buf: Buffer): Promise<{ pages: number; text: string }> {
@@ -85,10 +85,10 @@ describe('rapport PDF', () => {
       'du 22 octobre 2026 au 4 novembre 2026 (14 jours)',
       'ne constitue ni un diagnostic ni une recommandation',
       'Données disponibles sur la période',
-      'Glycémie (capteur)',
+      'Glycémie (capteur et lecteur)',
       'Profil glycémique sur 24 h',
-      'GMI (indicateur ESTIMÉ',
-      '2 glycémie(s) capillaire(s)',
+      'HbA1c ESTIMÉE par le capteur',
+      '2 glycémies du lecteur sur la période',
       '7,2 % (55 mmol/mol) (S)',
       'Points aux seules dates réelles',
       'Ferritine',
@@ -140,6 +140,44 @@ describe('rapport PDF', () => {
     const { text } = await pdfToText(await buildReportPdf(d));
     expect(text).toContain('Plage cible 0,70–1,80 g/L');
     expect(text).not.toContain('mg/dL');
+  });
+
+  it('glycémies du lecteur (doigt) : statistiques à part et liste datée marquée (S)', async () => {
+    const d = sample();
+    const readings = [
+      { at: new Date('2026-10-23T06:30:00Z'), mgdl: 104, context: 'fasting' },
+      { at: new Date('2026-10-23T11:45:00Z'), mgdl: 196, context: 'after_meal' },
+      { at: new Date('2026-10-24T06:40:00Z'), mgdl: 62, context: 'fasting' },
+      { at: new Date('2026-10-25T20:30:00Z'), mgdl: 140, context: null },
+    ];
+    d.glucose!.meter = { stats: meterStats(readings, { low: 70, high: 180 }, TZ), readings, source: 'manual' };
+    d.glucose!.capillaryCount = readings.length;
+    const { text } = await pdfToText(await buildReportPdf(d));
+    for (const s of [
+      'capteur : 1344 mesures',
+      'lecteur : 4 mesures',
+      'Lecteur (doigt) : glycémies saisies',
+      '4 (3 jours)',
+      '83 (2)', // à jeun : (104 + 62) / 2
+      '196 (1)',
+      '62 / 196',
+      '1 valeur sous 70 mg/dL · 1 au-dessus de 180 mg/dL',
+      '1 sans moment noté',
+      '23/10/2026 08:30', // heure d’été à Paris
+      '104 mg/dL (S)',
+      'À jeun',
+      'Après un repas',
+      '(S) saisie',
+    ])
+      expect(text, s).toContain(s);
+    expect(text).not.toContain('2 glycémies du lecteur sur la période');
+
+    // Sans capteur : le lecteur d'abord, puis l'absence de capteur signalée.
+    d.glucose!.stats = computeGlucoseStats([], { periodStart: new Date(Date.UTC(2026, 9, 22)), periodEnd: new Date(Date.UTC(2026, 10, 5)) });
+    d.glucose!.agp = [];
+    const t2 = (await pdfToText(await buildReportPdf(d))).text;
+    expect(t2.indexOf('Lecteur (doigt) : glycémies saisies')).toBeLessThan(t2.indexOf('Aucune mesure du capteur sur la période.'));
+    expect(t2).not.toContain('Profil glycémique sur 24 h');
   });
 
   it('remplace les caractères non représentables par les polices du PDF', () => {

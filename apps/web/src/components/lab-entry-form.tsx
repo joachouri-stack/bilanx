@@ -70,13 +70,13 @@ export function LabEntryForm({ today, initialAnalyte }: { today: string; initial
         <FieldError id="e-analyte" msg={fe.analyteCode} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
-        <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)] gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor="value">Résultat</Label>
-          <input id="value" name="value" inputMode="decimal" autoComplete="off" defaultValue={v.value} placeholder="ex. 25 ou 7,2 ou < 5" className={cls('value')} aria-invalid={!!fe.value} aria-describedby="e-value" />
+          <input id="value" name="value" inputMode="decimal" autoComplete="off" defaultValue={v.value} placeholder="ex. 7,2" className={cls('value')} aria-invalid={!!fe.value} aria-describedby="e-value" />
           <FieldError id="e-value" msg={fe.value} />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor="unit">Unité</Label>
           <select id="unit" name="unit" key={code} defaultValue={v.unit && units.includes(v.unit) ? v.unit : units[0]} disabled={!analyte} className={cls('unit')} aria-invalid={!!fe.unit}>
             {units.map((u) => (
@@ -88,15 +88,15 @@ export function LabEntryForm({ today, initialAnalyte }: { today: string; initial
           <FieldError id="e-unit" msg={fe.unit} />
         </div>
       </div>
-      <p className="-mt-3 text-xs text-ink-3">Recopiez la valeur et l’unité exactement comme sur le compte rendu du laboratoire.</p>
+      <p className="-mt-3 text-[13px] text-ink-3">Recopiez la valeur et l’unité comme sur le bilan sanguin (« &lt; 5 » est accepté).</p>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor="sampledOn">Date du prélèvement</Label>
           <input id="sampledOn" name="sampledOn" type="date" max={today} defaultValue={v.sampledOn} className={cls('sampledOn')} aria-invalid={!!fe.sampledOn} />
           <FieldError id="e-date" msg={fe.sampledOn} />
         </div>
-        <div className="flex flex-col gap-1.5">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <Label htmlFor="laboratory" optional>
             Laboratoire
           </Label>
@@ -105,20 +105,18 @@ export function LabEntryForm({ today, initialAnalyte }: { today: string; initial
         </div>
       </div>
 
-      <fieldset className="rounded-xl border border-line p-4">
+      <fieldset className="min-w-0 rounded-xl border border-line p-4">
         <legend className="px-1 text-sm font-medium">
           Valeurs de référence du laboratoire <span className="font-normal text-ink-3">(facultatif)</span>
         </legend>
-        <p className="mb-3 text-xs text-ink-3">
-          Telles qu’imprimées à côté du résultat. Elles varient selon le laboratoire, l’âge et le sexe : BILANX ne les devine jamais.
-        </p>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
+        <p className="mb-3 text-[13px] text-ink-3">Recopiez-les depuis le bilan, à côté du résultat. BILANX ne les devine jamais.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <Label htmlFor="refLow">Borne basse</Label>
             <input id="refLow" name="refLow" inputMode="decimal" defaultValue={v.refLow} className={cls('refLow')} />
             <FieldError id="e-rl" msg={fe.refLow} />
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex min-w-0 flex-col gap-1.5">
             <Label htmlFor="refHigh">Borne haute</Label>
             <input id="refHigh" name="refHigh" inputMode="decimal" defaultValue={v.refHigh} className={cls('refHigh')} />
             <FieldError id="e-rh" msg={fe.refHigh} />
@@ -141,7 +139,7 @@ export function LabEntryForm({ today, initialAnalyte }: { today: string; initial
       )}
 
       <SubmitButton pendingLabel="Enregistrement…">Enregistrer le résultat</SubmitButton>
-      <p className="text-center text-xs text-ink-3">Le résultat sera marqué « saisie manuelle » dans l’historique et les rapports.</p>
+      <p className="text-center text-[13px] text-ink-3">Le résultat sera marqué « saisie manuelle » dans l’historique et les rapports.</p>
     </form>
   );
 }

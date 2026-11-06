@@ -1,4 +1,4 @@
-import type { Adherence, AgpHour, DailyInsulin, GlucoseStats, GlucoseUnit, StepsDay, StepsStats } from '@bilanx/domain';
+import type { Adherence, AgpHour, DailyInsulin, GlucoseStats, GlucoseUnit, MeterStats, StepsDay, StepsStats } from '@bilanx/domain';
 
 export type Source = 'manual' | 'document' | 'import' | 'demo';
 
@@ -26,7 +26,13 @@ export interface ReportData {
   glucose?: {
     stats: GlucoseStats;
     agp: AgpHour[];
+    /** Nombre de glycémies du lecteur (doigt) sur la période. */
     capillaryCount: number;
+    /**
+     * Glycémies du lecteur (doigt), saisies à la main : statistiques à part (jamais mêlées au capteur)
+     * et liste datée avec le moment de la mesure (`fasting`, `after_meal`…).
+     */
+    meter?: { stats: MeterStats; readings: { at: Date; mgdl: number; context: string | null }[]; source: Source };
     source: Source;
     targets: { low: number; high: number };
     /** Unité d'affichage choisie pour le profil (valeurs fournies en mg/dL). Défaut : mg/dL. */
@@ -67,7 +73,7 @@ export interface ReportData {
 export const SECTION_KEYS = ['glucose', 'hba1c', 'lab', 'insulin', 'medications', 'activity', 'journal', 'appointments'] as const;
 export type SectionKey = (typeof SECTION_KEYS)[number];
 export const SECTION_LABELS: Record<SectionKey, string> = {
-  glucose: 'Glycémie (capteur)',
+  glucose: 'Glycémie (capteur et lecteur)',
   hba1c: 'HbA1c de laboratoire',
   lab: 'Autres résultats d’analyses',
   insulin: 'Insuline et évolution du traitement',

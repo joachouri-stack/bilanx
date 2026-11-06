@@ -152,7 +152,7 @@ export function GlucosePeriod({
           </p>
         </div>
       </div>
-      <Meta className="mt-3">Des mesures ponctuelles : elles ne disent pas le temps passé dans la cible, contrairement au capteur.</Meta>
+      <Meta className="mt-3">Des mesures ponctuelles : elles ne disent pas le temps passé dans la cible, contrairement au capteur.</Meta>
     </Card>
   );
 
@@ -161,7 +161,7 @@ export function GlucosePeriod({
       {!hasSensor && (
         <>
           <p role="status" className="rounded-xl bg-surface-2 px-4 py-3 text-sm">
-            Pas de capteur sur cette période : voici les glycémies de votre lecteur (doigt).
+            Pas de capteur sur cette période : voici les glycémies de votre lecteur (doigt).
           </p>
           {meterCard}
         </>
@@ -171,14 +171,14 @@ export function GlucosePeriod({
         <>
           {stats.coveragePct < 70 && (
             <p role="status" className="rounded-xl bg-amber-2 px-4 py-3 text-sm">
-              Capteur actif {pct(stats.coveragePct)} du temps : en dessous de 70 %, les statistiques sont à interpréter avec prudence.
+              Capteur actif {pct(stats.coveragePct)} du temps : en dessous de 70 %, les statistiques sont à interpréter avec prudence.
               {!isDemo && ' Aucune synchronisation automatique n’est active.'}
             </p>
           )}
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
             <Card className="max-xl:order-last">
               <CardHeader title="Profil sur 24 h" tag="● Capteur" tagTone="glucose" />
-              <p className="mb-3 text-sm text-ink-2">Toutes les journées de la période superposées : la forme d’une journée type.</p>
+              <p className="mb-3 text-sm text-ink-2">Toutes les journées de la période superposées : la forme d’une journée type.</p>
               <AgpChart agp={agp} unit={unit} targetLow={TARGETS.low} targetHigh={TARGETS.high} />
             </Card>
             <div className="flex min-w-0 flex-col gap-4">
@@ -208,7 +208,7 @@ export function GlucosePeriod({
                       hint={
                         stats.gmiReliable
                           ? 'Estimation qui ne remplace pas l’HbA1c de laboratoire.'
-                          : 'Non calculée : il faut au moins 14 jours avec le capteur actif 70 % du temps.'
+                          : 'Non calculée : il faut au moins 14 jours avec le capteur actif 70 % du temps.'
                       }
                     />
                   </div>
@@ -233,10 +233,10 @@ export function GlucosePeriod({
                 <p className="text-sm text-ink-2">
                   {st.count ? (
                     <>
-                      Capteur : moyenne <span className="tabular font-semibold text-ink">{g(st.mean)}</span> {unit} · {pct(st.pctInRange)} dans la cible
+                      Capteur : moyenne <span className="tabular font-semibold text-ink">{g(st.mean)}</span> {unit} · {pct(st.pctInRange)} dans la cible
                     </>
                   ) : (
-                    'Capteur : aucune mesure'
+                    'Capteur : aucune mesure'
                   )}
                 </p>
               )}
@@ -292,7 +292,7 @@ export function GlucosePeriod({
           </tbody>
         </table>
         <Meta className="mt-2">
-          {hasSensor ? 'Un jour sans mesure reste vide : BILANX ne complète jamais les données manquantes.' : 'Les jours sans mesure ne sont pas affichés.'}
+          {hasSensor ? 'Un jour sans mesure reste vide : BILANX ne complète jamais les données manquantes.' : 'Les jours sans mesure ne sont pas affichés.'}
         </Meta>
       </Card>
     </div>

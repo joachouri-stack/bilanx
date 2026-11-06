@@ -7,7 +7,10 @@ import { appContext, moduleAllowed } from '@/lib/server/context';
 import { labResults, type LabRow } from '@/lib/server/data';
 import { ModuleForbidden } from '@/components/module-forbidden';
 import { CapsuleGauge } from '@/components/capsule-gauge';
-import { ButtonLink, Card, Chip, Meta, PageHeader, ScrollRegion } from '@/components/ui';
+import { Button, ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, PageHeader, buttonClass } from '@/components/ui';
+import { Icon } from '@/components/icon';
+import { AnalysesChart } from '@/components/analyses-chart';
+import { ReferenceChip } from '@/components/analyses-gauge';
 import { deleteLabResultAction } from '@/lib/server/actions';
 
 // Titre générique : les métadonnées sont calculées avant le contrôle de session.
@@ -22,45 +25,56 @@ export default async function AnalytePage({
 }) {
   const sp = await searchParams;
   const ctx = await appContext();
-  if (!moduleAllowed(ctx.active, 'lab')) return <ModuleForbidden title="Analyses & Bilans" profileName={ctx.active.kind === 'real' ? ctx.active.access.displayName : ''} />;
+  if (!moduleAllowed(ctx.active, 'lab')) return <ModuleForbidden title="Analyses" profileName={ctx.active.kind === 'real' ? ctx.active.access.displayName : ''} />;
   const { analyte: code } = await params;
   const analyte = getAnalyte(code);
   const results = analyte ? sortHistory(await labResults(ctx, code)) : [];
   if (!analyte) notFound();
   const canWrite = ctx.active.kind === 'real' && moduleAllowed(ctx.active, 'lab', 'write');
   const addButton = canWrite ? (
-    <ButtonLink href={`/analyses/ajouter?analyse=${code}`} primary>
-      ＋ Ajouter un résultat
+    <ButtonLink href={`/analyses/ajouter?analyse=${code}`} variant="primary" className="w-full sm:w-auto">
+      <Icon name="plus" className="size-5" />
+      Ajouter un résultat
     </ButtonLink>
   ) : null;
+  const back = (
+    <Link href="/analyses" className={buttonClass({ variant: 'ghost', className: '-ml-3' })}>
+      <Icon name="chevronLeft" className="size-5" />
+      Toutes les analyses
+    </Link>
+  );
   const banner = sp.ajout ? 'Résultat enregistré.' : sp.suppression ? 'Résultat supprimé.' : null;
+  const isHbA1c = code === 'hba1c';
+  const subtitle = isHbA1c ? 'Prise de sang, laboratoire. À ne pas confondre avec l’HbA1c estimée par le capteur.' : 'Résultats de laboratoire';
   if (results.length === 0) {
     return (
       <div className="fade-in">
-        <PageHeader title={analyte.nameFr} actions={<Link href="/analyses" className="text-sm text-ink-3 hover:text-ink">← Toutes les analyses</Link>} />
-        {banner && <p role="status" className="mb-4 rounded-xl bg-sage-2 px-4 py-3 text-sm">{banner}</p>}
-        <Card className="max-w-xl">
-          <p className="text-sm text-ink-2">Aucun résultat enregistré pour cette analyse.</p>
-          {addButton && <div className="mt-4">{addButton}</div>}
-        </Card>
+        <PageHeader title={analyte.nameFr} subtitle={subtitle} actions={back} />
+        {banner && (
+          <p role="status" className="mb-4 rounded-xl bg-sage-2 px-4 py-3 text-sm">
+            {banner}
+          </p>
+        )}
+        <EmptyState title="Aucun résultat enregistré pour cette analyse." action={addButton} />
       </div>
     );
   }
   const ev = latestEvolution(results)!;
   const latest = ev.latest;
   const fmt = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'medium' });
-  const isHbA1c = code === 'hba1c';
+  const series = chartSeries(results, analyte);
+  const ref = (low: number | null, high: number | null) =>
+    low != null && high != null ? `${formatNumberFr(low)} – ${formatNumberFr(high)}` : high != null ? `< ${formatNumberFr(high)}` : low != null ? `> ${formatNumberFr(low)}` : 'non notées';
+  const sourceLabel = (s: LabRow['source']) => (s === 'demo' ? 'Bilan sanguin (démo)' : s === 'document' ? 'Bilan sanguin' : 'Saisie manuelle');
 
   return (
     <div className="fade-in">
       <PageHeader
         title={analyte.nameFr}
-        subtitle={isHbA1c ? 'Résultats de laboratoire — à ne pas confondre avec le GMI estimé à partir du capteur.' : 'Résultats de laboratoire'}
+        subtitle={subtitle}
         actions={
           <>
-            <Link href="/analyses" className="text-sm text-ink-3 hover:text-ink">
-              ← Toutes les analyses
-            </Link>
+            {back}
             {addButton}
           </>
         }
@@ -70,18 +84,19 @@ export default async function AnalytePage({
           {banner}
         </p>
       )}
-      <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
         <Card className="flex flex-col items-center gap-2 text-center">
           <Chip tone="petrol">Laboratoire</Chip>
           <CapsuleGauge value={latest.value} refLow={latest.refLow ?? null} refHigh={latest.refHigh ?? null} label={analyte.nameFr} />
-          <p>
-            <strong className="tabular text-3xl">
+          <p className="flex items-baseline gap-1.5">
+            <strong className="tabular text-4xl font-semibold">
               {latest.comparator ? `${latest.comparator} ` : ''}
               {formatNumberFr(latest.value)}
-            </strong>{' '}
+            </strong>
             <span className="text-ink-3">{latest.unit}</span>
           </p>
-          {isHbA1c && <Meta>soit {Math.round(hba1cPercentToMmolMol(latest.value))} mmol/mol</Meta>}
+          {isHbA1c && <p className="text-ink-2">soit {Math.round(hba1cPercentToMmolMol(latest.value))} mmol/mol</p>}
+          <ReferenceChip value={latest.value} refLow={latest.refLow} refHigh={latest.refHigh} />
           <Meta>
             Prélèvement du {fmt.format(latest.sampledAt)}
             {latest.laboratory && (
@@ -90,6 +105,8 @@ export default async function AnalytePage({
                 {latest.laboratory}
               </>
             )}
+            <br />
+            Valeurs de référence : {ref(latest.refLow, latest.refHigh)}
           </Meta>
           {ev.previous && ev.delta !== null && (
             <p className="text-sm text-ink-2">
@@ -99,72 +116,66 @@ export default async function AnalytePage({
               {(ev.converted ? analyte.canonicalUnit : latest.unit) === '%'
                 ? Math.abs(ev.delta) >= 2 ? 'points' : 'point'
                 : ev.converted ? analyte.canonicalUnit : latest.unit}{' '}
-              depuis le {fmt.format(ev.previous.sampledAt)} ({ev.daysBetween} jours)
+              depuis le {fmt.format(ev.previous.sampledAt)} ({ev.daysBetween} jour{(ev.daysBetween ?? 0) > 1 ? 's' : ''})
             </p>
           )}
+          <Meta className="mt-1">La bande verte montre les valeurs de référence de votre laboratoire. Le repère montre votre résultat. Parlez-en avec votre médecin.</Meta>
         </Card>
-        <Card>
-          <p className="text-[12.5px] font-medium text-ink-3">Historique</p>
-          <HistoryChart results={results} analyte={analyte} />
-          <Meta>Points uniquement aux dates réelles de prélèvement. Aucune valeur interpolée.</Meta>
-          <ScrollRegion label="Historique des résultats" className="mt-3 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line text-left text-xs text-ink-3">
-                  <th className="py-2 pr-3 font-medium">Prélèvement</th>
-                  <th className="py-2 pr-3 font-medium">Valeur</th>
-                  <th className="py-2 pr-3 font-medium">Référence du labo</th>
-                  <th className="py-2 pr-3 font-medium">Source</th>
-                  {canWrite && <th className="py-2 font-medium"><span className="sr-only">Actions</span></th>}
-                </tr>
-              </thead>
-              <tbody>
-                {[...results].reverse().map((r) => (
-                  <tr key={r.id ?? r.sampledAt.toISOString()} className="border-b border-line align-top">
-                    <td className="py-2.5 pr-3">{fmt.format(r.sampledAt)}</td>
-                    <td className="tabular py-2.5 pr-3">
-                      <strong>
-                        {r.comparator ? `${r.comparator} ` : ''}
-                        {formatNumberFr(r.value)}
-                      </strong>{' '}
-                      {r.unit}
-                      {r.note && <span className="block text-xs text-ink-3">{r.note}</span>}
-                      {isHbA1c && <span className="text-xs text-ink-3"> ({Math.round(hba1cPercentToMmolMol(r.value))} mmol/mol)</span>}
-                    </td>
-                    <td className="py-2.5 pr-3 text-ink-3">
-                      {r.refLow != null && r.refHigh != null
-                        ? `${formatNumberFr(r.refLow)} – ${formatNumberFr(r.refHigh)}`
-                        : r.refHigh != null
-                          ? `< ${formatNumberFr(r.refHigh)}`
-                          : r.refLow != null
-                            ? `> ${formatNumberFr(r.refLow)}`
-                            : '—'}
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      <Chip tone="petrol">{r.source === 'demo' ? '📄 bilan (démo)' : r.source === 'document' ? '📄 bilan' : '✍️ saisie manuelle'}</Chip>
-                    </td>
-                    {canWrite && (
-                      <td className="py-2.5 text-right">
-                        {r.id && (
-                          <details className="inline-block text-left">
-                            <summary className="cursor-pointer list-none rounded-lg px-2 py-1 text-xs text-ink-3 hover:bg-surface-2">Supprimer</summary>
-                            <form action={deleteLabResultAction} className="mt-1">
-                              <input type="hidden" name="resultId" value={r.id} />
-                              <input type="hidden" name="analyteCode" value={code} />
-                              <button type="submit" className="rounded-lg bg-red-2 px-2.5 py-1.5 text-xs font-medium text-red">
-                                Confirmer la suppression
-                              </button>
-                            </form>
-                          </details>
-                        )}
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </ScrollRegion>
-        </Card>
+        <div className="flex min-w-0 flex-col gap-4">
+          <Card>
+            <CardHeader title="Évolution" />
+            {series.converted && <p className="mb-2 text-sm text-ink-2">Résultats rendus dans des unités différentes : tous affichés ici en {series.unit}.</p>}
+            <AnalysesChart
+              points={series.rows.map((r) => ({ t: r.sampledAt.getTime(), v: r.value, label: formatNumberFr(r.value) }))}
+              refLow={series.rows.at(-1)!.refLow ?? null}
+              refHigh={series.rows.at(-1)!.refHigh ?? null}
+              unit={series.unit}
+            />
+            {series.rows.length > 1 && <Meta className="mt-2">Points uniquement aux dates réelles de prélèvement. Aucune valeur inventée entre deux.</Meta>}
+          </Card>
+          <Card>
+            <CardHeader title="Tous les résultats" />
+            <ul className="divide-y divide-line">
+              {[...results].reverse().map((r) => (
+                <li
+                  key={r.id ?? r.sampledAt.toISOString()}
+                  data-resultat
+                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+                >
+                  <span className="font-medium sm:font-normal">{fmt.format(r.sampledAt)}</span>
+                  <span className="tabular text-right sm:text-left">
+                    <strong>
+                      {r.comparator ? `${r.comparator} ` : ''}
+                      {formatNumberFr(r.value)}
+                    </strong>{' '}
+                    {r.unit}
+                    {isHbA1c && <span className="block text-sm text-ink-3">({Math.round(hba1cPercentToMmolMol(r.value))} mmol/mol)</span>}
+                  </span>
+                  <span className="text-sm text-ink-2">
+                    Valeurs de référence : {ref(r.refLow, r.refHigh)}
+                    {r.note && <span className="block text-ink-3">{r.note}</span>}
+                  </span>
+                  <span className="flex flex-wrap items-center justify-end gap-2">
+                    <Chip tone={r.source === 'manual' ? 'neutral' : 'petrol'}>{sourceLabel(r.source)}</Chip>
+                  </span>
+                  {canWrite && r.id && (
+                    <details className="col-span-full">
+                      <summary className={buttonClass({ variant: 'ghost', className: '-ml-3 cursor-pointer list-none !text-red [&::-webkit-details-marker]:hidden' })}>Supprimer</summary>
+                      <form action={deleteLabResultAction} className="mt-2 flex flex-col gap-2 rounded-xl border border-red bg-red-2 p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <input type="hidden" name="resultId" value={r.id} />
+                        <input type="hidden" name="analyteCode" value={code} />
+                        <span className="text-sm text-ink">Ce résultat sera effacé de l’historique.</span>
+                        <Button type="submit" variant="danger">
+                          Confirmer la suppression
+                        </Button>
+                      </form>
+                    </details>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -182,70 +193,4 @@ function chartSeries(results: LabRow[], analyte: Analyte): { rows: LabRow[]; uni
     .map((r) => ({ ...r, value: conv(r.value, r.unit) as number, refLow: conv(r.refLow, r.unit), refHigh: conv(r.refHigh, r.unit), unit: analyte.canonicalUnit }))
     .filter((r) => r.value !== null);
   return { rows, unit: analyte.canonicalUnit, converted: true };
-}
-
-function HistoryChart({ results: raw, analyte }: { results: LabRow[]; analyte: Analyte }) {
-  const { rows: results, unit, converted } = chartSeries(raw, analyte);
-  const W = 640;
-  const H = 240;
-  const L = 44;
-  const R = 20;
-  const T = 24;
-  const B = 30;
-  const first = results[0]!;
-  const last = results.at(-1)!;
-  const t0 = first.sampledAt.getTime() - 30 * 86_400_000;
-  const t1 = last.sampledAt.getTime() + 30 * 86_400_000;
-  const vals = results.flatMap((r) => [r.value, r.refLow ?? r.value, r.refHigh ?? r.value]);
-  const yMin = Math.min(...vals) * 0.85;
-  const yMax = Math.max(...vals) * 1.1;
-  const x = (t: number) => L + ((t - t0) / (t1 - t0)) * (W - L - R);
-  const y = (v: number) => T + (H - T - B) * (1 - (v - yMin) / (yMax - yMin));
-  const refLow = last.refLow ?? null;
-  const refHigh = last.refHigh ?? null;
-  const months: Date[] = [];
-  for (let d = new Date(t0); d.getTime() <= t1; d = new Date(d.getFullYear(), d.getMonth() + 2, 1)) months.push(new Date(d.getFullYear(), d.getMonth(), 1));
-  const fmtM = new Intl.DateTimeFormat('fr-FR', { month: 'short', year: '2-digit' });
-
-  return (
-    <>
-      {converted && (
-        <p className="mt-1 text-xs text-ink-3">Résultats rendus dans des unités différentes : tous affichés ici en {unit}.</p>
-      )}
-    <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" role="img" aria-label="Historique des résultats aux dates de prélèvement">
-      {(refLow != null || refHigh != null) && (
-        <>
-          <rect
-            x={L}
-            y={y(refHigh ?? yMax)}
-            width={W - L - R}
-            height={y(refLow ?? yMin) - y(refHigh ?? yMax)}
-            fill="var(--sage-2)"
-          />
-          <text x={W - R} y={y(refHigh ?? yMax) - 5} textAnchor="end" fontSize={10} fill="var(--sage)">
-            intervalle de référence du dernier laboratoire
-          </text>
-        </>
-      )}
-      {months
-        .filter((m) => m.getTime() >= t0)
-        .map((m) => (
-          <text key={m.getTime()} x={x(m.getTime())} y={H - 8} textAnchor="middle" fontSize={10.5} fill="var(--ink-3)">
-            {fmtM.format(m)}
-          </text>
-        ))}
-      {results.length > 1 && (
-        <path d={results.map((r, i) => `${i ? 'L' : 'M'}${x(r.sampledAt.getTime())},${y(r.value)}`).join('')} fill="none" stroke="var(--petrol)" strokeWidth={2} />
-      )}
-      {results.map((r) => (
-        <g key={r.sampledAt.getTime()}>
-          <circle cx={x(r.sampledAt.getTime())} cy={y(r.value)} r={5.5} fill="var(--surface)" stroke="var(--petrol)" strokeWidth={2.5} />
-          <text x={x(r.sampledAt.getTime())} y={y(r.value) - 11} textAnchor="middle" fontSize={12} fontWeight={600} fill="var(--ink)">
-            {formatNumberFr(r.value)}
-          </text>
-        </g>
-      ))}
-    </svg>
-    </>
-  );
 }

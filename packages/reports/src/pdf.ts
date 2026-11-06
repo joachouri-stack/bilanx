@@ -5,7 +5,7 @@
  * aucune interprétation ni recommandation.
  */
 import PDFDocument from 'pdfkit';
-import { formatGlucose, formatNumberFr, hba1cPercentToMmolMol, referenceStatus } from '@bilanx/domain';
+import { formatGlucose, formatNumberFr, GLUCOSE_CONTEXTS, hba1cPercentToMmolMol, referenceStatus, type GlucoseContext } from '@bilanx/domain';
 import { SECTION_LABELS, type ReportData, type ReportLab, type Source } from './types';
 
 const C = {
@@ -173,8 +173,17 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
   const avail: string[][] = [];
   const row = (k: keyof typeof SECTION_LABELS, present: boolean, count: string, src: string) =>
     avail.push([SECTION_LABELS[k], d.notAuthorized.includes(k) ? 'non autorisé' : present ? count : 'aucune donnée', present ? src : '—']);
-  if ('glucose' in d || d.notAuthorized.includes('glucose'))
-    row('glucose', !!d.glucose && d.glucose.stats.count > 0, d.glucose ? `${d.glucose.stats.count} mesures · ${Math.round(d.glucose.stats.coveragePct)} % du temps couvert` : '', d.glucose ? SOURCE_FR[d.glucose.source] : '');
+  if ('glucose' in d || d.notAuthorized.includes('glucose')) {
+    const gl = d.glucose;
+    const sensorN = gl?.stats.count ?? 0;
+    const meterN = gl?.meter?.stats.count ?? gl?.capillaryCount ?? 0;
+    const parts = [
+      sensorN ? `capteur : ${sensorN} mesures, ${Math.round(gl!.stats.coveragePct)} % du temps couvert` : null,
+      meterN ? `lecteur : ${meterN} mesure${meterN > 1 ? 's' : ''}` : null,
+    ].filter(Boolean);
+    const srcs = [sensorN && gl ? SOURCE_FR[gl.source] : null, meterN && gl ? SOURCE_FR[gl.meter?.source ?? (d.isDemo ? 'demo' : 'manual')] : null].filter(Boolean);
+    row('glucose', sensorN + meterN > 0, parts.join(' · '), [...new Set(srcs)].join(', '));
+  }
   if ('hba1c' in d || d.notAuthorized.includes('hba1c')) {
     const inP = (d.hba1c ?? []).filter((r) => r.sampledAt >= new Date(`${d.period.from}T00:00:00Z`));
     row('hba1c', inP.length > 0, `${inP.length} dosage(s) sur la période`, [...new Set(inP.map((r) => SOURCE_FR[r.source]))].join(', '));
@@ -195,26 +204,32 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
 
   // ───────────────────────── Glycémie ─────────────────────────
   if (d.glucose) {
+    const gl = d.glucose;
     h2(SECTION_LABELS.glucose);
-    const s = d.glucose.stats;
-    const gu = d.glucose.unit ?? 'mg/dL';
-    if (s.count === 0) missing('Aucune mesure du capteur sur la période.');
-    else {
+    const s = gl.stats;
+    const gu = gl.unit ?? 'mg/dL';
+    const g = (v: number | null) => (v === null ? '—' : formatGlucose(v, gu));
+    const sub = (t: string) => {
+      ensure(70);
+      text(t, { size: 10.5, bold: true });
+      doc.moveDown(0.3);
+    };
+    const sensorPart = () => {
+      sub('Capteur (mesure en continu)');
       kpis([
         ['Moyenne', `${formatGlucose(s.mean!, gu)} ${gu}`],
         ['Dans la cible', `${Math.round(s.pctInRange)} %`],
         ['Sous la cible', `${Math.round(s.pctLow + s.pctVeryLow)} %`],
         ['Au-dessus', `${Math.round(s.pctHigh + s.pctVeryHigh)} %`],
-        ['Variabilité (CV)', `${Math.round(s.cv ?? 0)} %`],
+        ['Variations (CV)', `${Math.round(s.cv ?? 0)} %`],
       ]);
       text(
-        `Plage cible ${formatGlucose(d.glucose.targets.low, gu)}–${formatGlucose(d.glucose.targets.high, gu)} ${gu} · très bas (< ${formatGlucose(54, gu)}) ${n(s.pctVeryLow)} % · bas ${n(s.pctLow)} % · élevé ${n(s.pctHigh)} % · très élevé (> ${formatGlucose(250, gu)}) ${n(s.pctVeryHigh)} % · min ${formatGlucose(s.min!, gu)} / max ${formatGlucose(s.max!, gu)} ${gu} · données disponibles ${Math.round(s.coveragePct)} %`,
+        `Plage cible ${formatGlucose(gl.targets.low, gu)}–${formatGlucose(gl.targets.high, gu)} ${gu} · très bas (< ${formatGlucose(54, gu)}) ${n(s.pctVeryLow)} % · bas ${n(s.pctLow)} % · élevé ${n(s.pctHigh)} % · très élevé (> ${formatGlucose(250, gu)}) ${n(s.pctVeryHigh)} % · min ${formatGlucose(s.min!, gu)} / max ${formatGlucose(s.max!, gu)} ${gu} · données disponibles ${Math.round(s.coveragePct)} %`,
         { size: 8.5, color: C.ink2 },
       );
       if (s.gmiReliable && s.gmiPercent !== null)
-        text(`GMI (indicateur ESTIMÉ à partir du capteur, ne remplace pas l’HbA1c de laboratoire) : ${n(s.gmiPercent)} %`, { size: 8.5, color: C.ink2 });
-      else note('GMI non calculé : il faut au moins 14 jours et 70 % de données du capteur.');
-      if (d.glucose.capillaryCount) note(`${d.glucose.capillaryCount} glycémie(s) capillaire(s) sur la période, non incluses dans ces statistiques.`);
+        text(`HbA1c ESTIMÉE par le capteur (GMI, ne remplace pas l’HbA1c de laboratoire) : ${n(s.gmiPercent)} %`, { size: 8.5, color: C.ink2 });
+      else note('HbA1c estimée (GMI) non calculée : il faut au moins 14 jours et 70 % de données du capteur.');
       doc.moveDown(0.4);
       // Profil sur 24 h
       ensure(190);
@@ -225,12 +240,12 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
       const cw = W - 36;
       const y = (v: number) => top + ch - (Math.min(Math.max(v, 40), 300) - 40) / 260 * ch;
       const x = (h: number) => cx + (h / 24) * cw;
-      doc.rect(cx, y(d.glucose.targets.high), cw, y(d.glucose.targets.low) - y(d.glucose.targets.high)).fill(C.sageSoft);
+      doc.rect(cx, y(gl.targets.high), cw, y(gl.targets.low) - y(gl.targets.high)).fill(C.sageSoft);
       for (const v of [54, 70, 180, 250]) {
         doc.moveTo(cx, y(v)).lineTo(cx + cw, y(v)).lineWidth(0.4).dash(2, { space: 2 }).strokeColor(v === 54 ? C.red : C.line).stroke().undash();
         text(formatGlucose(v, gu), { x: L, y: y(v) - 3.5, width: 26, size: 7, color: C.ink3, align: 'right' });
       }
-      const pts = d.glucose.agp.filter((a) => a.p50 !== null);
+      const pts = gl.agp.filter((a) => a.p50 !== null);
       const band = (lo: 'p5' | 'p25', hi: 'p95' | 'p75', color: string) => {
         if (pts.length < 2) return;
         doc.moveTo(x(pts[0]!.hour + 0.5), y(pts[0]![hi]!));
@@ -247,8 +262,60 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
       }
       for (let h = 0; h <= 24; h += 3) text(`${String(h).padStart(2, '0')} h`, { x: x(h) - 12, y: top + ch + 4, width: 24, size: 7, color: C.ink3, align: 'center' });
       doc.y = top + ch + 18;
-      const gaps = d.glucose.agp.filter((a) => a.p50 === null).length;
-      if (gaps) note(`${gaps} heure(s) sans assez de mesures (moins de 5) : laissées vides.`);
+      const gaps = gl.agp.filter((a) => a.p50 === null).length;
+      if (gaps) note(`${gaps} heure${gaps > 1 ? 's' : ''} sans assez de mesures (moins de 5) : laissée${gaps > 1 ? 's' : ''} vide${gaps > 1 ? 's' : ''}.`);
+    };
+    const meter = gl.meter;
+    const meterPart = () => {
+      sub('Lecteur (doigt) : glycémies saisies');
+      if (!meter) {
+        if (gl.capillaryCount) note(`${gl.capillaryCount} glycémie${gl.capillaryCount > 1 ? 's' : ''} du lecteur sur la période, non incluse${gl.capillaryCount > 1 ? 's' : ''} dans les statistiques du capteur.`);
+        else missing('Aucune glycémie du lecteur sur la période.');
+        return;
+      }
+      const m = meter.stats;
+      if (m.count === 0) return missing('Aucune glycémie du lecteur sur la période.');
+      kpis([
+        ['Mesures', `${m.count} (${m.days} jour${m.days > 1 ? 's' : ''})`],
+        ['Moyenne', `${g(m.mean)} ${gu}`],
+        ['Min / max', `${g(m.min)} / ${g(m.max)}`],
+        ['À jeun (moyenne)', m.byContext.fasting.count ? `${g(m.byContext.fasting.mean)} (${m.byContext.fasting.count})` : '—'],
+        ['Après un repas (moyenne)', m.byContext.after_meal.count ? `${g(m.byContext.after_meal.mean)} (${m.byContext.after_meal.count})` : '—'],
+      ]);
+      const ctxLine = (['before_meal', 'bedtime', 'night', 'other'] as const)
+        .filter((c) => m.byContext[c].count)
+        .map((c) => `${GLUCOSE_CONTEXTS[c].toLowerCase()} ${g(m.byContext[c].mean)} ${gu} (${m.byContext[c].count})`);
+      text(
+        [
+          `${m.belowLow} valeur${m.belowLow > 1 ? 's' : ''} sous ${g(gl.targets.low)} ${gu}`,
+          `${m.aboveHigh} au-dessus de ${g(gl.targets.high)} ${gu}`,
+          ...(ctxLine.length ? [`moyennes : ${ctxLine.join(', ')}`] : []),
+          ...(m.noContext ? [`${m.noContext} sans moment noté`] : []),
+        ].join(' · '),
+        { size: 8.5, color: C.ink2 },
+      );
+      note('Mesures ponctuelles au bout du doigt : comptées à part, jamais mêlées aux statistiques du capteur. (S) = valeur saisie.');
+      table(
+        [{ label: 'Date et heure', w: 1.6 }, { label: 'Glycémie', w: 1.6 }, { label: 'Moment', w: 1.8 }, { label: 'Source', w: 1.4 }],
+        meter.readings.map((r) => [
+          fmtDT(r.at),
+          `${g(r.mgdl)} ${gu}${meter.source === 'demo' ? '' : ' (S)'}`,
+          r.context && r.context in GLUCOSE_CONTEXTS ? GLUCOSE_CONTEXTS[r.context as GlucoseContext] : '—',
+          meter.source === 'demo' ? SOURCE_FR.demo : '(S) saisie',
+        ]),
+      );
+    };
+    if (s.count === 0 && (meter?.stats.count ?? gl.capillaryCount) > 0) {
+      // Sans capteur : le lecteur d'abord.
+      meterPart();
+      sub('Capteur (mesure en continu)');
+      missing('Aucune mesure du capteur sur la période.');
+    } else {
+      if (s.count === 0) {
+        sub('Capteur (mesure en continu)');
+        missing('Aucune mesure du capteur sur la période.');
+      } else sensorPart();
+      meterPart();
     }
   }
 

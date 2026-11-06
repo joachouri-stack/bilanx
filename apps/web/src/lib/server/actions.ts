@@ -769,7 +769,7 @@ export async function openShareAction(token: string, _: FormState, fd: FormData)
   const messages: Record<string, string> = {
     not_found: 'Ce lien de partage n’existe pas.',
     expired: 'Ce partage a expiré. Demandez un nouveau lien à votre patient.',
-    revoked: 'Ce partage a été révoqué par la personne qui l’avait créé.',
+    revoked: 'Ce partage a été arrêté par la personne qui l’avait créé.',
     locked: 'Trop de codes erronés : ce partage est verrouillé. Demandez un nouveau lien à votre patient.',
     exhausted: 'Le nombre d’ouvertures autorisé est atteint. Demandez un nouveau lien à votre patient.',
   };

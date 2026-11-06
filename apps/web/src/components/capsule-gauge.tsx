@@ -1,8 +1,8 @@
 import { GAUGE_RANGE_HIGH, GAUGE_RANGE_LOW, formatNumberFr, gaugePosition } from '@bilanx/domain';
 
 /**
- * Jauge « capsule » : l'intervalle de référence du laboratoire occupe 30 → 70 %
- * de la hauteur. Le repère indique une POSITION, pas un niveau de réserve.
+ * Jauge « capsule » : les valeurs de référence du laboratoire occupent 30 → 70 % de la hauteur (bande verte).
+ * Le repère indique une POSITION, pas un niveau de réserve : remplissage léger (contour) pour ne pas inquiéter.
  */
 export function CapsuleGauge({
   value,
@@ -16,18 +16,16 @@ export function CapsuleGauge({
   label: string;
 }) {
   const g = gaugePosition(value, { low: refLow, high: refHigh });
-  const W = 104;
-  const H = 150;
-  const cw = 34;
-  const x0 = (W - cw) / 2;
-  const top = 3;
+  const W = 132;
+  const H = 156;
+  const cw = 36;
+  const x0 = 34;
+  const top = 6;
   const y = (p: number) => top + H * (1 - p);
   if (!g) {
-    return (
-      <div className="grid h-[156px] w-[104px] place-items-center text-center text-xs text-ink-3">Intervalle de référence non renseigné</div>
-    );
+    return <div className="grid h-[168px] w-[132px] place-items-center text-center text-sm text-ink-3">Sans valeurs de référence</div>;
   }
-  const color = g.status === 'within' ? 'var(--sage)' : 'var(--amber)';
+  const within = g.status === 'within';
   const clipId = `cap-${label.replace(/\W/g, '')}`;
   const bounds: [number, number | null | undefined][] = g.partialRange
     ? refHigh != null
@@ -39,28 +37,45 @@ export function CapsuleGauge({
       ];
   const bandFrom = g.partialRange && refHigh != null ? 0 : GAUGE_RANGE_LOW;
   const bandTo = g.partialRange && refLow != null ? 1 : GAUGE_RANGE_HIGH;
+  const my = y(g.position);
+  const SH = H + (g.clamped ? 30 : 12);
 
   return (
-    <svg width={W} height={H + 6} viewBox={`0 0 ${W} ${H + 6}`} role="img" aria-label={`${label} : position par rapport à l'intervalle du laboratoire`}>
+    <svg width={W} height={SH} viewBox={`0 0 ${W} ${SH}`} role="img" aria-label={`${label} : position du résultat par rapport aux valeurs de référence du laboratoire`}>
       <defs>
         <clipPath id={clipId}>
           <rect x={x0} y={top} width={cw} height={H} rx={cw / 2} />
         </clipPath>
       </defs>
-      <rect x={x0} y={top} width={cw} height={H} rx={cw / 2} fill="var(--surface-2)" stroke="var(--line)" />
+      <rect x={x0} y={top} width={cw} height={H} rx={cw / 2} fill="var(--surface-2)" />
+      {/* Valeurs de référence : bande verte. */}
       <rect x={x0} y={y(bandTo)} width={cw} height={H * (bandTo - bandFrom)} fill="var(--sage-2)" clipPath={`url(#${clipId})`} />
-      <rect x={x0} y={y(g.position)} width={cw} height={H * g.position} fill={color} opacity={0.85} clipPath={`url(#${clipId})`} />
+      {/* Résultat : remplissage léger avec contour, jamais un bloc plein. */}
+      <rect
+        x={x0}
+        y={my}
+        width={cw}
+        height={H * g.position}
+        fill={within ? 'var(--sage)' : 'var(--amber-2)'}
+        fillOpacity={within ? 0.22 : 0.9}
+        stroke={within ? 'var(--sage)' : 'var(--amber)'}
+        strokeWidth={2}
+        clipPath={`url(#${clipId})`}
+      />
+      <rect x={x0} y={top} width={cw} height={H} rx={cw / 2} fill="none" stroke="var(--line)" strokeWidth={1.5} />
       {bounds.map(([p, v]) => (
         <g key={p}>
-          <line x1={x0 - 4} x2={x0 + cw + 4} y1={y(p)} y2={y(p)} stroke="var(--ink-3)" />
-          <text x={x0 + cw + 6} y={y(p) + 4} fontSize={10} fill="var(--ink-3)">
+          <line x1={x0 - 3} x2={x0 + cw + 3} y1={y(p)} y2={y(p)} stroke="var(--sage)" strokeWidth={1.5} strokeDasharray="3 2" />
+          <text x={x0 + cw + 8} y={y(p) + 4} fontSize={12} fill="var(--ink-2)" className="tabular">
             {v != null ? formatNumberFr(v) : ''}
           </text>
         </g>
       ))}
-      <path d={`M${x0 - 9},${y(g.position) - 5} l7,5 l-7,5z`} fill="var(--ink)" />
+      {/* Repère du résultat : trait épais + flèche. */}
+      <line x1={x0 - 2} x2={x0 + cw + 2} y1={my} y2={my} stroke="var(--ink)" strokeWidth={3} strokeLinecap="round" />
+      <path d={`M${x0 - 16},${my - 7} l11,7 l-11,7z`} fill="var(--ink)" />
       {g.clamped && (
-        <text x={W / 2} y={g.position > 0.5 ? top + 12 : top + H - 4} fontSize={9} textAnchor="middle" fill="var(--ink)">
+        <text x={x0 + cw / 2} y={top + H + 22} fontSize={12} textAnchor="middle" fill="var(--ink-2)">
           hors échelle
         </text>
       )}

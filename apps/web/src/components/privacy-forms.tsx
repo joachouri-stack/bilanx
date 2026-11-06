@@ -3,14 +3,15 @@
 import { useActionState } from 'react';
 import { deleteProfileAction, requestAccountDeletionAction, type FormState } from '@/lib/server/actions';
 import { Alert } from './forms';
+import { buttonClass } from './ui';
 import { useFormStatus } from 'react-dom';
 
-const input = 'min-h-11 w-full rounded-xl border border-line bg-surface px-3 text-base';
+const input = 'min-h-12 w-full rounded-xl border border-line bg-surface px-3 text-base';
 
 function DangerButton({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} className="min-h-11 rounded-xl bg-red px-4 font-semibold text-on-accent disabled:opacity-60">
+    <button type="submit" disabled={pending} className={buttonClass({ variant: 'danger' })}>
       {pending ? 'Patientez…' : children}
     </button>
   );

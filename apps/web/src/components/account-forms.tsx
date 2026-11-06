@@ -12,6 +12,7 @@ import {
   type FormState,
 } from '@/lib/server/actions';
 import { Alert, Field, SubmitButton } from './forms';
+import { buttonClass } from './ui';
 
 const initial: FormState = {};
 
@@ -31,7 +32,7 @@ export function ChangePasswordForm() {
         hint="12 caractères minimum. Une phrase de plusieurs mots est idéale."
       />
       <SubmitButton pendingLabel="Enregistrement…">Changer le mot de passe</SubmitButton>
-      <p className="text-xs text-ink-3">Vos autres appareils seront déconnectés ; celui-ci reste connecté.</p>
+      <p className="text-[13px] text-ink-3">Vos autres appareils seront déconnectés ; celui-ci reste connecté.</p>
     </form>
   );
 }
@@ -54,7 +55,7 @@ export function ChangeEmailForm({ current }: { current: string }) {
       />
       <Field label="Mot de passe actuel" name="currentPassword" type="password" autoComplete="current-password" error={state.errors?.currentPassword} />
       <SubmitButton pendingLabel="Envoi…">Recevoir le lien de confirmation</SubmitButton>
-      <p className="text-xs text-ink-3">Votre ancienne adresse sera prévenue du changement.</p>
+      <p className="text-[13px] text-ink-3">Votre ancienne adresse sera prévenue du changement.</p>
     </form>
   );
 }
@@ -94,7 +95,7 @@ export function RegenerateRecoveryCodesForm({ left }: { left: number }) {
             <li key={c}>{c}</li>
           ))}
         </ol>
-        <button type="button" className="min-h-11 rounded-xl border border-line px-4 font-medium" onClick={() => navigator.clipboard?.writeText(state.recoveryCodes!.join('\n'))}>
+        <button type="button" className={buttonClass({ variant: 'secondary' })} onClick={() => navigator.clipboard?.writeText(state.recoveryCodes!.join('\n'))}>
           Copier les codes
         </button>
       </div>
@@ -128,7 +129,7 @@ export function ReplaceTotpForm() {
         </ol>
         {/* SVG produit par le serveur à partir de la clé (bibliothèque qrcode), sans contenu fourni par l'utilisateur. */}
         <div className="mx-auto w-44 rounded-xl border border-line bg-white p-2" role="img" aria-label="QR code de la nouvelle clé" dangerouslySetInnerHTML={{ __html: start.values.qrSvg }} />
-        <p className="text-center text-xs text-ink-3">
+        <p className="text-center text-[13px] text-ink-3">
           Clé : <code className="break-all font-mono text-ink">{start.values.secret}</code>
         </p>
         <form action={confirm} className="flex flex-col gap-3.5" key={done.attempt ?? 'initial'}>
@@ -136,7 +137,7 @@ export function ReplaceTotpForm() {
           <Field label="Code de la nouvelle application" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={7} />
           <SubmitButton pendingLabel="Vérification…">Utiliser ce nouveau téléphone</SubmitButton>
         </form>
-        <p className="text-xs text-ink-3">Votre ancienne application reste valable tant que ce code n’a pas été validé (15 minutes).</p>
+        <p className="text-[13px] text-ink-3">Votre ancienne application reste valable tant que ce code n’a pas été validé (15 minutes).</p>
       </div>
     );
   }

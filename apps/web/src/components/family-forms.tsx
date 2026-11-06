@@ -1,5 +1,4 @@
 'use client';
-import { ScrollRegion } from './ui';
 
 import { useActionState, useState } from 'react';
 import { LEGAL_BASES, MODULES, RELATIONSHIPS, type Permissions } from '@bilanx/profiles/modules';
@@ -11,9 +10,10 @@ import {
   type FormState,
 } from '@/lib/server/actions';
 import { Alert, Field, SubmitButton } from './forms';
+import { buttonClass } from './ui';
 
 const initial: FormState = {};
-const selectCls = 'min-h-11 w-full rounded-xl border border-line bg-surface px-3';
+const selectCls = 'min-h-12 w-full min-w-0 rounded-xl border border-line bg-surface px-3';
 
 export function CreateRelativeForm() {
   const [state, action] = useActionState(createRelativeAction, initial);
@@ -21,8 +21,8 @@ export function CreateRelativeForm() {
     <form action={action} className="flex flex-col gap-4" key={state.attempt ?? 'initial'}>
       {state.errors?.form && <Alert tone="error">{state.errors.form}</Alert>}
       <Field label="Prénom ou nom affiché" name="displayName" defaultValue={state.values?.displayName} maxLength={80} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
           Lien avec vous
           <select name="relationship" required defaultValue={state.values?.relationship ?? ''} className={selectCls}>
             <option value="" disabled>
@@ -37,15 +37,17 @@ export function CreateRelativeForm() {
               ))}
           </select>
         </label>
-        <label className="flex flex-col gap-1.5 text-sm font-medium">
-          Date de naissance <span className="font-normal text-ink-3">(facultatif)</span>
+        <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
+          <span>
+            Date de naissance <span className="font-normal text-ink-3">(facultatif)</span>
+          </span>
           <input type="date" name="birthDate" defaultValue={state.values?.birthDate} className={selectCls} />
         </label>
       </div>
-      <fieldset className="flex flex-col gap-2.5 rounded-xl border border-line p-3.5">
+      <fieldset className="flex min-w-0 flex-col gap-1 rounded-xl border border-line p-3.5">
         <legend className="px-1 text-sm font-medium">Sur quelle base gérez-vous les données de cette personne ?</legend>
         {Object.entries(LEGAL_BASES).map(([k, v]) => (
-          <label key={k} className="flex gap-3 text-sm">
+          <label key={k} className="flex min-h-11 items-start gap-3 py-1.5 text-sm">
             <input
               type="radio"
               name="legalBasis"
@@ -61,8 +63,8 @@ export function CreateRelativeForm() {
       <label className="flex gap-3 rounded-xl bg-surface-2 p-3.5 text-sm">
         <input type="checkbox" name="attested" defaultChecked={state.values?.attested === 'on'} className="mt-0.5 size-5 shrink-0 accent-[var(--petrol)]" />
         <span>
-          Je certifie sur l’honneur l’exactitude de cette déclaration. Elle est horodatée et conservée. La personne concernée garde
-          ses droits sur ses données (accès, rectification, effacement).
+          Je certifie sur l’honneur que cette déclaration est exacte. Elle est datée et conservée. La personne concernée garde ses droits sur ses
+          données (accès, correction, effacement).
         </span>
       </label>
       <SubmitButton pendingLabel="Création…">Créer le profil</SubmitButton>
@@ -71,41 +73,34 @@ export function CreateRelativeForm() {
 }
 
 function PermissionGrid({ initialPerms, readOnly }: { initialPerms?: Permissions; readOnly: boolean }) {
+  const levels = readOnly ? (['none', 'read'] as const) : (['none', 'read', 'write'] as const);
+  const label = { none: 'Aucun accès', read: 'Lecture', write: 'Lecture et saisie' } as const;
   return (
-    <ScrollRegion label="Autorisations par module" className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-xs text-ink-3">
-            <th className="py-1.5 pr-3 font-medium">Module</th>
-            <th className="px-2 py-1.5 text-center font-medium">Aucun</th>
-            <th className="px-2 py-1.5 text-center font-medium">Lecture</th>
-            {!readOnly && <th className="px-2 py-1.5 text-center font-medium">Lecture et saisie</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {MODULES.map((m) => {
-            const cur = initialPerms?.[m.key] ?? 'none';
-            return (
-              <tr key={m.key} className="border-t border-line">
-                <td className="py-2 pr-3">{m.label}</td>
-                {(readOnly ? ['none', 'read'] : ['none', 'read', 'write']).map((v) => (
-                  <td key={v} className="px-2 py-2 text-center">
-                    <input
-                      type="radio"
-                      name={`perm_${m.key}`}
-                      value={v}
-                      defaultChecked={cur === v || (readOnly && v === 'read' && cur === 'write')}
-                      aria-label={`${m.label} : ${v === 'none' ? 'aucun accès' : v === 'read' ? 'lecture' : 'lecture et saisie'}`}
-                      className="size-5 accent-[var(--petrol)]"
-                    />
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </ScrollRegion>
+    <div className="divide-y divide-line rounded-xl border border-line">
+      {MODULES.map((m) => {
+        const cur = initialPerms?.[m.key] ?? 'none';
+        return (
+          <fieldset key={m.key} className="min-w-0 px-3 py-2">
+            <legend className="float-left w-full pt-1 text-sm font-medium">{m.label}</legend>
+            <div className="clear-both flex flex-wrap gap-x-4">
+              {levels.map((v) => (
+                <label key={v} className="flex min-h-11 items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name={`perm_${m.key}`}
+                    value={v}
+                    defaultChecked={cur === v || (readOnly && v === 'read' && cur === 'write')}
+                    aria-label={`${m.label} : ${v === 'none' ? 'aucun accès' : v === 'read' ? 'lecture' : 'lecture et saisie'}`}
+                    className="size-5 accent-[var(--petrol)]"
+                  />
+                  {label[v]}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        );
+      })}
+    </div>
   );
 }
 
@@ -120,13 +115,13 @@ export function InviteForm({ profileId }: { profileId: string }) {
       <Field label="Adresse e-mail de la personne invitée" name="email" type="email" inputMode="email" defaultValue={state.values?.email} />
       <fieldset className="flex flex-col gap-2 text-sm">
         <legend className="mb-1 font-medium">Rôle</legend>
-        <label className="flex gap-3">
+        <label className="flex min-h-11 items-start gap-3 py-1">
           <input type="radio" name="role" value="caregiver" checked={role === 'caregiver'} onChange={() => setRole('caregiver')} className="size-5 accent-[var(--petrol)]" />
           <span>
             <strong>Aidant·e</strong> — proche qui vous aide (lecture, et saisie si vous l’autorisez)
           </span>
         </label>
-        <label className="flex gap-3">
+        <label className="flex min-h-11 items-start gap-3 py-1">
           <input
             type="radio"
             name="role"
@@ -141,10 +136,10 @@ export function InviteForm({ profileId }: { profileId: string }) {
         </label>
       </fieldset>
       <div>
-        <p className="mb-1 text-sm font-medium">Autorisations par module</p>
+        <p className="mb-1 text-sm font-medium">Autorisations par rubrique</p>
         <PermissionGrid key={role} readOnly={role === 'guest_professional'} initialPerms={state.values as Permissions | undefined} />
       </div>
-      <label className="flex flex-col gap-1.5 text-sm font-medium">
+      <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
         Durée de l’accès
         <select name="accessDays" className={selectCls} defaultValue={state.values?.accessDays ?? (role === 'guest_professional' ? '30' : '')} key={`d-${role}`}>
           {role === 'caregiver' && <option value="">Jusqu’à ce que je le retire</option>}
@@ -181,10 +176,10 @@ export function RespondInvitationForm({ token }: { token: string }) {
     <form action={action} className="flex flex-col gap-3">
       {state.errors?.form && <Alert tone="error">{state.errors.form}</Alert>}
       <input type="hidden" name="token" value={token} />
-      <button type="submit" name="decision" value="accept" className="min-h-12 rounded-xl bg-petrol px-4 font-semibold text-on-accent">
+      <button type="submit" name="decision" value="accept" className={buttonClass({ variant: 'primary' })}>
         Accepter l’invitation
       </button>
-      <button type="submit" name="decision" value="decline" className="min-h-12 rounded-xl border border-line px-4 font-medium">
+      <button type="submit" name="decision" value="decline" className={buttonClass({ variant: 'secondary' })}>
         Refuser
       </button>
     </form>

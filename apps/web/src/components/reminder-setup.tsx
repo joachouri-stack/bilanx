@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { pushSubscribeAction, pushUnsubscribeAction, reminderPrefsAction, sendTestPushAction } from '@/lib/server/actions';
 import { Alert } from './forms';
+import { buttonClass } from './ui';
 
 type State = 'loading' | 'unsupported' | 'ios-install' | 'denied' | 'off' | 'on';
 
@@ -75,16 +76,15 @@ export function ReminderSetup({ vapidKey, enabled, showNames, profileName }: { v
     }
   }
 
-  const btn = 'min-h-11 rounded-xl px-4 text-sm font-medium disabled:opacity-60';
   return (
     <div className="flex flex-col gap-3 text-sm" data-rappels={state}>
       {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
       {state === 'loading' && <p className="text-ink-3">Vérification de cet appareil…</p>}
-      {state === 'unsupported' && <p className="text-ink-2">Ce navigateur ne permet pas les notifications. Utilisez les rappels par l’agenda (fiche de chaque traitement).</p>}
+      {state === 'unsupported' && <p className="text-ink-2">Ce navigateur ne permet pas les notifications. Utilisez les rappels par l’agenda (fiche de chaque médicament).</p>}
       {state === 'ios-install' && (
         <p className="text-ink-2">
-          Sur iPhone, les notifications ne fonctionnent que si BILANX est <strong>installé sur l’écran d’accueil</strong> (Safari → Partager → Sur
-          l’écran d’accueil). Ouvrez ensuite BILANX depuis cette icône et revenez ici.
+          Sur iPhone, les notifications ne fonctionnent que si BILANX est <strong>installé sur l’écran d’accueil</strong> (Safari, bouton Partager, puis « Sur
+          l’écran d’accueil »). Ouvrez ensuite BILANX depuis cette icône et revenez ici.
         </p>
       )}
       {state === 'denied' && (
@@ -101,10 +101,10 @@ export function ReminderSetup({ vapidKey, enabled, showNames, profileName }: { v
                 <strong>Activés sur cet appareil</strong> pour {profileName} : une notification à chaque heure de prise, sauf si la prise est déjà notée.
               </>
             ) : (
-              <>Une notification à chaque heure de prise des traitements de {profileName}, même BILANX fermé, sauf si la prise est déjà notée.</>
+              <>Une notification à chaque heure de prise des médicaments de {profileName}, même BILANX fermé, sauf si la prise est déjà notée.</>
             )}
           </p>
-          <label className="flex items-start gap-2">
+          <label className="flex items-start gap-3 rounded-xl border border-line p-3">
             <input
               type="checkbox"
               checked={names}
@@ -112,17 +112,17 @@ export function ReminderSetup({ vapidKey, enabled, showNames, profileName }: { v
                 setNames(e.target.checked);
                 if (state === 'on') await reminderPrefsAction(true, e.target.checked);
               }}
-              className="mt-0.5 size-4 accent-[var(--petrol)]"
+              className="mt-0.5 size-5 shrink-0 accent-[var(--petrol)]"
             />
             <span>
               Afficher le nom du médicament dans la notification
-              <span className="block text-xs text-ink-3">Sinon : « Prise de traitement prévue à 08 h 00 » (rien de lisible sur l’écran verrouillé).</span>
+              <span className="mt-0.5 block text-[13px] text-ink-3">Sinon : « Prise de traitement prévue à 08 h 00 » (discret sur l’écran verrouillé).</span>
             </span>
           </label>
           <div className="flex flex-wrap gap-2">
             {state === 'off' ? (
-              <button type="button" disabled={busy} onClick={activate} className={`${btn} bg-petrol text-on-accent`}>
-                {busy ? 'Activation…' : '🔔 Activer les rappels sur cet appareil'}
+              <button type="button" disabled={busy} onClick={activate} className={buttonClass({ variant: 'primary', className: 'w-full sm:w-auto' })}>
+                {busy ? 'Activation…' : 'Activer les rappels sur cet appareil'}
               </button>
             ) : (
               <>
@@ -133,11 +133,11 @@ export function ReminderSetup({ vapidKey, enabled, showNames, profileName }: { v
                     const r = await sendTestPushAction();
                     setMsg(r.sent ? { tone: 'success', text: 'Notification de test envoyée.' } : { tone: 'error', text: 'Aucun appareil n’a pu être joint.' });
                   }}
-                  className={`${btn} border border-line`}
+                  className={buttonClass({ variant: 'secondary' })}
                 >
                   Envoyer une notification de test
                 </button>
-                <button type="button" disabled={busy} onClick={deactivate} className={`${btn} text-ink-3 underline`}>
+                <button type="button" disabled={busy} onClick={deactivate} className={buttonClass({ variant: 'ghost' })}>
                   Désactiver sur cet appareil
                 </button>
               </>

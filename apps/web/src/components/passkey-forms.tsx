@@ -11,6 +11,7 @@ import {
   type FormState,
 } from '@/lib/server/actions';
 import { Alert, Field, SubmitButton } from './forms';
+import { buttonClass } from './ui';
 
 /** Message compréhensible quand l'utilisateur annule ou que l'appareil refuse. */
 function webauthnMessage(e: unknown): string {
@@ -54,9 +55,9 @@ export function PasskeySignIn({ suite }: { suite?: string }) {
             setBusy(false);
           }
         }}
-        className="min-h-12 rounded-xl border border-line bg-surface px-4 font-semibold hover:bg-surface-2 disabled:opacity-60"
+        className={buttonClass({ variant: 'secondary', className: 'w-full whitespace-normal text-center' })}
       >
-        {busy ? 'En attente de votre appareil…' : '🔑 Se connecter avec une clé d’accès'}
+        {busy ? 'En attente de votre appareil…' : 'Se connecter avec une clé d’accès (Face ID, empreinte)'}
       </button>
     </div>
   );
@@ -90,14 +91,14 @@ export function PasskeyManager({ keys }: { keys: PasskeyItem[] }) {
           {keys.map((k) => (
             <li key={k.id} className="flex flex-col gap-2 p-3 text-sm">
               <span>
-                <span className="font-medium">🔑 {k.label}</span>
-                <span className="block text-xs text-ink-3">
+                <span className="font-medium">{k.label}</span>
+                <span className="block text-[13px] text-ink-3">
                   Ajoutée le {k.createdAt}
                   {k.lastUsedAt ? ` · dernière connexion le ${k.lastUsedAt}` : ' · jamais utilisée'}
                 </span>
               </span>
               <details>
-                <summary className="cursor-pointer text-xs text-ink-3 underline">Supprimer</summary>
+                <summary className={buttonClass({ variant: 'ghost', className: '-ml-3 cursor-pointer list-none text-red hover:bg-red-2 [&::-webkit-details-marker]:hidden' })}>Supprimer</summary>
                 <form action={remove} className="mt-2 flex flex-col gap-2" key={removed.attempt ?? 'initial'}>
                   <input type="hidden" name="id" value={k.id} />
                   {removed.errors?.form && <Alert tone="error">{removed.errors.form}</Alert>}
@@ -143,7 +144,7 @@ export function PasskeyManager({ keys }: { keys: PasskeyItem[] }) {
           {error && <Alert tone="error">{error}</Alert>}
           <Field label="Nom de l’appareil" name="label" maxLength={60} required={false} hint="Pour la reconnaître, ex. « iPhone de Jo »." />
           <Field label="Mot de passe actuel" name="currentPassword" type="password" autoComplete="current-password" error={fieldError} />
-          <button type="submit" disabled={busy} className="min-h-12 rounded-xl bg-petrol px-4 font-semibold text-on-accent disabled:opacity-60">
+          <button type="submit" disabled={busy} className={buttonClass({ variant: 'primary', className: 'w-full' })}>
             {busy ? 'En attente de votre appareil…' : 'Ajouter une clé d’accès'}
           </button>
         </form>
