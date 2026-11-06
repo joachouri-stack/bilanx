@@ -7,7 +7,7 @@ import { Icon } from '@/components/icon';
 import { DocumentsAdd } from '@/components/documents-add';
 import { DocIcon } from '@/components/documents-icons';
 import { ModuleForbidden } from '@/components/module-forbidden';
-import { DOC_CATEGORIES, DOC_SHORTCUTS, EXAM_LABELS, categoryByKey, categoryOf, documentTitle, specialtyByCode } from '@/lib/document-categories';
+import { DOC_CATEGORIES, DOC_SHORTCUTS, EXAM_LABELS, categoryByKey, categoryOf, documentTitle, folderByCode, specialtyByCode } from '@/lib/document-categories';
 
 export const metadata: Metadata = { title: 'Documents' };
 
@@ -29,20 +29,22 @@ const ADD_EXAM: Record<string, string> = {
 
 /**
  * Liste des documents, du plus récent au plus ancien (date du document, sinon date d'ajout).
- * Filtres par l'adresse : `?cat=` (catégorie), `?examen=irm|scanner|…` (imagerie), `?specialite=<code>` (urologie, orl…).
+ * Filtres par l'adresse : `?cat=` (catégorie), `?examen=irm|scanner|…` (imagerie), `?specialite=<code>` (urologie, orl…),
+ * `?dossier=vitamines|mutuelle|attestation`.
  */
 export default async function DocumentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ supprime?: string; cat?: string; examen?: string; specialite?: string; ajouter?: string }>;
+  searchParams: Promise<{ supprime?: string; cat?: string; examen?: string; specialite?: string; dossier?: string; ajouter?: string }>;
 }) {
   const ctx = await appContext();
   const sp = await searchParams;
   const exam = sp.examen && EXAM_LABELS[sp.examen] ? sp.examen : null;
-  const spec = specialtyByCode(sp.specialite);
+  const folder = exam ? null : folderByCode(sp.dossier);
+  const spec = exam || folder ? null : specialtyByCode(sp.specialite);
   // Un type d'examen n'existe que pour l'imagerie.
-  const cat = exam ? categoryByKey('imagerie') : categoryByKey(sp.cat);
-  const pageTitle = exam ? EXAM_LABELS[exam]! : spec ? spec.title : (cat?.label ?? 'Documents');
+  const cat = exam ? categoryByKey('imagerie') : folder ? null : categoryByKey(sp.cat);
+  const pageTitle = exam ? EXAM_LABELS[exam]! : folder ? folder.title : spec ? spec.title : (cat?.label ?? 'Documents');
   if (ctx.active.kind === 'demo') {
     return (
       <div className="fade-in">
@@ -58,8 +60,11 @@ export default async function DocumentsPage({
   const canWrite = moduleAllowed(ctx.active, 'documents', 'write');
   const all = await documents().list(ctx.user, ctx.active.access.profileId);
   // Déjà triée par le service : date du document (sinon date d'ajout), la plus récente d'abord.
-  const list = all.filter((d) => (!cat || cat.kinds.includes(d.kind)) && (!exam || d.exam_type === exam) && (!spec || d.specialty === spec.code));
-  const subFilter = exam || spec ? { label: pageTitle, icon: DOC_SHORTCUTS.find((s) => s.key === (exam ?? spec?.code))?.icon ?? (exam ? 'imaging' : 'folder') } : null;
+  const list = all.filter((d) => (!cat || cat.kinds.includes(d.kind)) && (!exam || d.exam_type === exam) && (!spec || d.specialty === spec.code) && (!folder || d.folder === folder.code));
+  const subFilter =
+    exam || spec || folder
+      ? { label: pageTitle, icon: folder?.icon ?? DOC_SHORTCUTS.find((s) => s.key === (exam ?? spec?.code))?.icon ?? (exam ? 'imaging' : 'folder') }
+      : null;
   const count = (kinds: string[]) => all.filter((d) => kinds.includes(d.kind)).length;
   const fmt = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'Europe/Paris' });
   const fmtDay = (iso: string) => fmt.format(new Date(`${iso}T12:00:00Z`));
@@ -69,7 +74,7 @@ export default async function DocumentsPage({
       current ? 'border-petrol bg-petrol text-on-accent' : 'border-line bg-surface text-ink hover:bg-surface-2'
     }`;
   const isPrescriptions = cat?.kind === 'prescription';
-  const addLabel = exam ? ADD_EXAM[exam]! : spec ? `Ajouter un document ${spec.of}` : isPrescriptions ? 'Ajouter une ordonnance' : 'Ajouter un document';
+  const addLabel = exam ? ADD_EXAM[exam]! : folder ? folder.add : spec ? `Ajouter un document ${spec.of}` : isPrescriptions ? 'Ajouter une ordonnance' : 'Ajouter un document';
 
   return (
     <div className="fade-in">
@@ -87,6 +92,7 @@ export default async function DocumentsPage({
             defaultKind={cat?.kind ?? ''}
             defaultExamType={exam ?? undefined}
             defaultSpecialty={spec?.code}
+            defaultFolder={folder?.code}
             label={addLabel}
             className="lg:sticky lg:top-4 lg:order-2"
           />
@@ -97,7 +103,7 @@ export default async function DocumentsPage({
             <ul className="flex snap-x gap-2 pb-1">
               {subFilter && (
                 <li>
-                  <Link href={exam ? `/documents?cat=imagerie&examen=${exam}` : `/documents?specialite=${spec!.code}`} aria-current="page" className={chip(true)}>
+                  <Link href={exam ? `/documents?cat=imagerie&examen=${exam}` : folder ? `/documents?dossier=${folder.code}` : `/documents?specialite=${spec!.code}`} aria-current="page" className={chip(true)}>
                     <DocIcon name={subFilter.icon} className="size-[18px] shrink-0" />
                     {subFilter.label} <span className="tabular opacity-80">{list.length}</span>
                   </Link>

@@ -12,8 +12,26 @@ const EYE = 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z
 const EAR = 'M6 10a6 6 0 0 1 12 0c0 3-1.8 4.3-3 5.5-1 1-1.3 2.4-2 3.5-1 1.6-3.8 1.6-4.6-.5M9.5 10.2a2.6 2.6 0 0 1 5.2-.2c0 1.5-1.2 2-1.7 3';
 /** Rein et uretère (urologie). */
 const KIDNEY = 'M9 3.5c-3.5 0-5 3.3-5 7.5s1.8 9 5.5 9c2.5 0 3.2-2 3-3.6-.2-1.4-1.5-2.3-1.5-3.9s1.3-2.5 1.5-3.9C12.7 6.4 11.8 3.5 9 3.5zM11.2 12.5H15a2.5 2.5 0 0 1 2.5 2.5v6';
+/** Os (radiographie). */
+const BONE = 'M8.5 6.5a2.5 2.5 0 1 0-3.5 2.4 2.5 2.5 0 1 0 2.4 3.5l6.7 6.7a2.5 2.5 0 1 0 3.5-2.4 2.5 2.5 0 1 0-2.4-3.5z';
+/** Gélule (vitamines). */
+const CAPSULE = 'M10.5 20.5a5 5 0 0 1-7-7l7-7a5 5 0 0 1 7 7zM7 10l7 7';
+/** Bouclier avec une croix (mutuelle). */
+const SHIELD = 'M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6zM12 8.5v6M9 11.5h6';
+/** Feuille avec un sceau (attestation). */
+const CERTIFICATE = 'M14 21H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h9l4 4v5M8.5 8h5M8.5 11.5h4M17 19.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM15.5 19.2V22l1.5-1 1.5 1v-2.8';
 
-const PATHS: Partial<Record<DocCategoryIcon, string>> = { imaging: IMAGING, scanner: SCANNER, eye: EYE, ear: EAR, kidney: KIDNEY };
+const PATHS: Partial<Record<DocCategoryIcon, string>> = {
+  imaging: IMAGING,
+  scanner: SCANNER,
+  eye: EYE,
+  ear: EAR,
+  kidney: KIDNEY,
+  bone: BONE,
+  capsule: CAPSULE,
+  shield: SHIELD,
+  certificate: CERTIFICATE,
+};
 
 /** Icône d'une catégorie de document (décorative). */
 export function DocIcon({ name, className = 'size-5 shrink-0' }: { name: DocCategoryIcon; className?: string }) {

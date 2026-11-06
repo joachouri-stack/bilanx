@@ -3,7 +3,7 @@
 import { useActionState, useMemo, useRef, useState } from 'react';
 import { ANALYTES, getAnalyte, unitsFor } from '@bilanx/domain';
 import { reviewDocumentAction, updateDocumentDetailsAction, uploadDocumentAction, type FormState } from '@/lib/server/actions';
-import { DOC_CATEGORIES, EXAM_LABELS, SPECIALTIES } from '@/lib/document-categories';
+import { DOC_CATEGORIES, EXAM_LABELS, FOLDERS, SPECIALTIES } from '@/lib/document-categories';
 import { Alert } from './forms';
 import { useFormStatus } from 'react-dom';
 import { Icon } from './icon';
@@ -75,6 +75,19 @@ function DetailsFields({ kind, setKind, today, values, allowAuto }: { kind: stri
           Le médecin concerné : urologue, ophtalmo, ORL… pour retrouver ses documents en un instant.
         </span>
       </label>
+      <label className="flex flex-col gap-1 text-sm font-medium">
+        <span>
+          Dossier <span className="font-normal text-ink-3">(facultatif)</span>
+        </span>
+        <select name="folder" defaultValue={values.folder ?? ''} className={`${field} min-h-11 text-base`}>
+          <option value="">Aucun</option>
+          {FOLDERS.map((f) => (
+            <option key={f.code} value={f.code}>
+              {f.title}
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           <span>
@@ -102,6 +115,7 @@ export function DocumentDetailsForm({
   date,
   examType,
   specialty,
+  folder,
   issuer,
 }: {
   documentId: string;
@@ -111,6 +125,7 @@ export function DocumentDetailsForm({
   date: string | null;
   examType: string | null;
   specialty: string | null;
+  folder: string | null;
   issuer: string | null;
 }) {
   const [state, action] = useActionState(updateDocumentDetailsAction, {} as FormState);
@@ -119,7 +134,7 @@ export function DocumentDetailsForm({
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="documentId" value={documentId} />
-      <DetailsFields kind={kind} setKind={setKind} today={today} values={{ title, date: date ?? '', examType: examType ?? 'irm', specialty: specialty ?? '' }} allowAuto={false} />
+      <DetailsFields kind={kind} setKind={setKind} today={today} values={{ title, date: date ?? '', examType: examType ?? 'irm', specialty: specialty ?? '', folder: folder ?? '' }} allowAuto={false} />
       <label className="flex flex-col gap-1 text-sm font-medium">
         <span>
           Médecin, laboratoire ou centre <span className="font-normal text-ink-3">(facultatif)</span>
@@ -137,6 +152,7 @@ export function UploadForm({
   defaultKind = '',
   defaultExamType,
   defaultSpecialty,
+  defaultFolder,
   today,
 }: {
   defaultKind?: string;
@@ -144,6 +160,8 @@ export function UploadForm({
   defaultExamType?: string;
   /** Spécialité présélectionnée, ex. « urologie » depuis /documents?specialite=urologie. */
   defaultSpecialty?: string;
+  /** Dossier présélectionné, ex. « mutuelle » depuis /documents?dossier=mutuelle. */
+  defaultFolder?: string;
   today: string;
 }) {
   const [state, action] = useActionState(uploadDocumentAction, {} as FormState);
@@ -202,7 +220,7 @@ export function UploadForm({
         kind={kind}
         setKind={setKind}
         today={today}
-        values={state.values ?? { ...(defaultExamType ? { examType: defaultExamType } : {}), ...(defaultSpecialty ? { specialty: defaultSpecialty } : {}) }}
+        values={state.values ?? { ...(defaultExamType ? { examType: defaultExamType } : {}), ...(defaultSpecialty ? { specialty: defaultSpecialty } : {}), ...(defaultFolder ? { folder: defaultFolder } : {}) }}
         allowAuto
       />
       <Submit pending={kind === 'prescription' || kind === 'lab_report' || kind === '' ? 'Envoi et lecture du document…' : 'Envoi du document…'} disabled={files.length === 0}>

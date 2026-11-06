@@ -8,7 +8,7 @@ import { deleteDocumentAction, enableAutoReadingAction, reclassifyAsLabReportAct
 import { Button, ButtonLink, Card, CardHeader, Chip, PageHeader, ScrollRegion, buttonClass } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import { DocumentDetailsForm, ReviewForm } from '@/components/document-forms';
-import { categoryOf, documentTitle, EXAM_LABELS, specialtyByCode } from '@/lib/document-categories';
+import { categoryOf, documentTitle, EXAM_LABELS, folderByCode, specialtyByCode } from '@/lib/document-categories';
 import { PrescriptionReviewForm } from '@/components/prescription-forms';
 import { ModuleForbidden } from '@/components/module-forbidden';
 
@@ -74,6 +74,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
               cat.single,
               doc.kind === 'imaging' && doc.exam_type ? EXAM_LABELS[doc.exam_type] : null,
               specialtyByCode(doc.specialty)?.title,
+              folderByCode(doc.folder)?.title,
               doc.document_date ? `du ${fmtLong.format(new Date(`${doc.document_date}T12:00:00Z`))}` : `ajouté le ${fmtLong.format(doc.uploaded_at)}`,
               doc.issuer,
             ]
@@ -288,6 +289,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
                   date={doc.document_date}
                   examType={doc.exam_type}
                   specialty={doc.specialty}
+                  folder={doc.folder}
                   issuer={doc.issuer}
                 />
               </details>
