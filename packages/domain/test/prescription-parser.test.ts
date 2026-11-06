@@ -141,3 +141,23 @@ Ferritine 25 µg/L 30 - 300`),
     expect(p.items.map((i) => i.name)).toEqual(['Lantus', 'Spasfon']);
   });
 });
+
+describe('ordonnance de matériel (bizone, capteurs et bandelettes)', () => {
+  const MATERIEL = L(`
+Ordonnance bizone
+Identification du prescripteur
+Dr À. EIRES
+Service d'Endocrinologie
+15/06/2026
+Prescriptions relatives au traitement de l'affection de longue durée reconnue
+2 capteurs FSL 2 Plus 1 tous les 15j à renouveler 6 fois
+100 bandelettes de glycémie capillaire Freestyle Optium
+Electrode freestyle optium beta cetone : 1 boite
+1 autopiqueur FASTCLIX`);
+  it('initiale suivie d’un point : nom complet du médecin, « À » lu par erreur corrigé', () => {
+    expect(parsePrescription(MATERIEL).prescriber).toBe('Dr A. EIRES');
+  });
+  it('une initiale seule n’est pas prise pour le nom du médecin', () => {
+    expect(parsePrescription(L(`Dr A\nDr Marie DURAND\n03/11/2026`)).prescriber).toBe('Dr Marie DURAND');
+  });
+});

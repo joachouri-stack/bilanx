@@ -115,6 +115,11 @@ export interface MedicationDecision {
 
 const defaultReadText = (mime: AcceptedMime, files: Buffer[]) => (mime === 'application/pdf' ? pdfText(files[0]!) : imageText(files));
 
+/** Nombre d'analyses reconnues à partir duquel une « ordonnance » est signalée comme ressemblant à un bilan. */
+const LAB_WARNING_MIN = 3;
+/** Matériel médical courant sur les ordonnances (diabète notamment). */
+const MEDICAL_DEVICE = /\b(capteurs?|bandelettes?|lancettes?|autopiqueurs?|auto-piqueurs?|[ée]lectrodes?|aiguilles?|lecteurs? de glyc[ée]mie|glucom[eè]tres?|pansements?|seringues?|stylos?|pompes? [àa] insuline|r[ée]servoirs?)\b/i;
+
 export function createDocumentsService(cfg: DocumentsConfig) {
   const { sql, profiles } = cfg;
   const now = cfg.now ?? (() => new Date());
@@ -218,7 +223,9 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     // Catégorie choisie par l'utilisateur : elle décide du lecteur utilisé.
     const recognized = report.drafts.filter((d) => assessDraft(d, source, now()).analyteCode).length;
     if (hint === 'prescription' || (hint !== 'lab_report' && looksLikePrescription(text.lines) && !recognized))
-      return extractPrescription(actor, profileId, documentId, text, recognized > 0);
+      // Un vrai bilan contient plusieurs analyses ; un mot isolé (« bandelettes de glycémie ») ne suffit pas,
+      // et un document qui se présente lui-même comme une ordonnance n'est jamais signalé.
+      return extractPrescription(actor, profileId, documentId, text, recognized >= LAB_WARNING_MIN && !/\bordonnance\b/i.test(source) ? recognized : 0);
 
     return profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
       const status = report.drafts.length ? 'to_review' : 'reviewed';
@@ -252,13 +259,15 @@ export function createDocumentsService(cfg: DocumentsConfig) {
   }
 
   /** Ordonnance : traitements proposés (brouillons), jamais enregistrés sans validation. */
-  async function extractPrescription(actor: Actor, profileId: string, documentId: string, text: ExtractedText, labValuesFound = false) {
+  async function extractPrescription(actor: Actor, profileId: string, documentId: string, text: ExtractedText, labValuesFound = 0) {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now());
     const p = parsePrescription(text.lines, today);
     // Classé « ordonnance » par l'utilisateur alors que le lecteur de bilans y reconnaît des analyses : signalé à l'écran.
     const warnings: Record<string, unknown>[] = [];
     if (text.emptyPages.length) warnings.push({ code: 'empty_pages', pages: text.emptyPages });
-    if (labValuesFound) warnings.push({ code: 'looks_like_lab_report' });
+    if (labValuesFound) warnings.push({ code: 'looks_like_lab_report', analytes: labValuesFound });
+    // Ordonnance de matériel (capteurs, bandelettes…) : rien à ajouter aux médicaments, et ce n'est pas une erreur.
+    if (p.items.length === 0 && text.lines.some((l) => MEDICAL_DEVICE.test(l.text))) warnings.push({ code: 'medical_devices' });
     return profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
       const [job] = await tx<{ id: string }[]>`
         INSERT INTO extraction_job (document_id, profile_id, status, detected_kind, ocr_engine, method, detected_sampling_date, warnings, created_at, finished_at)

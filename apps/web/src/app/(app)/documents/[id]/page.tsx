@@ -43,7 +43,12 @@ export default async function DocumentPage({ params, searchParams }: { params: P
   // Rangé comme ordonnance, mais c'est un bilan : le lecteur de bilans y reconnaît des analyses,
   // ou aucune ligne proposée n'a de posologie.
   const looksLikeLab =
-    doc.kind === 'prescription' && !!job && (warningCodes.includes('looks_like_lab_report') || (pendingMeds.length > 0 && pendingMeds.every((d) => !d.posology.trim())));
+    doc.kind === 'prescription' &&
+    !!job &&
+    // Anciennes lectures (sans nombre d'analyses) : non signalées, elles se trompaient sur « bandelettes de glycémie ».
+    ((Array.isArray(job.warnings) && (job.warnings as { code?: string; analytes?: number }[]).some((w) => w.code === 'looks_like_lab_report' && (w.analytes ?? 0) >= 3)) ||
+      (pendingMeds.length > 1 && pendingMeds.every((d) => !d.posology.trim())));
+  const devicesOnly = warningCodes.includes('medical_devices');
   const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
   const banner = (children: React.ReactNode, href: string, link: string) => (
     <p role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sage-2 px-4 py-3 text-sm">
@@ -185,8 +190,12 @@ export default async function DocumentPage({ params, searchParams }: { params: P
           )}
           {job && job.status !== 'failed' && isPrescription && medicationDrafts.length === 0 && drafts.length === 0 && (
             <Card>
-              <CardHeader title="Aucun traitement trouvé" />
-              <p className="text-sm text-ink-2">Aucune ligne de cette ordonnance ne ressemble à un médicament. Vous pouvez ajouter vos médicaments à la main.</p>
+              <CardHeader title={devicesOnly ? 'Ordonnance de matériel' : 'Aucun médicament trouvé'} />
+              <p className="text-sm text-ink-2">
+                {devicesOnly
+                  ? 'Cette ordonnance concerne du matériel (capteurs, bandelettes…) : il n’y a rien à ajouter à vos médicaments. Elle est bien rangée dans vos ordonnances.'
+                  : 'Aucune ligne de cette ordonnance ne ressemble à un médicament. Vous pouvez ajouter vos médicaments à la main.'}
+              </p>
               <div className="mt-3">
                 <ButtonLink href="/medicaments">Mes médicaments</ButtonLink>
               </div>

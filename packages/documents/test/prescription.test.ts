@@ -108,7 +108,7 @@ describe.skipIf(!TEST_DB)('lecture d’une ordonnance (PostgreSQL réel)', () =>
     if (!r.ok) return;
     const before = (await docs.get(jo, pid, r.documentId))!;
     expect(before.document.kind).toBe('prescription');
-    expect(before.job!.warnings).toEqual(expect.arrayContaining([{ code: 'looks_like_lab_report' }]));
+    expect(before.job!.warnings).toEqual(expect.arrayContaining([{ code: 'looks_like_lab_report', analytes: expect.any(Number) }]));
     // Titres et lignes de résultats ne sont plus proposés comme traitements.
     expect(before.medicationDrafts).toEqual([]);
 

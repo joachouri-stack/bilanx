@@ -88,8 +88,14 @@ function findDate(lines: PrescriptionLine[]): string | null {
 
 function findPrescriber(lines: PrescriptionLine[]): string | null {
   for (const l of lines.slice(0, 12)) {
-    const m = /\b(Dr|Docteur|Pr|Professeur)\.?\s+((?:[\p{Lu}][\p{L}'’-]*\s?){1,4})/u.exec(l.text);
-    if (m) return `${m[1]!.startsWith('P') ? 'Pr' : 'Dr'} ${m[2]!.trim().replace(/\s+(Paris|Lyon|Marseille)$/, '')}`.slice(0, 120);
+    // Initiale avec point (« Dr A. EIRES ») acceptée ; l'OCR lit parfois « A » comme « À ».
+    const m = /\b(Dr|Docteur|Pr|Professeur)\.?\s+((?:[\p{Lu}][\p{L}'’-]*\.?\s?){1,4})/u.exec(l.text);
+    if (m) {
+      const name = m[2]!.trim().replace(/\s+(Paris|Lyon|Marseille)$/, '').replace(/^À(?=\.|\s)/, 'A');
+      // Une seule initiale (« Dr A ») n'identifie personne : on continue de chercher.
+      if (/^\p{Lu}\.?$/u.test(name)) continue;
+      return `${m[1]!.startsWith('P') ? 'Pr' : 'Dr'} ${name}`.slice(0, 120);
+    }
   }
   return null;
 }
