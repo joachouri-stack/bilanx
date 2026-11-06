@@ -322,14 +322,14 @@ export function DashboardHero({ title, subtitle, items }: { title: string; subti
             <li key={it.label} className="min-w-0">
               <Link
                 href={it.href}
-                className="flex h-full min-h-14 flex-col gap-1.5 rounded-2xl bg-white/15 p-3 transition hover:bg-white/25 sm:flex-row sm:items-center sm:gap-3"
+                className="flex h-full min-h-14 flex-col gap-1.5 rounded-2xl bg-white/15 px-2.5 py-3 transition sm:px-3 hover:bg-white/25 sm:flex-row sm:items-center sm:gap-3"
               >
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/20" aria-hidden>
                   <Icon name={it.icon} className="size-[18px]" />
                 </span>
                 <span className="min-w-0">
                   <span className="block text-[13px] leading-tight text-white/85">{it.label}</span>
-                  <span className="tabular block text-[17px] font-semibold leading-tight sm:text-lg">{it.value}</span>
+                  <span className="tabular block whitespace-nowrap text-[16px] font-semibold leading-tight sm:text-lg">{it.value}</span>
                 </span>
               </Link>
             </li>
