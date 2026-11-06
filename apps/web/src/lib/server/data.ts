@@ -2,12 +2,12 @@
  * Source unique des données affichées : profil de démonstration (fictif,
  * généré) ou profil réel (PostgreSQL, sous Row-Level Security, accès journalisé).
  */
-import type { GlucoseReading, LocalDate } from '@bilanx/domain';
+import type { GlucoseContext, GlucoseReading, LocalDate } from '@bilanx/domain';
 import { addDays, dayBounds } from '@bilanx/domain';
 import { DEMO_LAB_RESULTS, DEMO_TIMEZONE, demoDay, demoSensorRange, type DemoEvent } from '@/lib/demo-data';
-import { insulin, journal, profiles } from './auth';
+import { glucose as glucoseRecords, insulin, journal, profiles } from './auth';
 import { JOURNAL_KINDS, MEAL_KINDS } from '@bilanx/domain';
-import type { JournalRow } from '@bilanx/records';
+import type { CapillaryReading, JournalRow } from '@bilanx/records';
 import { canAccess } from '@bilanx/profiles';
 import type { AppContext } from './context';
 
@@ -132,4 +132,32 @@ export async function glucoseRangeAll(ctx: AppContext, from: LocalDate, to: Loca
     return out;
   }
   return glucoseBetween(ctx, dayBounds(from, TIMEZONE).start, dayBounds(addDays(to, 1), TIMEZONE).start);
+}
+
+/** Moment (fictif) attribué aux glycémies du lecteur de la démonstration, selon l'heure. */
+const DEMO_HOUR = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, hour: '2-digit', hourCycle: 'h23' });
+const demoMeterContext = (at: Date): GlucoseContext => (Number(DEMO_HOUR.format(at)) < 10 ? 'fasting' : 'before_meal');
+
+/**
+ * Glycémies du LECTEUR (au bout du doigt, saisies à la main) du jour `from` au jour `to` inclus,
+ * de la plus ancienne à la plus récente, avec leur moment (à jeun, après un repas…).
+ */
+export async function meterRange(ctx: AppContext, from: LocalDate, to: LocalDate, now: Date): Promise<CapillaryReading[]> {
+  if (ctx.active.kind === 'demo') {
+    const out: CapillaryReading[] = [];
+    for (let d = from; d.year * 10000 + d.month * 100 + d.day <= to.year * 10000 + to.month * 100 + to.day; d = addDays(d, 1))
+      out.push(...demoDay(d, now).capillary.map((r) => ({ at: r.at, mgdl: r.mgdl, context: demoMeterContext(r.at) })));
+    return out;
+  }
+  return glucoseRecords().listCapillaryRange(ctx.user, ctx.active.access.profileId, dayBounds(from, TIMEZONE).start, dayBounds(addDays(to, 1), TIMEZONE).start);
+}
+
+/** Vrai si le profil a au moins une mesure du capteur depuis `since` (requête légère, sans les valeurs). */
+export async function hasSensorSince(ctx: AppContext, since: Date): Promise<boolean> {
+  if (ctx.active.kind === 'demo') return true;
+  const profileId = ctx.active.access.profileId;
+  const rows = await profiles().withProfileData(ctx.user, profileId, 'glucose', 'read', (tx) =>
+    tx`SELECT 1 FROM glucose_reading WHERE profile_id = ${profileId} AND kind = 'sensor' AND measured_at >= ${since} LIMIT 1`,
+  );
+  return rows.length > 0;
 }

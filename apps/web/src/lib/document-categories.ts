@@ -1,3 +1,8 @@
+import type { IconName } from '@/components/icon';
+
+/** Icône d'une catégorie : une icône du composant `Icon`, ou « imaging » (tracé local, components/documents-icons.tsx). */
+export type DocCategoryIcon = IconName | 'imaging';
+
 /** Catégories de documents affichées (ordre d'affichage) et libellés. */
 export interface DocCategory {
   key: string;
@@ -7,16 +12,19 @@ export interface DocCategory {
   kinds: string[];
   label: string;
   single: string;
+  /** Icône SVG (voir `DocIcon` dans components/documents-icons.tsx). */
+  svg: DocCategoryIcon;
+  /** @deprecated émoji conservé le temps que le tableau de bord passe à `svg` ; ne plus l'afficher. */
   icon: string;
   hint: string;
 }
 
 export const DOC_CATEGORIES: DocCategory[] = [
-  { key: 'ordonnances', kind: 'prescription', kinds: ['prescription'], label: 'Ordonnances', single: 'Ordonnance', icon: '💊', hint: 'Médicaments, soins, examens prescrits' },
-  { key: 'analyses', kind: 'lab_report', kinds: ['lab_report'], label: 'Analyses & bilans', single: 'Bilan biologique', icon: '🧪', hint: 'Prises de sang, analyses d’urine' },
-  { key: 'imagerie', kind: 'imaging', kinds: ['imaging'], label: 'Imagerie', single: 'Imagerie', icon: '🩻', hint: 'IRM, scanner, radio, échographie' },
-  { key: 'comptes-rendus', kind: 'medical_report', kinds: ['medical_report', 'letter', 'exam_result'], label: 'Comptes rendus', single: 'Compte rendu', icon: '📝', hint: 'Consultations, hospitalisations, courriers' },
-  { key: 'autres', kind: 'other', kinds: ['other', 'unknown'], label: 'Autres', single: 'Document', icon: '📁', hint: 'Tout le reste' },
+  { key: 'ordonnances', kind: 'prescription', kinds: ['prescription'], label: 'Ordonnances', single: 'Ordonnance', svg: 'prescription', icon: '💊', hint: 'Médicaments, soins, examens prescrits' },
+  { key: 'analyses', kind: 'lab_report', kinds: ['lab_report'], label: 'Bilans sanguins', single: 'Bilan sanguin', svg: 'flask', icon: '🧪', hint: 'Prises de sang, analyses d’urine' },
+  { key: 'imagerie', kind: 'imaging', kinds: ['imaging'], label: 'Imagerie', single: 'Imagerie', svg: 'imaging', icon: '🩻', hint: 'IRM, scanner, radio, échographie' },
+  { key: 'comptes-rendus', kind: 'medical_report', kinds: ['medical_report', 'letter', 'exam_result'], label: 'Comptes rendus', single: 'Compte rendu', svg: 'document', icon: '📝', hint: 'Consultations, hospitalisations, courriers' },
+  { key: 'autres', kind: 'other', kinds: ['other', 'unknown'], label: 'Autres', single: 'Document', svg: 'folder', icon: '📁', hint: 'Tout le reste' },
 ];
 
 export const EXAM_LABELS: Record<string, string> = { irm: 'IRM', scanner: 'Scanner', radio: 'Radiographie', echo: 'Échographie', autre: 'Autre examen' };

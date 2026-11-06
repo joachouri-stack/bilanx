@@ -484,6 +484,15 @@ export async function deleteDocumentAction(fd: FormData): Promise<void> {
   redirect('/documents?supprime=1');
 }
 
+/** Ordonnance qui est en fait un bilan sanguin : rangée comme bilan, lecture des analyses relancée. */
+export async function reclassifyAsLabReportAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  const id = str(fd, 'documentId');
+  if (ctx.active.kind === 'real' && id) await documents().reclassifyAsLabReport(ctx.user, ctx.active.access.profileId, id);
+  revalidatePath('/documents');
+  redirect(id ? `/documents/${id}` : '/documents');
+}
+
 // ───────────── Insuline & traitements ─────────────
 async function realInsulinCtx() {
   const ctx = await appContext();

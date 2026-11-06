@@ -216,8 +216,9 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     // Ordonnance : un document qui en a l'allure, et où le lecteur de bilans ne reconnaît AUCUNE analyse
     // (sinon « METFORMINE 1000 mg » serait proposé comme un résultat).
     // Catégorie choisie par l'utilisateur : elle décide du lecteur utilisé.
-    if (hint === 'prescription' || (hint !== 'lab_report' && looksLikePrescription(text.lines) && !report.drafts.some((d) => assessDraft(d, source, now()).analyteCode)))
-      return extractPrescription(actor, profileId, documentId, text);
+    const recognized = report.drafts.filter((d) => assessDraft(d, source, now()).analyteCode).length;
+    if (hint === 'prescription' || (hint !== 'lab_report' && looksLikePrescription(text.lines) && !recognized))
+      return extractPrescription(actor, profileId, documentId, text, recognized > 0);
 
     return profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
       const status = report.drafts.length ? 'to_review' : 'reviewed';
@@ -251,15 +252,19 @@ export function createDocumentsService(cfg: DocumentsConfig) {
   }
 
   /** Ordonnance : traitements proposés (brouillons), jamais enregistrés sans validation. */
-  async function extractPrescription(actor: Actor, profileId: string, documentId: string, text: ExtractedText) {
+  async function extractPrescription(actor: Actor, profileId: string, documentId: string, text: ExtractedText, labValuesFound = false) {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(now());
     const p = parsePrescription(text.lines, today);
+    // Classé « ordonnance » par l'utilisateur alors que le lecteur de bilans y reconnaît des analyses : signalé à l'écran.
+    const warnings: Record<string, unknown>[] = [];
+    if (text.emptyPages.length) warnings.push({ code: 'empty_pages', pages: text.emptyPages });
+    if (labValuesFound) warnings.push({ code: 'looks_like_lab_report' });
     return profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
       const [job] = await tx<{ id: string }[]>`
         INSERT INTO extraction_job (document_id, profile_id, status, detected_kind, ocr_engine, method, detected_sampling_date, warnings, created_at, finished_at)
         VALUES (${documentId}, ${profileId}, ${p.items.length ? 'to_review' : 'reviewed'}, 'prescription',
                 ${text.method === 'ocr' ? 'tesseract-fra' : 'pdfjs'}, ${text.method}, ${p.date},
-                ${tx.json(text.emptyPages.length ? [{ code: 'empty_pages', pages: text.emptyPages }] : [])}, ${now()}, ${now()})
+                ${tx.json(warnings as never)}, ${now()}, ${now()})
         RETURNING id`;
       for (const it of p.items) {
         await tx`
@@ -284,6 +289,36 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     if (hint && hint !== 'prescription' && hint !== 'lab_report') return { status: 'stored' as const, drafts: 0 };
     const mime = files[0]!.mime === 'application/pdf' ? 'application/pdf' : (files[0]!.mime as AcceptedMime);
     return extract(actor, profileId, documentId, mime, files.map((f) => f.data), hint);
+  }
+
+  /**
+   * Document rangé par erreur comme ordonnance alors que c'est un bilan sanguin : il devient un bilan
+   * (catégorie choisie par l'utilisateur), les traitements encore proposés sont écartés, et la lecture
+   * des analyses est relancée si la lecture automatique est autorisée.
+   */
+  async function reclassifyAsLabReport(
+    actor: Actor,
+    profileId: string,
+    documentId: string,
+  ): Promise<{ ok: true; status: 'to_review' | 'no_values' | 'no_text' | 'not_processed'; drafts: number } | { ok: false; error: string }> {
+    if (!/^[0-9a-f-]{36}$/i.test(documentId)) return { ok: false, error: 'Document introuvable.' };
+    const found = await profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
+      const r = await tx`UPDATE document SET kind = 'lab_report', kind_by_user = true
+                         WHERE id = ${documentId} AND profile_id = ${profileId} AND deleted_at IS NULL RETURNING id`;
+      if (!r.length) return false;
+      // Les traitements proposés (et jamais validés) n'ont plus lieu d'être ; les traitements déjà validés restent.
+      const jobs = await tx<{ id: string }[]>`
+        UPDATE extraction_job SET status = 'reviewed', reviewed_by = ${actor.accountId}, reviewed_at = ${now()}
+        WHERE document_id = ${documentId} AND status = 'to_review' AND detected_kind = 'prescription' RETURNING id`;
+      if (jobs.length)
+        await tx`UPDATE medication_draft SET status = 'rejected', reviewed_by = ${actor.accountId}, reviewed_at = ${now()}
+                 WHERE job_id = ANY(${jobs.map((j) => j.id)}) AND status = 'proposed'`;
+      return true;
+    });
+    if (!found) return { ok: false, error: 'Document introuvable.' };
+    if (!(await hasAutoReadingConsent(actor.accountId))) return { ok: true, status: 'not_processed', drafts: 0 };
+    const r = await process(actor, profileId, documentId);
+    return { ok: true, status: r.status === 'stored' ? 'not_processed' : r.status, drafts: r.drafts };
   }
 
   // ───────────────────────── Consultation ─────────────────────────
@@ -547,7 +582,7 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     });
   }
 
-  return { hasAutoReadingConsent, giveAutoReadingConsent, upload, process, list, get, updateDetails, readFiles, review, reviewPrescription, remove, analyteName: (c: string) => getAnalyte(c)?.nameFr };
+  return { hasAutoReadingConsent, giveAutoReadingConsent, upload, process, reclassifyAsLabReport, list, get, updateDetails, readFiles, review, reviewPrescription, remove, analyteName: (c: string) => getAnalyte(c)?.nameFr };
 }
 
 export type DocumentsService = ReturnType<typeof createDocumentsService>;

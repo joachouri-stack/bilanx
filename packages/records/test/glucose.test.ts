@@ -42,6 +42,20 @@ describe.skipIf(!TEST_DB)('glycémie capillaire saisie à la main (PostgreSQL r�
     expect(await glu.recentCapillary(jo, pid)).toHaveLength(1);
   });
 
+  it('période : toutes les mesures, de la plus ancienne à la plus récente', async () => {
+    expect(await glu.addCapillary(jo, pid, { value: '98', unit: 'mg/dL', date: '2026-11-02', time: '07:00', context: 'fasting' })).toMatchObject({ ok: true });
+    expect(await glu.addCapillary(jo, pid, { value: '7,2', unit: 'mmol/L', date: '2026-11-03', time: '22:30', context: 'bedtime' })).toMatchObject({ ok: true });
+    const range = await glu.listCapillaryRange(jo, pid, new Date('2026-11-01T23:00:00Z'), new Date('2026-11-04T23:00:00Z'));
+    expect(range.map((r) => [r.at.toISOString(), r.context])).toEqual([
+      ['2026-11-02T06:00:00.000Z', 'fasting'],
+      ['2026-11-03T21:30:00.000Z', 'bedtime'],
+      ['2026-11-04T06:45:00.000Z', 'fasting'],
+    ]);
+    expect(range[1]!.mgdl).toBeCloseTo(129.7, 1);
+    // Hors période : rien.
+    expect(await glu.listCapillaryRange(jo, pid, new Date('2026-10-01T00:00:00Z'), new Date('2026-11-01T00:00:00Z'))).toEqual([]);
+  });
+
   it('refuse une valeur aberrante ou future', async () => {
     expect(await glu.addCapillary(jo, pid, { value: '110', unit: 'g/L', date: '2026-11-04', time: '08:00' })).toMatchObject({ ok: false, errors: { value: expect.any(String) } });
     expect(await glu.addCapillary(jo, pid, { value: '110', unit: 'mg/dL', date: '2026-11-04', time: '13:00' })).toMatchObject({ ok: false, errors: { time: expect.any(String) } });
@@ -51,7 +65,7 @@ describe.skipIf(!TEST_DB)('glycémie capillaire saisie à la main (PostgreSQL r�
     await expect(glu.recentCapillary(marc, pid)).rejects.toBeInstanceOf(ForbiddenError);
     await profiles.invite(jo, pid, { email: 'marc@exemple.fr', role: 'caregiver', permissions: { glucose: 'read' } });
     await profiles.respondToInvitation(marc, tokenFrom(ctx.mailer.last('marc@exemple.fr')?.text), true);
-    expect(await glu.recentCapillary(marc, pid)).toHaveLength(1);
+    expect(await glu.recentCapillary(marc, pid)).toHaveLength(3);
     await expect(glu.addCapillary(marc, pid, { value: '100', unit: 'mg/dL', date: '2026-11-04', time: '09:00' })).rejects.toBeInstanceOf(ForbiddenError);
   });
 });

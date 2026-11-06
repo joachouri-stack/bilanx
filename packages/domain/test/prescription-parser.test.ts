@@ -111,4 +111,33 @@ Résultats validés par le biologiste.`);
     expect(looksLikePrescription(bilan)).toBe(false);
     expect(parsePrescription(L('Bonjour, voici le compte rendu de la consultation.\nPatiente vue ce jour, examen normal.')).items).toEqual([]);
   });
+
+  it('lignes sans dosage, ni forme, ni posologie écartées (titres, lignes de bilan)', () => {
+    // Lignes réellement lues sur la photo d'un bilan déposé comme ordonnance.
+    const bilan = L(`
+LABORATOIRE DE BIOLOGIE MÉDICALE EXEMPLE
+Document fictif généré pour les tests BILANX — aucune personne réelle
+BIOCHIMIE
+Glycémie à jeun 1,32 g/L 0,70 - 1,10 (12/05/2026)
+Hémoglobine glyquée (HbA1c) 7,2 % 4,0 - 6,0 (12/05/2026)
+Créatinine 78 µmol/L 45 - 90
+FER ET VITAMINES
+Ferritine 25 µg/L 30 - 300 (17/02/2026)
+25-OH Vitamine D 18 ng/mL 30 - 100
+HÉMATOLOGIE
+Plaquettes 250 G/L 150 - 400
+Résultats validés par le biologiste.`);
+    expect(parsePrescription(bilan).items).toEqual([]);
+    // Un vrai traitement au milieu d'en-têtes reste proposé ; un nom seul suivi d'une forme aussi.
+    const p = parsePrescription(
+      L(`
+CABINET MÉDICAL
+TRAITEMENT DE FOND
+LANTUS
+20 unités au coucher
+SPASFON comprimé
+Ferritine 25 µg/L 30 - 300`),
+    );
+    expect(p.items.map((i) => i.name)).toEqual(['Lantus', 'Spasfon']);
+  });
 });

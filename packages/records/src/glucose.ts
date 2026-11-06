@@ -41,6 +41,14 @@ export function createGlucoseService(cfg: GlucoseConfig) {
     return rows.map((r) => ({ at: r.measured_at, mgdl: Number(r.value_mgdl), context: r.context }));
   }
 
+  /**
+   * Toutes les mesures du lecteur d'une période, de la plus ancienne à la plus récente
+   * (statistiques sur 7 à 90 jours, rapport). Plafonnées à 5 000 par sécurité.
+   */
+  async function listCapillaryRange(actor: Actor, profileId: string, start: Date, end: Date): Promise<CapillaryReading[]> {
+    return (await listCapillary(actor, profileId, start, end, 5000)).reverse();
+  }
+
   /** Dernières mesures capillaires, toutes dates confondues. */
   async function recentCapillary(actor: Actor, profileId: string, limit = 10): Promise<CapillaryReading[]> {
     return listCapillary(actor, profileId, new Date(0), new Date(now().getTime() + 3_600_000), limit);
@@ -54,7 +62,7 @@ export function createGlucoseService(cfg: GlucoseConfig) {
     return rows.length > 0;
   }
 
-  return { addCapillary, listCapillary, recentCapillary, removeCapillary };
+  return { addCapillary, listCapillary, listCapillaryRange, recentCapillary, removeCapillary };
 }
 
 export type GlucoseService = ReturnType<typeof createGlucoseService>;

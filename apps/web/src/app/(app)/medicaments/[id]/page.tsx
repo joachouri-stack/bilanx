@@ -7,7 +7,9 @@ import { DEMO_MEDICATIONS, demoToday } from '@/lib/demo-data';
 import { appContext, moduleAllowed } from '@/lib/server/context';
 import { medications } from '@/lib/server/auth';
 import { deleteMedicationAction } from '@/lib/server/actions';
-import { Card, Chip, Meta, PageHeader } from '@/components/ui';
+import { buttonClass, Card, CardHeader, Chip, Meta, PageHeader } from '@/components/ui';
+import { Icon } from '@/components/icon';
+import { ConfirmDelete } from '@/components/autres-confirmer';
 import { MedicationForm, StopMedicationForm } from '@/components/medication-forms';
 import { ModuleForbidden } from '@/components/module-forbidden';
 
@@ -22,9 +24,12 @@ const period = (m: MedicationRow) =>
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <details className="rounded-xl border border-line p-3.5">
-      <summary className="cursor-pointer text-sm font-medium text-petrol">{title}</summary>
-      <div className="mt-3">{children}</div>
+    <details className="group card min-w-0 px-5 py-1">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 font-medium [&::-webkit-details-marker]:hidden">
+        {title}
+        <Icon name="chevronDown" className="size-5 shrink-0 text-ink-3 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="pb-4 pt-2">{children}</div>
     </details>
   );
 }
@@ -54,7 +59,7 @@ export default async function MedicationPage({
   const today = formatLocalDate(demoToday());
   const active = isOngoing(m, today);
   const until = lastDay(m);
-  const msg = sp.cree ? 'Traitement ajouté.' : sp.modifie ? 'Saisie corrigée.' : sp.change ? 'Nouvelle prescription enregistrée ; l’ancienne est conservée dans l’historique.' : sp.arrete ? 'Arrêt enregistré.' : null;
+  const msg = sp.cree ? 'Médicament ajouté.' : sp.modifie ? 'Saisie corrigée.' : sp.change ? 'Nouvelle prescription enregistrée ; l’ancienne est conservée dans l’historique.' : sp.arrete ? 'Arrêt enregistré.' : null;
   const defaults = {
     id: m.id,
     name: m.name,
@@ -70,10 +75,9 @@ export default async function MedicationPage({
     <div className="fade-in">
       <PageHeader
         title={`${m.name}${m.strength ? ` ${m.strength}` : ''}`}
-        subtitle={`Profil : ${name}${isDemo ? ' (démonstration, données fictives)' : ''}`}
         actions={
-          <Link href="/medicaments" className="text-sm text-ink-3 hover:text-ink">
-            ← Médicaments
+          <Link href="/medicaments" className={buttonClass({ variant: 'ghost', className: '-ml-3' })}>
+            <Icon name="chevronLeft" className="size-5" /> Médicaments
           </Link>
         }
       />
@@ -85,26 +89,26 @@ export default async function MedicationPage({
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
-            <div className="flex items-start justify-between gap-3">
-              <p className="text-lg font-medium">{m.posology}</p>
+            <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+              <p className="min-w-0 text-lg font-medium">{m.posology}</p>
               {active && m.startDate && m.startDate > today ? <Chip tone="petrol">à venir</Chip> : active ? <Chip tone="sage">en cours</Chip> : <Chip tone="neutral">{m.status === 'stopped' ? 'arrêté' : 'terminé'}</Chip>}
             </div>
-            <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-              <dt className="text-ink-3">Prises</dt>
+            <dl className="mt-3 grid grid-cols-1 gap-x-4 gap-y-0.5 text-sm sm:grid-cols-[auto_1fr] sm:gap-y-2">
+              <dt className="mt-2 text-ink-3 first:mt-0 sm:mt-0">Prises</dt>
               <dd>
                 {m.schedule.length
                   ? m.schedule.map((s) => `${s.time.replace(':', ' h ')}${s.qty ? ` (${s.qty})` : ''}`).join(' · ')
                   : 'Sans horaire fixe : pas de suivi ni de rappel quotidien'}
               </dd>
-              <dt className="text-ink-3">Période</dt>
+              <dt className="mt-2 text-ink-3 first:mt-0 sm:mt-0">Période</dt>
               <dd>{period(m)}</dd>
               {m.stopReason && (
                 <>
-                  <dt className="text-ink-3">Motif d’arrêt</dt>
+                  <dt className="mt-2 text-ink-3 first:mt-0 sm:mt-0">Motif d’arrêt</dt>
                   <dd>{m.stopReason}</dd>
                 </>
               )}
-              <dt className="text-ink-3">Prescrit par</dt>
+              <dt className="mt-2 text-ink-3 first:mt-0 sm:mt-0">Prescrit par</dt>
               <dd>{m.prescriber ?? 'Non précisé'}</dd>
             </dl>
             <Meta className="mt-3">
@@ -117,7 +121,7 @@ export default async function MedicationPage({
                   puis vérifié et confirmé par l’utilisateur.
                 </>
               ) : (
-                'Traitement recopié de l’ordonnance par l’utilisateur.'
+                'Recopié de l’ordonnance.'
               )}{' '}
               BILANX ne le modifie jamais et ne propose aucune dose.
             </Meta>
@@ -125,10 +129,10 @@ export default async function MedicationPage({
 
           {active && m.schedule.length > 0 && (
             <Card>
-              <h2 className="font-semibold">Rappels dans l’agenda du téléphone</h2>
-              <p className="mt-1 text-sm text-ink-2">
-                Ajoutez à votre agenda un rappel quotidien à chaque heure de prise{until ? `, jusqu’au ${dateFr(until)} inclus` : ''}. C’est votre agenda qui
-                déclenche l’alerte, même sans ouvrir BILANX. Autre possibilité : les{' '}
+              <CardHeader title="Rappels dans l’agenda du téléphone" />
+              <p className="text-sm text-ink-2">
+                Un rappel par jour à chaque heure de prise{until ? `, jusqu’au ${dateFr(until)} inclus` : ''}, déclenché par votre agenda même sans ouvrir
+                BILANX. Autre possibilité : les{' '}
                 <Link href="/medicaments#rappels" className="text-petrol underline">
                   notifications BILANX
                 </Link>
@@ -139,16 +143,16 @@ export default async function MedicationPage({
               ) : (
                 <>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <a href={`/api/medicaments/${m.id}/ics`} className="inline-flex min-h-11 items-center rounded-xl bg-petrol px-4 font-medium text-on-accent">
-                      ⏰ Ajouter les rappels à mon agenda
+                    <a href={`/api/medicaments/${m.id}/ics`} className={buttonClass({ variant: 'primary', className: 'w-full whitespace-normal text-center sm:w-auto' })}>
+                      <Icon name="calendar" className="size-5" /> Ajouter les rappels à mon agenda
                     </a>
-                    <a href={`/api/medicaments/${m.id}/ics?details=1`} className="inline-flex min-h-11 items-center rounded-xl border border-line px-4 text-sm">
+                    <a href={`/api/medicaments/${m.id}/ics?details=1`} className={buttonClass({ variant: 'secondary', className: 'w-full whitespace-normal text-center sm:w-auto' })}>
                       Avec le nom du médicament
                     </a>
                   </div>
                   <Meta className="mt-2">
-                    Par défaut, le rappel s’intitule « Prise de traitement » : votre agenda est souvent synchronisé chez un service tiers. Si le traitement
-                    change ou s’arrête, supprimez les rappels de votre agenda : ils ne se mettent pas à jour automatiquement.
+                    Par défaut, le rappel s’intitule « Prise de traitement », par discrétion. Si le traitement change ou s’arrête, supprimez ces rappels de votre
+                    agenda : ils ne se mettent pas à jour seuls.
                   </Meta>
                 </>
               )}
@@ -157,8 +161,8 @@ export default async function MedicationPage({
 
           {m.history.length > 0 && (
             <Card>
-              <h2 className="font-semibold">Prescriptions précédentes</h2>
-              <ol className="mt-3 flex flex-col gap-3 border-l-2 border-line pl-4">
+              <CardHeader title="Prescriptions précédentes" />
+              <ol className=" flex flex-col gap-3 border-l-2 border-line pl-4">
                 {m.history.map((h) => (
                   <li key={h.id} className="relative">
                     <span className="absolute -left-[23px] top-1.5 size-3 rounded-full bg-ink-3" aria-hidden />
@@ -178,7 +182,7 @@ export default async function MedicationPage({
         </div>
 
         {canWrite && (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             {m.status === 'active' && (
               <Section title="Le médecin a changé la prescription">
                 <MedicationForm initial={defaults} mode="change" today={today} />
@@ -192,14 +196,15 @@ export default async function MedicationPage({
             <Section title="Corriger une erreur de saisie">
               <MedicationForm initial={defaults} mode="edit" today={today} />
             </Section>
-            <Section title="Supprimer cette saisie">
-              <p className="text-sm text-ink-2">À utiliser seulement pour une saisie erronée. Pour un traitement arrêté, préférez « Le traitement est arrêté » : l’historique est conservé.</p>
-              <form action={deleteMedicationAction} className="mt-3">
-                <input type="hidden" name="id" value={m.id} />
-                <button type="submit" className="min-h-11 rounded-xl bg-red-2 px-4 text-sm font-medium text-red">
-                  Supprimer définitivement de la liste
-                </button>
-              </form>
+            <Section title="Supprimer ce médicament">
+              <p className="text-sm text-ink-2">Seulement pour une erreur de saisie. Pour un traitement arrêté, choisissez plutôt « Le traitement est arrêté » : l’historique est conservé.</p>
+              <ConfirmDelete
+                action={deleteMedicationAction}
+                fields={{ id: m.id }}
+                className="mt-2 -ml-3"
+                confirmLabel="Confirmer la suppression"
+                question="Ce médicament sera retiré de la liste."
+              />
             </Section>
           </div>
         )}

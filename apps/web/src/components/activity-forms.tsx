@@ -4,6 +4,7 @@ import { useActionState, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addStepsAction, setStepsGoalAction, type FormState } from '@/lib/server/actions';
 import { Alert, SubmitButton } from './forms';
+import { buttonClass } from './ui';
 
 export function AppleHealthImport() {
   const input = useRef<HTMLInputElement>(null);
@@ -18,7 +19,7 @@ export function AppleHealthImport() {
       if (!j.ok) setState({ busy: false, error: j.error ?? 'Import impossible.' });
       else {
         const f = (d?: string) => (d ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${d}T12:00:00Z`)) : '');
-        setState({ busy: false, ok: `${j.days} jour(s) importé(s), du ${f(j.from)} au ${f(j.to)}. Sources : ${j.sources?.join(', ')}.` });
+        setState({ busy: false, ok: `${j.days} ${j.days === 1 ? 'jour importé' : 'jours importés'}, du ${f(j.from)} au ${f(j.to)}. Sources : ${j.sources?.join(', ')}.` });
         router.refresh();
       }
     } catch {
@@ -30,17 +31,17 @@ export function AppleHealthImport() {
       {state.error && <Alert tone="error">{state.error}</Alert>}
       {state.ok && <Alert tone="success">{state.ok}</Alert>}
       <input ref={input} type="file" accept=".zip,.xml,application/zip,text/xml" hidden onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-      <button type="button" disabled={state.busy} onClick={() => input.current?.click()} className="min-h-12 rounded-xl bg-petrol px-4 font-semibold text-on-accent disabled:opacity-60">
+      <button type="button" disabled={state.busy} onClick={() => input.current?.click()} className={buttonClass({ variant: 'primary', className: 'w-full whitespace-normal py-2 text-center' })}>
         {state.busy ? 'Import en cours… (plusieurs minutes pour un gros export)' : 'Importer l’export Apple Santé (export.zip)'}
       </button>
       <details className="text-sm text-ink-2">
-        <summary className="cursor-pointer text-petrol">Comment obtenir ce fichier sur l’iPhone ?</summary>
+        <summary className="flex min-h-11 cursor-pointer items-center text-petrol">Comment obtenir ce fichier sur l’iPhone ?</summary>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
-          <li>Ouvrez l’app Santé, touchez votre photo de profil en haut à droite.</li>
-          <li>Touchez « Exporter toutes les données de santé », puis « Exporter ».</li>
+          <li>Ouvrez l’app Santé, appuyez sur votre photo de profil en haut à droite.</li>
+          <li>Appuyez sur « Exporter toutes les données de santé », puis sur « Exporter ».</li>
           <li>Enregistrez le fichier export.zip (Fichiers ou AirDrop vers votre ordinateur), puis importez-le ici.</li>
         </ol>
-        <p className="mt-2 text-xs text-ink-3">
+        <p className="mt-2 text-[13px] text-ink-3">
           Seuls les nombres de pas sont lus ; le reste de l’export est ignoré et le fichier n’est pas conservé. Un nouvel import met à jour les
           jours concernés sans doubler les pas.
         </p>
@@ -55,7 +56,7 @@ export function GoalForm({ goal }: { goal: number }) {
     <form action={action} className="flex flex-wrap items-end gap-2" key={state.attempt ?? 'initial'}>
       <label className="flex flex-col gap-1 text-sm font-medium">
         Objectif quotidien
-        <input name="goal" inputMode="numeric" defaultValue={goal} className="min-h-11 w-36 rounded-xl border border-line bg-surface px-3" />
+        <input name="goal" inputMode="numeric" defaultValue={goal} className="min-h-12 w-36 rounded-xl border border-line bg-surface px-3" />
       </label>
       <div className="w-36">
         <SubmitButton pendingLabel="…">Enregistrer</SubmitButton>
@@ -71,12 +72,12 @@ export function ManualStepsForm({ today, defaultDay }: { today: string; defaultD
   const [state, action] = useActionState(addStepsAction, {} as FormState);
   return (
     <form action={action} className="flex flex-col gap-3" key={state.attempt ?? 'initial'}>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="flex flex-col gap-1 text-sm font-medium">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Jour
-          <input type="date" name="day" required max={today} defaultValue={state.values?.day ?? defaultDay} className="min-h-11 rounded-xl border border-line bg-surface px-3" />
+          <input type="date" name="day" required max={today} defaultValue={state.values?.day ?? defaultDay} className="min-h-12 w-full rounded-xl border border-line bg-surface px-3" />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Nombre de pas
           <input
             name="steps"
@@ -86,7 +87,7 @@ export function ManualStepsForm({ today, defaultDay }: { today: string; defaultD
             placeholder="ex. 8 500"
             defaultValue={state.values?.steps}
             aria-invalid={!!state.errors?.form}
-            className="tabular min-h-11 rounded-xl border border-line bg-surface px-3"
+            className="tabular min-h-12 w-full rounded-xl border border-line bg-surface px-3"
           />
         </label>
       </div>

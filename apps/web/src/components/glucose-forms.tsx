@@ -7,7 +7,7 @@ import { SubmitButton } from './forms';
 
 const EX: Record<GlucoseUnit, string> = { 'mg/dL': 'ex. 110', 'g/L': 'ex. 1,10', 'mmol/L': 'ex. 6,1' };
 
-/** Glycémie capillaire (lecteur au bout du doigt), saisie dans l'unité d'affichage du profil. */
+/** Glycémie du lecteur (au bout du doigt), saisie dans l'unité d'affichage du profil. */
 export function GlucoseEntryForm({ unit, today, defaultDate, defaultTime }: { unit: GlucoseUnit; today: string; defaultDate: string; defaultTime: string }) {
   const [state, action] = useActionState(addGlucoseAction, {} as FormState);
   const fe = state.fieldErrors ?? {};
@@ -35,13 +35,13 @@ export function GlucoseEntryForm({ unit, today, defaultDate, defaultTime }: { un
           </span>
         )}
       </label>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="flex flex-col gap-1 text-sm font-medium">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Jour
           <input type="date" name="date" required max={today} defaultValue={v.date ?? defaultDate} aria-invalid={!!fe.date} className={input} />
           {fe.date && <span className="text-sm font-normal text-red">{fe.date}</span>}
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Heure
           <input type="time" name="time" required defaultValue={v.time ?? defaultTime} aria-invalid={!!fe.time} className={input} />
           {fe.time && <span className="text-sm font-normal text-red">{fe.time}</span>}
@@ -50,7 +50,7 @@ export function GlucoseEntryForm({ unit, today, defaultDate, defaultTime }: { un
       <label className="flex flex-col gap-1 text-sm font-medium">
         Moment (facultatif)
         <select name="context" defaultValue={v.context ?? ''} className={input}>
-          <option value="">—</option>
+          <option value="">Non précisé</option>
           {Object.entries(GLUCOSE_CONTEXTS).map(([k, l]) => (
             <option key={k} value={k}>
               {l}

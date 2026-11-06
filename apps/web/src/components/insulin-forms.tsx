@@ -34,7 +34,7 @@ export function DoseForm({ products, today, nowTime }: { products: ProductOption
     <form action={action} className="flex flex-col gap-3.5" key={state.attempt ?? 'initial'}>
       {state.ok && <Alert tone="success">{state.message}</Alert>}
       {state.errors?.form && !state.ok && <Alert tone="error">{state.errors.form}</Alert>}
-      <label className="flex flex-col gap-1 text-sm font-medium">
+      <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
         Insuline
         <select name="productId" defaultValue={v.productId ?? products[0]?.id ?? ''} className={cls(fe.productId)}>
           {products.map((p) => (
@@ -45,18 +45,18 @@ export function DoseForm({ products, today, nowTime }: { products: ProductOption
         </select>
         <Err msg={fe.productId} />
       </label>
-      <label className="flex flex-col gap-1 text-sm font-medium">
+      <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
         Dose injectée (unités)
         <input name="units" inputMode="decimal" autoComplete="off" defaultValue={v.units} placeholder="ex. 4" className={`${cls(fe.units)} tabular text-lg font-semibold`} />
         <Err msg={fe.units} />
       </label>
-      <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1 text-sm font-medium">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Date
           <input type="date" name="date" defaultValue={v.date ?? today} className={cls(fe.date)} />
           <Err msg={fe.date} />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Heure
           <input type="time" name="time" defaultValue={v.time ?? nowTime} className={cls(fe.time)} />
           <Err msg={fe.time} />
@@ -69,14 +69,14 @@ export function DoseForm({ products, today, nowTime }: { products: ProductOption
           ['planned', 'Prévue'],
           ['skipped', 'Sautée'],
         ].map(([val, label]) => (
-          <label key={val} className="flex items-center gap-2">
+          <label key={val} className="flex min-h-11 items-center gap-2">
             <input type="radio" name="status" value={val} defaultChecked={(v.status ?? 'taken') === val} className="size-5 accent-[var(--petrol)]" />
             {label}
           </label>
         ))}
       </fieldset>
-      <label className="flex flex-col gap-1 text-sm font-medium">
-        Commentaire <span className="font-normal text-ink-3">(facultatif)</span>
+      <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
+        <span>Commentaire <span className="font-normal text-ink-3">(facultatif)</span></span>
         <input name="comment" maxLength={300} defaultValue={v.comment} className={cls(fe.comment)} />
       </label>
       {state.duplicate && (
@@ -86,7 +86,7 @@ export function DoseForm({ products, today, nowTime }: { products: ProductOption
         </label>
       )}
       <SubmitButton pendingLabel="Enregistrement…">Noter l’injection</SubmitButton>
-      <p className="text-xs text-ink-3">BILANX enregistre ce que vous déclarez. Il ne calcule ni ne propose aucune dose.</p>
+      <p className="text-[13px] text-ink-3">BILANX ne propose aucune dose : c’est votre médecin qui décide.</p>
     </form>
   );
 }
@@ -97,12 +97,12 @@ export function ProductForm() {
     <form action={action} className="flex flex-col gap-3" key={state.attempt ?? 'initial'}>
       {state.ok && <Alert tone="success">{state.message}</Alert>}
       {state.errors?.form && !state.ok && <Alert tone="error">{state.errors.form}</Alert>}
-      <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
-        <label className="flex flex-col gap-1 text-sm font-medium">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_200px]">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Nom (tel qu’écrit sur le stylo ou l’ordonnance)
           <input name="name" maxLength={80} defaultValue={state.ok ? '' : state.values?.name} className={cls()} />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Type
           <select name="type" defaultValue={state.ok ? 'rapid' : (state.values?.type ?? 'rapid')} className={cls()}>
             {Object.entries(INSULIN_TYPES).map(([k, l]) => (
@@ -128,8 +128,8 @@ export function ChangeForm({ products, today }: { products: ProductOption[]; tod
     <form action={action} className="flex flex-col gap-3" key={state.attempt ?? 'initial'}>
       {state.ok && <Alert tone="success">{state.message}</Alert>}
       {state.errors?.form && !state.ok && <Alert tone="error">{state.errors.form}</Alert>}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm font-medium">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Insuline concernée
           <select name="subject" defaultValue={v.subject ?? (products[0] ? `insulin:${products[0].id}` : '')} className={cls(fe.subject)}>
             {products.map((p) => (
@@ -140,31 +140,31 @@ export function ChangeForm({ products, today }: { products: ProductOption[]; tod
           </select>
           <Err msg={fe.subject} />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Date d’effet
           <input type="date" name="effectiveDate" defaultValue={v.effectiveDate ?? today} className={cls(fe.effectiveDate)} />
           <Err msg={fe.effectiveDate} />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          Avant <span className="font-normal text-ink-3">(facultatif)</span>
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
+          <span>Avant <span className="font-normal text-ink-3">(facultatif)</span></span>
           <input name="previousRegimen" maxLength={200} defaultValue={v.previousRegimen} placeholder="ex. 18 U le soir" className={cls(fe.previousRegimen)} />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Nouvelle prescription
           <input name="newRegimen" maxLength={200} defaultValue={v.newRegimen} placeholder="ex. 16 U le soir" className={cls(fe.newRegimen)} />
           <Err msg={fe.newRegimen} />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          Prescrit par <span className="font-normal text-ink-3">(facultatif)</span>
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
+          <span>Prescrit par <span className="font-normal text-ink-3">(facultatif)</span></span>
           <input name="prescribedBy" maxLength={120} defaultValue={v.prescribedBy} placeholder="ex. Dr Martin, endocrinologue" className={cls()} />
         </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          Objectif défini avec le médecin <span className="font-normal text-ink-3">(facultatif)</span>
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
+          <span>Objectif défini avec le médecin <span className="font-normal text-ink-3">(facultatif)</span></span>
           <input name="goalNote" maxLength={500} defaultValue={v.goalNote} className={cls(fe.goalNote)} />
         </label>
       </div>
       <div className="sm:w-72">
-        <SubmitButton pendingLabel="Enregistrement…">Enregistrer la modification prescrite</SubmitButton>
+        <SubmitButton pendingLabel="Enregistrement…">Enregistrer le changement</SubmitButton>
       </div>
     </form>
   );

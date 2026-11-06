@@ -101,4 +101,26 @@ describe.skipIf(!TEST_DB)('lecture d’une ordonnance (PostgreSQL réel)', () =>
     // Déjà validée : impossible de recommencer (pas de doublons).
     expect(await docs.reviewPrescription(jo, pid, docId, { decisions })).toMatchObject({ ok: false });
   });
+
+  it('bilan déposé comme ordonnance : signalé, puis rangé comme bilan et relu', async () => {
+    const r = await docs.upload(jo, pid, [{ name: 'bilan.pdf', data: fx('bilan-fictif.pdf') }], { kind: 'prescription' });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const before = (await docs.get(jo, pid, r.documentId))!;
+    expect(before.document.kind).toBe('prescription');
+    expect(before.job!.warnings).toEqual(expect.arrayContaining([{ code: 'looks_like_lab_report' }]));
+    // Titres et lignes de résultats ne sont plus proposés comme traitements.
+    expect(before.medicationDrafts).toEqual([]);
+
+    // Identifiant inconnu : refusé.
+    expect(await docs.reclassifyAsLabReport(jo, pid, '00000000-0000-0000-0000-000000000000')).toEqual({ ok: false, error: 'Document introuvable.' });
+
+    ctx.advance(1); // la nouvelle lecture est postérieure à la première
+    expect(await docs.reclassifyAsLabReport(jo, pid, r.documentId)).toEqual({ ok: true, status: 'to_review', drafts: 7 });
+    const after = (await docs.get(jo, pid, r.documentId))!;
+    expect(after.document).toMatchObject({ kind: 'lab_report', kind_by_user: true });
+    expect(after.job!.status).toBe('to_review');
+    expect(after.drafts).toHaveLength(7);
+    expect(after.medicationDrafts).toEqual([]);
+  });
 });

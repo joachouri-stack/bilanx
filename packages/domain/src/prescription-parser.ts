@@ -52,6 +52,7 @@ const END = String.raw`(?![\p{L}\d])`;
 const QTY_RE = new RegExp(String.raw`(?<![\p{L}\d])((?:\d+(?:[.,]\d+)?|½|1\/2|un|une|deux|trois|quatre)\s*(?:${FORM_WORDS}))${END}`, 'iu');
 /** Lignes d'en-tête ou de pied d'ordonnance, jamais des médicaments. */
 const NOT_A_DRUG = /^(dr|docteur|pr|professeur|madame|monsieur|mme|m\.|mlle|ordonnance|rpps|adeli|finess|signature|renouvel|qsp|tél|tel|fax|cabinet|centre|hôpital|médecine|né|nee|née|date|patient|poids|âge|age|à renouveler|ald|bizone|duplicata)\b/i;
+const FORM_RE = new RegExp(String.raw`(?<![\p{L}\d])(?:${FORM_WORDS})${END}`, 'iu');
 const POSOLOGY_HINT = new RegExp(String.raw`${QTY_RE.source}|\bfois par\b|\bpar (?:jour|semaine|mois)\b|\b(?:matin|midi|soir|coucher)\b|\bsi (?:besoin|douleur|fièvre)${END}|\bpendant\b`, 'iu');
 
 /** Heures proposées pour les moments cités, dans l'ordre de la journée. */
@@ -107,7 +108,7 @@ function endFromDuration(posology: string, start: string | null): { end: string;
 }
 
 /** Ligne de médicament : nom (majuscules, ou nom suivi d'un dosage) puis éventuellement la posologie. */
-function drugHead(text: string): { name: string; strength: string | null; rest: string } | null {
+function drugHead(text: string): { name: string; strength: string | null; rest: string; labValue?: boolean } | null {
   const t = text.trim().replace(/^[-•*·\d.)\s]+(?=\p{L})/u, '');
   if (NOT_A_DRUG.test(t) || /^\d/.test(t)) return null;
   const withStrength = new RegExp(String.raw`^([\p{L}][\p{L}'’\-]+(?:\s+[\p{L}][\p{L}0-9'’\-]*){0,3}?)\s+(${STRENGTH})(.*)$`, 'u').exec(t);
@@ -115,6 +116,8 @@ function drugHead(text: string): { name: string; strength: string | null; rest: 
     const name = withStrength[1]!.trim();
     // Nom en minuscules sans dosage reconnu : trop incertain (texte courant).
     if (!/^\p{Lu}/u.test(name)) return null;
+    // « 1,32 g/L », « 25 µg/L » : concentration d'un résultat d'analyse, pas un dosage de médicament.
+    if (/^\s*\/\s*\p{L}/u.test(withStrength[3]!)) return { name, strength: null, rest: withStrength[3]!.trim(), labValue: true };
     return { name, strength: withStrength[2]!.replace(/\s+/g, ' ').replace(/U\.?I\.?$/i, 'UI'), rest: withStrength[3]!.trim() };
   }
   const upper = /^((?:[\p{Lu}][\p{Lu}'’\-]{2,})(?:\s+[\p{Lu}][\p{Lu}0-9'’\-]*){0,3})(?=[\s,.:;]|$)(.*)$/u.exec(t);
@@ -145,6 +148,12 @@ export function parsePrescription(lines: PrescriptionLine[], fallbackStart?: str
     const joined = parts.filter(Boolean).join(' — ');
     const hint = POSOLOGY_HINT.exec(joined);
     const posology = hint ? joined.slice(hint.index).replace(/^—\s*/, '').trim() : '';
+    // Titre de rubrique ou ligne de bilan (« Biochimie », « Laboratoire De Biologie Médicale », « Glycémie à jeun 1,32 g/L ») :
+    // ni dosage, ni forme, ni posologie → ce n'est pas un médicament.
+    if (head.labValue || (!head.strength && !posology && !FORM_RE.test(lines[i]!.text))) {
+      i = used.at(-1)!;
+      continue;
+    }
     const checks: PrescriptionCheck[] = [];
     const conf = used.map((k) => lines[k]!.confidence).filter((c): c is number => c !== undefined);
     const confidence = conf.length ? Math.min(...conf) : null;
