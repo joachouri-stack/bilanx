@@ -944,20 +944,19 @@ export function DocumentsCard({ docs }: { docs: DashboardDocs }) {
           const n = docs.counts[s.key] ?? 0;
           return (
             <li key={s.key} className="min-w-0">
+              {/* Ordre de lecture : libellé puis nombre (« Ordonnances 3 documents ») ; à l'écran, le nombre est en haut à droite. */}
               <Link
                 href={s.href}
-                aria-label={`${s.label} : ${n ? `${n} document${n > 1 ? 's' : ''}` : 'aucun document'}`}
-                className="flex h-full min-h-14 flex-col gap-2 rounded-xl border border-line p-3 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-petrol"
+                className="grid h-full min-h-14 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-2 rounded-xl border border-line p-3 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-petrol"
               >
-                <span className="flex items-start justify-between gap-2">
-                  <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${SHORTCUT_TONES[s.tone]}`} aria-hidden>
-                    <DocIcon name={s.icon} className="size-5" />
-                  </span>
-                  <span data-count className={`text-[13px] ${n ? 'tabular font-semibold text-ink-2' : 'text-ink-3'}`}>
-                    {n || 'Aucun'}
-                  </span>
+                <span className={`col-start-1 row-start-1 grid size-10 place-items-center rounded-lg ${SHORTCUT_TONES[s.tone]}`} aria-hidden>
+                  <DocIcon name={s.icon} className="size-5" />
                 </span>
-                <span className="truncate whitespace-nowrap break-normal font-semibold leading-5">{s.label}</span>
+                <span className="col-span-2 row-start-2 truncate whitespace-nowrap break-normal font-semibold leading-5">{s.label}</span>
+                <span data-count className={`col-start-2 row-start-1 justify-self-end text-[13px] ${n ? 'tabular font-semibold text-ink-2' : 'text-ink-3'}`}>
+                  {n || 'Aucun'}
+                  {n > 0 && <span className="sr-only">{n > 1 ? ' documents' : ' document'}</span>}
+                </span>
               </Link>
             </li>
           );
