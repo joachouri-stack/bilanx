@@ -50,24 +50,31 @@ export default async function DashboardPage() {
   if (lastA1c) {
     const f = formatHba1c(lastA1c.percent, A1C);
     const prevA1c = data.hba1c.at(-2);
+    let subTone: HeroItem['subTone'];
     let sub = `Le ${new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, day: 'numeric', month: 'short' }).format(lastA1c.sampledAt)}`;
     if (prevA1c) {
       const d = Math.round((lastA1c.percent - prevA1c.percent) * 10) / 10;
-      sub = d === 0 ? 'Stable' : `${d < 0 ? '↓' : '↑'} ${String(Math.abs(d)).replace('.', ',')}\u00a0pt`;
+      sub = d === 0 ? '→ Stable' : `${d < 0 ? '↓' : '↑'} ${String(Math.abs(d)).replace('.', ',')}\u00a0pt`;
+      // Baisse = vert, hausse = rouge, stable = orange.
+      subTone = d < 0 ? 'ok' : d > 0 ? 'out' : 'mid';
     }
-    heroItems.push({ icon: 'flask', label: 'HbA1c', value: f.value, unit: f.unit, sub, href: '/analyses/hba1c' });
+    heroItems.push({ icon: 'flask', label: 'HbA1c', value: f.value, unit: f.unit, sub, subTone, href: '/analyses/hba1c' });
   }
   // Glycémie : moyenne du lecteur sur 7 jours ; à défaut, celle du capteur sur 14 jours.
   const gMean = data.meter?.mean7 ?? data.sensor?.stats14.mean ?? null;
   if (gMean != null) {
-    const dot = gMean < 70 ? 'low' : gMean > 180 ? 'high' : 'ok';
+    // Vert : dans la plage 70–180 ; orange : entre les deux (54–69 ou 181–250) ; rouge : hors plage (< 54 ou > 250).
+    const dot = gMean >= 70 && gMean <= 180 ? 'ok' : gMean >= 54 && gMean <= 250 ? 'mid' : 'out';
     heroItems.push({
       icon: 'drop',
       label: 'Glycémie',
       value: formatGlucose(gMean, UNIT),
       sub: `${UNIT} · ${data.meter?.mean7 != null ? '7 j' : '14 j'}`,
       dot,
-      dotLabel: dot === 'ok' ? 'Moyenne dans la cible' : dot === 'high' ? 'Moyenne trop haute' : 'Moyenne trop basse',
+      dotLabel:
+        dot === 'ok'
+          ? 'Moyenne dans la plage'
+          : `Moyenne ${dot === 'mid' ? 'un peu ' : ''}${gMean > 180 ? 'au-dessus' : 'en dessous'} de la plage`,
       href: data.meter?.mean7 != null ? '/glycemie?periode=7' : '/glycemie?periode=14',
     });
   }

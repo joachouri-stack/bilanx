@@ -319,13 +319,16 @@ export interface HeroItem {
   unit?: string;
   /** Ligne d'information sous le chiffre (évolution, statut, date). */
   sub?: string;
+  /** Couleur de la ligne d'information (évolution HbA1c) : vert, orange, rouge. */
+  subTone?: 'ok' | 'mid' | 'out';
   /** Point de couleur en haut à droite (statut de la glycémie) et son libellé pour les lecteurs d'écran. */
-  dot?: 'ok' | 'high' | 'low';
+  dot?: 'ok' | 'mid' | 'out';
   dotLabel?: string;
   href: string;
 }
 
-const HERO_DOT: Record<NonNullable<HeroItem['dot']>, string> = { ok: 'bg-sage', high: 'bg-amber', low: 'bg-red' };
+const HERO_DOT: Record<NonNullable<HeroItem['dot']>, string> = { ok: 'bg-go', mid: 'bg-amber', out: 'bg-red' };
+const HERO_SUB: Record<NonNullable<HeroItem['subTone']>, string> = { ok: 'text-go', mid: 'text-amber', out: 'text-red' };
 /** Couleur de chaque pastille (liseré du haut, rond de l'icône). */
 const HERO_TONE: Record<string, { bar: string; chip: string }> = {
   flask: { bar: 'var(--petrol)', chip: 'bg-petrol-2 text-petrol' },
@@ -365,12 +368,14 @@ export function DashboardHero({ title, subtitle, items }: { title: string; subti
                       <span className="text-[26px] font-bold tracking-tight sm:text-3xl">{it.value}</span>
                       {it.unit && <span className="ml-1 text-[13px] font-medium text-ink-3">{it.unit}</span>}
                       {it.dot && (
-                        <span className={`ml-1.5 inline-block size-2.5 -translate-y-1 rounded-full ${HERO_DOT[it.dot]}`} title={it.dotLabel}>
+                        <span className={`ml-1.5 inline-block size-3 -translate-y-1 rounded-full ${HERO_DOT[it.dot]}`} title={it.dotLabel}>
                           <span className="sr-only">{it.dotLabel}</span>
                         </span>
                       )}
                     </span>
-                    {it.sub && <span className="mt-1.5 block truncate text-[12px] font-medium leading-tight text-ink-2">{it.sub}</span>}
+                    {it.sub && (
+                      <span className={`mt-1.5 block truncate text-[12px] leading-tight ${it.subTone ? `font-bold ${HERO_SUB[it.subTone]}` : 'font-medium text-ink-2'}`}>{it.sub}</span>
+                    )}
                   </span>
                 </Link>
               </li>

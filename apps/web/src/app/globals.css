@@ -12,6 +12,7 @@
   --petrol-2: #e3eef0;
   --sage: #4f725e;
   --sage-2: #e7f0ea;
+  --go: #1e7a3c;
   --glucose: #2565d3;
   --glucose-2: #e6eefb;
   --amber: #9c5d1d;
@@ -41,6 +42,7 @@
     --petrol-2: #173a41;
     --sage: #8dbfa0;
     --sage-2: #1c3327;
+    --go: #5cd38a;
     --glucose: #7aa7f2;
     --glucose-2: #1a2a44;
     --amber: #e9a462;
@@ -68,6 +70,7 @@
   --color-petrol-2: var(--petrol-2);
   --color-sage: var(--sage);
   --color-sage-2: var(--sage-2);
+  --color-go: var(--go);
   --color-glucose: var(--glucose);
   --color-glucose-2: var(--glucose-2);
   --color-amber: var(--amber);
