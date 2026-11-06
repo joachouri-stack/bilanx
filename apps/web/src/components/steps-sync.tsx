@@ -116,24 +116,30 @@ export function StepsSync({ endpoint, tokens }: { endpoint: string; tokens: Step
           </li>
           <li>
             Choisissez <strong>Heure de la journée</strong> : <strong>22:00</strong>, <strong>Quotidiennement</strong>, et cochez <strong>Exécuter immédiatement</strong>.
-            Touchez <strong>Suivant</strong>, puis <strong>Nouveau raccourci vide</strong>.
+            Touchez <strong>Suivant</strong>, puis <strong>Nouveau raccourci vide</strong>. Si l’iPhone propose « Décrire un raccourci », touchez plutôt{' '}
+            <strong>Modifier</strong> (en haut à droite).
           </li>
           <li>
-            Ajoutez l’action <strong>Rechercher des échantillons de santé</strong> :
+            Dans la barre <strong>Rechercher</strong> en bas, tapez <strong>Santé</strong> et choisissez{' '}
+            <strong>Rechercher des échantillons de l’app Santé</strong> (cœur rose), puis <strong>Autoriser l’accès</strong> au nombre de pas :
             <ul className="mt-1 list-disc pl-5 text-ink-2">
               <li>
-                Type : <strong className="text-ink">Nombre de pas</strong>
+                Type : <strong className="text-ink">Nombre de pas</strong> (ou « Steps »)
               </li>
               <li>
-                Filtre : <strong className="text-ink">Date de début</strong> est <strong className="text-ink">aujourd’hui</strong>
+                Date de début : <strong className="text-ink">est aujourd’hui</strong>
               </li>
               <li>
                 Grouper par : <strong className="text-ink">Jour</strong> (indispensable : évite de compter deux fois iPhone et Apple Watch)
               </li>
+              <li>
+                Fichier manquant : <strong className="text-ink">désactivé</strong> (gris)
+              </li>
             </ul>
           </li>
           <li>
-            Ajoutez l’action <strong>Obtenir le contenu de l’URL</strong> :
+            Dans la barre <strong>Rechercher</strong>, tapez <strong>URL</strong> et choisissez <strong>Obtenir le contenu de l’URL</strong>. Touchez le
+            petit rond bleu à côté de l’adresse pour voir les options :
             <ul className="mt-1 list-disc pl-5 text-ink-2">
               <li>
                 URL : collez l’<strong className="text-ink">adresse d’envoi</strong>
@@ -147,7 +153,8 @@ export function StepsSync({ endpoint, tokens }: { endpoint: string; tokens: Step
               </li>
               <li>
                 Corps de la requête : <strong className="text-ink">JSON</strong>, ajoutez un champ <strong className="text-ink">Texte</strong> nommé{' '}
-                <strong className="text-ink">pas</strong>, valeur : la variable <strong className="text-ink">Échantillons de santé</strong>
+                <strong className="text-ink">pas</strong> (à gauche) ; dans la case <strong className="text-ink">Texte</strong> (à droite), touchez la variable{' '}
+                <strong className="text-ink">❤️ Échantillons de santé</strong> au-dessus du clavier
               </li>
             </ul>
           </li>
