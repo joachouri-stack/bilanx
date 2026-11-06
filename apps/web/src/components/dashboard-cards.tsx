@@ -946,21 +946,15 @@ export function DocumentsCard({ docs }: { docs: DashboardDocs }) {
             <li key={s.key} className="min-w-0">
               <Link
                 href={s.href}
+                aria-label={`${s.label} : ${n ? `${n} document${n > 1 ? 's' : ''}` : 'aucun document'}`}
                 className="flex h-full min-h-14 flex-col gap-2 rounded-xl border border-line p-3 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-petrol"
               >
                 <span className="flex items-start justify-between gap-2">
                   <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${SHORTCUT_TONES[s.tone]}`} aria-hidden>
                     <DocIcon name={s.icon} className="size-5" />
                   </span>
-                  <span className={`text-[13px] ${n ? 'tabular font-semibold text-ink-2' : 'text-ink-3'}`}>
-                    {n ? (
-                      <>
-                        {n}
-                        <span className="sr-only"> {n > 1 ? 'documents' : 'document'}</span>
-                      </>
-                    ) : (
-                      'Aucun'
-                    )}
+                  <span data-count className={`text-[13px] ${n ? 'tabular font-semibold text-ink-2' : 'text-ink-3'}`}>
+                    {n || 'Aucun'}
                   </span>
                 </span>
                 <span className="truncate whitespace-nowrap break-normal font-semibold leading-5">{s.label}</span>
