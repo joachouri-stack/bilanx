@@ -223,7 +223,7 @@ function WeekRow({ week, set, todayIso, canWrite }: { week: GymMonthWeek; set: S
         );
       })}
       <span aria-hidden className={`text-center text-[13px] font-semibold tabular ${countTone}`}>
-        {week.count}/{GYM_WEEKLY_GOAL}
+        {week.future ? '' : `${week.count}/${GYM_WEEKLY_GOAL}`}
       </span>
     </div>
   );
@@ -283,11 +283,11 @@ function YearView({
           return (
             <li key={key}>
               {future ? (
-                <div className="card block p-4 opacity-50">{body}</div>
+                <div className="card block h-full p-4 opacity-50">{body}</div>
               ) : (
                 <Link
                   href={monthHref(year, i + 1)}
-                  className="card block p-4 transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-petrol"
+                  className="card block h-full p-4 transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-petrol"
                 >
                   {body}
                 </Link>
