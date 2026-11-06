@@ -157,7 +157,7 @@ function MonthView({
         </div>
       </section>
       <Meta className="mt-3 max-w-xl">
-        {canWrite ? 'Touchez un jour pour cocher ou décocher une séance. ' : isDemo ? 'Démonstration : données fictives, en lecture seule. ' : 'Lecture seule. '}
+        {canWrite ? 'Appuyez sur un jour pour cocher ou décocher une séance. ' : isDemo ? 'Démonstration : données fictives, en lecture seule. ' : 'Lecture seule. '}
         Trait vert : objectif atteint (3 séances ou plus dans la semaine) ; trait rouge : moins de 3.
       </Meta>
 
