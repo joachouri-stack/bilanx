@@ -72,8 +72,9 @@ export function GlucoseDayChart(p: Props) {
     return () => ro.disconnect();
   }, []);
   useEffect(() => {
-    const mq = window.matchMedia('(pointer: coarse)');
-    const on = () => setCoarse(mq.matches);
+    // Écran tactile : pointeur grossier, pas de survol, ou points de contact (certains navigateurs ne signalent pas « coarse »).
+    const mq = window.matchMedia('(pointer: coarse), (hover: none)');
+    const on = () => setCoarse(mq.matches || navigator.maxTouchPoints > 0);
     on();
     mq.addEventListener('change', on);
     return () => mq.removeEventListener('change', on);

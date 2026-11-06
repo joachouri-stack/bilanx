@@ -211,10 +211,18 @@ export default async function MedicationsPage({ searchParams }: { searchParams: 
                 <p className="mt-3 text-sm text-ink-2">Aucune prise à heure fixe prévue sur cette période.</p>
               ) : (
                 <>
+                  {/* Même base que la barre ci-dessous : toutes les prises prévues de la période. */}
                   <p className="mt-3 flex flex-wrap items-baseline gap-x-1.5">
-                    <span className="tabular text-4xl font-semibold">{f.takenPctOfRecorded === null ? '—' : formatNumberFr(f.takenPctOfRecorded, 0)}</span>
-                    <span className="text-ink-2">% des prises notées ont été faites</span>
+                    <span className="tabular text-4xl font-semibold">{f.taken}</span>
+                    <span className="text-ink-2">
+                      {f.taken > 1 ? 'prises faites' : 'prise faite'} sur {f.planned} {f.planned > 1 ? 'prévues' : 'prévue'}
+                    </span>
                   </p>
+                  {f.takenPctOfRecorded !== null && f.unrecorded > 0 && (
+                    <Meta>
+                      Parmi les prises notées, {formatNumberFr(f.takenPctOfRecorded, 0)} % ont été faites. « Non notée » ne veut pas dire « oubliée ».
+                    </Meta>
+                  )}
                   <div className="my-2 flex h-3 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`${n(f.taken, 'prise', 'prises')}, ${n(f.skipped, 'non prise', 'non prises')}, ${n(f.unrecorded, 'non notée', 'non notées')}`}>
                     <div className="bg-sage" style={{ width: `${(f.taken / f.planned) * 100}%` }} />
                     <div className="bg-amber" style={{ width: `${(f.skipped / f.planned) * 100}%` }} />
