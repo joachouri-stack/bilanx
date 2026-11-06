@@ -698,31 +698,47 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
       </div>
       {gym.streak > 0 && <Meta className="mt-1">{gymPlural(gym.streak, 'semaine')} d’affilée avec l’objectif atteint</Meta>}
 
-      <ol className="mt-4 grid grid-cols-7 gap-1" aria-label="Séances de la semaine en cours">
+      {/* Jours de la semaine : un appui coche ou décoche le jour directement (au-dessus du lien de la carte). */}
+      <ol className="relative z-10 mt-4 grid grid-cols-7 gap-1" aria-label="Séances de la semaine en cours">
         {days.map((d, i) => {
           const isToday = d.date === today;
           const future = d.date > today;
+          const circle = `grid size-10 place-items-center rounded-full transition ${d.done ? 'bg-sage text-on-accent' : future ? 'border-2 border-line opacity-50' : 'border-2 border-line'} ${
+            isToday ? 'ring-2 ring-petrol ring-offset-2 ring-offset-surface' : ''
+          }`;
+          const label = `${gymDayLong(d.date)}${isToday ? ' (aujourd’hui)' : ''}`;
           return (
             <li key={d.date} className="flex flex-col items-center gap-1">
-              <span
-                aria-hidden
-                className={`grid size-9 place-items-center rounded-full ${d.done ? 'bg-sage text-on-accent' : future ? 'border-2 border-line opacity-50' : 'border-2 border-line'} ${
-                  isToday ? 'ring-2 ring-petrol ring-offset-2 ring-offset-surface' : ''
-                }`}
-              >
-                {d.done && <Icon name="check" className="size-5" strokeWidth={2.4} />}
-              </span>
+              {canWrite && !future ? (
+                <form action={toggleGymAction}>
+                  <input type="hidden" name="day" value={d.date} />
+                  <input type="hidden" name="present" value={d.done ? '0' : '1'} />
+                  <GymSubmit
+                    className={`${circle} cursor-pointer hover:border-sage active:scale-95`}
+                    aria-pressed={d.done}
+                    aria-label={`${label} : ${d.done ? 'séance notée, appuyer pour la retirer' : 'appuyer pour noter une séance'}`}
+                  >
+                    {d.done && <Icon name="check" className="size-5" strokeWidth={2.4} />}
+                  </GymSubmit>
+                </form>
+              ) : (
+                <>
+                  <span aria-hidden className={circle}>
+                    {d.done && <Icon name="check" className="size-5" strokeWidth={2.4} />}
+                  </span>
+                  <span className="sr-only">
+                    {label} : {d.done ? 'séance' : future ? 'à venir' : 'pas de séance'}
+                  </span>
+                </>
+              )}
               <span aria-hidden className={`text-[12px] ${isToday ? 'font-semibold text-ink' : 'text-ink-3'}`}>
                 {GYM_WEEKDAYS_SHORT[i]!.replace('.', '')}
-              </span>
-              <span className="sr-only">
-                {gymDayLong(d.date)}
-                {isToday ? ' (aujourd’hui)' : ''} : {d.done ? 'séance' : future ? 'à venir' : 'pas de séance'}
               </span>
             </li>
           );
         })}
       </ol>
+      {canWrite && <Meta className="relative z-10 mt-1 text-center">Appuyez sur un jour pour le cocher ou le décocher.</Meta>}
 
       {canWrite && (
         <div className="relative z-10 mt-4">
