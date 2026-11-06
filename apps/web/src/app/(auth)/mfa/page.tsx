@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { MfaVerifyForm } from '@/components/auth-forms';
 import { requirePendingMfa } from '@/lib/server/auth';
 import { signOutAction } from '@/lib/server/actions';
+import { buttonClass } from '@/components/ui';
 
 export const metadata: Metadata = { title: 'Double authentification' };
 
@@ -12,10 +13,10 @@ export default async function MfaPage() {
   return (
     <>
       <h1 className="font-display text-2xl font-semibold">Double authentification</h1>
-      <p className="mb-5 mt-1 text-sm text-ink-3">Connecté en tant que {s.email}</p>
+      <p className="mb-5 mt-1 text-sm text-ink-2 [overflow-wrap:anywhere]">Connecté en tant que {s.email}</p>
       <MfaVerifyForm />
       <form action={signOutAction} className="mt-4 text-center">
-        <button type="submit" className="text-sm text-ink-3 underline">
+        <button type="submit" className={buttonClass({ variant: 'ghost' })}>
           Annuler et se déconnecter
         </button>
       </form>

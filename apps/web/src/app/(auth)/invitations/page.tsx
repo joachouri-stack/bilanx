@@ -4,6 +4,7 @@ import { MODULES, ROLE_LABELS } from '@bilanx/profiles';
 import { currentSession, profiles } from '@/lib/server/auth';
 import { RespondInvitationForm } from '@/components/family-forms';
 import { Alert } from '@/components/forms';
+import { buttonClass } from '@/components/ui';
 
 export const metadata: Metadata = { title: 'Invitation' };
 
@@ -48,10 +49,10 @@ export default async function InvitationPage({ searchParams }: { searchParams: P
       ) : (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-ink-2">Connectez-vous avec {inv.invitedEmail} pour accepter ou refuser.</p>
-          <Link href={`/connexion?suite=${encodeURIComponent(suite)}`} className="grid min-h-12 place-items-center rounded-xl bg-petrol px-4 font-semibold text-on-accent">
+          <Link href={`/connexion?suite=${encodeURIComponent(suite)}`} className={buttonClass({ variant: 'primary' })}>
             Se connecter
           </Link>
-          <Link href="/inscription" className="text-center text-sm text-petrol underline">
+          <Link href="/inscription" className="inline-flex min-h-11 items-center justify-center text-sm text-petrol underline">
             Je n’ai pas encore de compte
           </Link>
         </div>

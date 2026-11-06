@@ -14,8 +14,11 @@ import {
   type FormState,
 } from '@/lib/server/actions';
 import { Alert, Field, SubmitButton } from './forms';
+import { buttonClass } from './ui';
 
 const initial: FormState = {};
+const consentRow =
+  'flex cursor-pointer gap-3 rounded-xl border border-line p-3.5 text-sm has-[:checked]:border-petrol has-[:checked]:bg-petrol-2 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-petrol';
 
 export function SignUpForm() {
   const [state, action] = useActionState(signUpAction, initial);
@@ -23,10 +26,8 @@ export function SignUpForm() {
     return (
       <div className="flex flex-col gap-4">
         <Alert tone="success">{state.message}</Alert>
-        <p className="text-sm text-ink-3">
-          Environnement de développement : aucun e-mail n’est réellement envoyé, le lien s’affiche dans la console du serveur.
-        </p>
-        <Link href="/connexion" className="text-center font-medium text-petrol underline">
+        {process.env.NODE_ENV !== 'production' && <p className="text-[13px] text-ink-3">Version de développement : le lien s’affiche dans la console du serveur.</p>}
+        <Link href="/connexion" className={buttonClass({ variant: 'secondary' })}>
           Aller à la connexion
         </Link>
       </div>
@@ -45,13 +46,13 @@ export function SignUpForm() {
         hint="12 caractères minimum. Une phrase de plusieurs mots est idéale."
         maxLength={128}
       />
-      <fieldset className="flex flex-col gap-3 rounded-xl border border-line p-3.5">
-        <legend className="px-1 text-sm font-medium">Consentements</legend>
-        <label className="flex gap-3 text-sm">
+      <fieldset className="flex min-w-0 flex-col gap-2">
+        <legend className="mb-2 text-sm font-medium">Consentements</legend>
+        <label className={consentRow}>
           <input type="checkbox" name="consentHealth" className="mt-0.5 size-5 shrink-0 accent-[var(--petrol)]" aria-invalid={!!state.errors?.consent} />
           <span>
-            <strong>Obligatoire.</strong> J’accepte que BILANX enregistre et traite mes données de santé pour me permettre de les
-            consulter et de les suivre. Je peux retirer ce consentement et supprimer mes données à tout moment.
+            <strong>Obligatoire.</strong> J’accepte que BILANX enregistre mes données de santé pour que je puisse les suivre. Je peux supprimer mes
+            données à tout moment.
           </span>
         </label>
         {state.errors?.consent && (
@@ -59,18 +60,18 @@ export function SignUpForm() {
             {state.errors.consent}
           </p>
         )}
-        <label className="flex gap-3 text-sm">
+        <label className={consentRow}>
           <input type="checkbox" name="consentAi" className="mt-0.5 size-5 shrink-0 accent-[var(--petrol)]" />
           <span>
-            <strong>Facultatif.</strong> J’accepte l’extraction automatique par IA des valeurs de mes documents. Chaque valeur me sera
-            soumise pour validation avant tout enregistrement. Sans ce consentement, la saisie reste manuelle.
+            <strong>Facultatif.</strong> J’accepte que BILANX lise automatiquement mes ordonnances et bilans. Je vérifie chaque valeur avant son
+            enregistrement.
           </span>
         </label>
       </fieldset>
       <SubmitButton pendingLabel="Création du compte…">Créer mon compte</SubmitButton>
       <p className="text-center text-sm text-ink-3">
         Déjà inscrit ?{' '}
-        <Link href="/connexion" className="font-medium text-petrol underline">
+        <Link href="/connexion" className="inline-flex min-h-11 items-center font-medium text-petrol underline">
           Se connecter
         </Link>
       </p>
@@ -84,11 +85,11 @@ export function SignUpForm() {
  */
 export function RememberDevice() {
   return (
-    <label className="flex items-start gap-3 text-sm">
+    <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
       <input type="checkbox" name="remember" id="remember-device" defaultChecked className="mt-0.5 size-5 shrink-0 accent-[var(--petrol)]" />
       <span>
         Rester connecté sur cet appareil
-        <span className="block text-xs text-ink-3">Jusqu’à ce que vous vous déconnectiez (90 jours sans visite au plus). À décocher sur un appareil partagé.</span>
+        <span className="block text-[13px] text-ink-3">À décocher sur un appareil partagé.</span>
       </span>
     </label>
   );
@@ -103,22 +104,21 @@ export function SignInForm({ suite }: { suite?: string }) {
       <Field label="Adresse e-mail" name="email" type="email" autoComplete="username" inputMode="email" defaultValue={state.values?.email} autoFocus />
       <Field label="Mot de passe" name="password" type="password" autoComplete="current-password" />
       <RememberDevice />
-      <div className="flex justify-end text-sm">
-        <Link href="/mot-de-passe-oublie" className="text-petrol underline">
+      <SubmitButton pendingLabel="Connexion…">Se connecter</SubmitButton>
+      <div className="flex flex-col items-center text-sm">
+        <Link href="/mot-de-passe-oublie" className="inline-flex min-h-11 items-center text-petrol underline">
           Mot de passe oublié ?
         </Link>
-      </div>
-      <SubmitButton pendingLabel="Connexion…">Se connecter</SubmitButton>
-      <p className="text-center text-sm text-ink-3">
-        Pas encore de compte ?{' '}
-        <Link href="/inscription" className="font-medium text-petrol underline">
-          Créer un compte
-        </Link>
-        {' · '}
-        <Link href="/verifier-email" className="underline">
+        <p className="text-ink-3">
+          Pas encore de compte ?{' '}
+          <Link href="/inscription" className="inline-flex min-h-11 items-center font-medium text-petrol underline">
+            Créer un compte
+          </Link>
+        </p>
+        <Link href="/verifier-email" className="inline-flex min-h-11 items-center text-ink-2 underline">
           Renvoyer le lien de confirmation
         </Link>
-      </p>
+      </div>
     </form>
   );
 }
@@ -179,12 +179,12 @@ export function TotpConfirmForm({ alreadyEnrolled }: { alreadyEnrolled: boolean 
         </ol>
         <button
           type="button"
-          className="min-h-11 rounded-xl border border-line px-4 font-medium"
+          className={buttonClass({ variant: 'secondary' })}
           onClick={() => navigator.clipboard?.writeText(state.recoveryCodes!.join('\n'))}
         >
           Copier les codes
         </button>
-        <a href="/apres-connexion" className="grid min-h-12 place-items-center rounded-xl bg-petrol px-4 font-semibold text-on-accent">
+        <a href="/apres-connexion" className={buttonClass({ variant: 'primary', className: 'whitespace-normal text-center' })}>
           J’ai conservé mes codes — continuer
         </a>
       </div>

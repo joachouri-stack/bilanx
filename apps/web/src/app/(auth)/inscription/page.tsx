@@ -7,7 +7,7 @@ export default function SignUpPage() {
   return (
     <>
       <h1 className="font-display text-2xl font-semibold">Créer un compte</h1>
-      <p className="mb-5 mt-1 text-sm text-ink-3">Votre espace personnel, protégé par une double authentification.</p>
+      <p className="mb-5 mt-1 text-sm text-ink-2">Votre espace personnel et protégé.</p>
       <SignUpForm />
     </>
   );

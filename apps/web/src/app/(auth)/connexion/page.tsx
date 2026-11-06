@@ -14,7 +14,7 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
     <>
       <h1 className="mb-5 font-display text-2xl font-semibold">Connexion</h1>
       <SignInForm suite={suite} />
-      <div className="my-5 flex items-center gap-3 text-xs text-ink-3" aria-hidden>
+      <div className="my-4 flex items-center gap-3 text-[13px] text-ink-3" aria-hidden>
         <span className="h-px flex-1 bg-line" /> ou <span className="h-px flex-1 bg-line" />
       </div>
       <PasskeySignIn suite={suite} />
