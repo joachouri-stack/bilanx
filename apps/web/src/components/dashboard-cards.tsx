@@ -333,7 +333,7 @@ const HERO_SUB: Record<NonNullable<HeroItem['subTone']>, string> = { ok: 'text-g
 const HERO_TONE: Record<string, { bar: string; chip: string }> = {
   flask: { bar: 'var(--petrol)', chip: 'bg-petrol-2 text-petrol' },
   drop: { bar: 'var(--glucose)', chip: 'bg-glucose-2 text-glucose' },
-  calendar: { bar: 'var(--amber)', chip: 'bg-amber-2 text-amber' },
+  calendar: { bar: 'var(--violet)', chip: 'bg-violet-2 text-violet' },
 };
 
 /** Bandeau coloré en haut du tableau de bord : salutation, date et 3 chiffres clés au plus (cartes pleines, bien contrastées). */
@@ -536,11 +536,11 @@ export function AppointmentCard({ data, now }: { data: AppointmentsSummary; now:
   const wd = (d: Date) => new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, weekday: 'short', day: 'numeric', month: 'short' }).format(d).replace(/\./g, '');
   const more = data.upcomingTotal - data.upcoming.length;
   return (
-    <Card href="/rendez-vous" accent="amber">
+    <Card href="/rendez-vous" accent="violet">
       <CardHeader
         title="Rendez-vous"
         icon="calendar"
-        iconTone="amber"
+        iconTone="violet"
         action={
           <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
             Tous <span aria-hidden>›</span>

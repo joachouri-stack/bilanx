@@ -22,7 +22,8 @@
   /* Très bas (hypoglycémie sévère) et très élevé : barres de répartition, jamais seuls (toujours un libellé). */
   --red-strong: #9e2a1c;
   --orange: #b5552f;
-  --violet: #7a5bb5;
+  --violet: #6b4fa8;
+  --violet-2: #f0ebf9;
   /* Texte sur fond d'accent (boutons pleins) : contraste AA garanti dans les deux thèmes. */
   --on-accent: #ffffff;
   /* Cartes : bordure et ombre (la bordure reste visible en mode sombre, où l'ombre ne se voit pas). */
@@ -51,7 +52,8 @@
     --red-2: #3d1e19;
     --red-strong: #c94a36;
     --orange: #f08a5d;
-    --violet: #a78bdb;
+    --violet: #b39ae3;
+    --violet-2: #2a2340;
     --on-accent: #0f1719;
     --card-border: #33484e;
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
@@ -80,6 +82,7 @@
   --color-red-strong: var(--red-strong);
   --color-orange: var(--orange);
   --color-violet: var(--violet);
+  --color-violet-2: var(--violet-2);
   --color-on-accent: var(--on-accent);
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, serif;

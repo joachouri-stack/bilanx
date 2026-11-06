@@ -28,7 +28,7 @@ function Row({ a, past }: { a: AppointmentRow; past?: boolean }) {
           {past ? (
             a.notesAfter ? <Chip tone="sage">notes</Chip> : <Chip tone="neutral">sans notes</Chip>
           ) : (
-            <Chip tone={days <= 2 ? 'amber' : 'petrol'}>{days <= 0 ? 'aujourd’hui' : days === 1 ? 'demain' : `dans ${days} jours`}</Chip>
+            <Chip tone={days <= 2 ? 'violet' : 'petrol'}>{days <= 0 ? 'aujourd’hui' : days === 1 ? 'demain' : `dans ${days} jours`}</Chip>
           )}
           <Icon name="chevronRight" className="size-5 text-ink-3" />
         </span>
