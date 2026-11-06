@@ -264,23 +264,27 @@ export function Hba1cCard({ points, unit, canWrite }: { points: Hba1cPoint[]; un
       : unit === 'mmol/mol'
         ? `${Math.round(delta) > 0 ? '+' : Math.round(delta) < 0 ? '−' : '±'}${formatNumberFr(Math.abs(Math.round(delta)))} mmol/mol`
         : `${delta > 0.04 ? '+' : delta < -0.04 ? '−' : '±'}${formatNumberFr(Math.abs(delta), 1)} point`;
-  // Six derniers mois : chaque résultat à sa date réelle. S'il y en a moins de deux dans cette période,
-  // la fenêtre remonte jusqu'au résultat précédent pour montrer l'évolution.
+  // Les 6 derniers résultats (≈ 18 mois pour une HbA1c tous les 3 mois), chacun à sa date réelle.
+  const series = points.slice(-6);
   const end = Date.now();
-  let start = end - 183 * 86_400_000;
-  const before = points.filter((p) => p.sampledAt.getTime() < start);
-  if (points.filter((p) => p.sampledAt.getTime() >= start).length < 2 && before.length) start = before.at(-1)!.sampledAt.getTime();
-  const series = points.filter((p) => p.sampledAt.getTime() >= start);
+  const first = series[0]!.sampledAt.getTime();
+  const start = first - Math.max(15 * 86_400_000, (end - first) * 0.04);
   const vals = series.map((p) => inUnit(p.percent));
   const lo = Math.min(...vals);
   const hi = Math.max(...vals);
   const pad = Math.max((hi - lo) * 0.3, unit === 'mmol/mol' ? 3 : 0.3);
-  const monthFmt = new Intl.DateTimeFormat('fr-FR', { month: 'short', timeZone: 'Europe/Paris' });
-  const ticks: { t: number; label: string }[] = [];
+  // Graduations : un repère par mois sur une courte période, sinon tous les 3 mois (année indiquée en janvier ou au début).
   const spanMonths = (end - start) / (30.4 * 86_400_000);
-  const stepMonths = spanMonths > 8 ? Math.ceil(spanMonths / 6) : 1;
-  for (let d = new Date(new Date(start).getFullYear(), new Date(start).getMonth() + 1, 1); d.getTime() <= end; d = new Date(d.getFullYear(), d.getMonth() + stepMonths, 1))
-    ticks.push({ t: d.getTime(), label: monthFmt.format(d).replace('.', '') });
+  const stepMonths = spanMonths <= 7 ? 1 : spanMonths <= 14 ? 2 : 3;
+  const ticks: { t: number; label: string }[] = [];
+  const s0 = new Date(start);
+  let m = new Date(s0.getFullYear(), s0.getMonth() + 1, 1);
+  while (m.getMonth() % stepMonths !== 0) m = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+  for (; m.getTime() <= end; m = new Date(m.getFullYear(), m.getMonth() + stepMonths, 1)) {
+    const month = new Intl.DateTimeFormat('fr-FR', { month: 'short', timeZone: 'Europe/Paris' }).format(m).replace('.', '');
+    const withYear = stepMonths > 1 && (m.getMonth() < stepMonths || ticks.length === 0);
+    ticks.push({ t: m.getTime(), label: withYear ? `${month} ${String(m.getFullYear()).slice(2)}` : month });
+  }
   return (
     // Toute la carte mène à l'historique complet.
     <Card href="/analyses/hba1c">
@@ -302,7 +306,9 @@ export function Hba1cCard({ points, unit, canWrite }: { points: Hba1cPoint[]; un
       )}
       {series.length > 0 && (
         <>
-          <p className="mt-3 text-sm font-medium text-ink-2">{spanMonths > 6.5 ? 'Depuis le résultat précédent' : '6 derniers mois'}</p>
+          <p className="mt-3 text-sm font-medium text-ink-2">
+            {series.length > 1 ? `${series.length} derniers résultats` : 'Ajoutez un résultat précédent pour voir l’évolution'}
+          </p>
           <DashboardSparkline
             points={series.map((p) => ({ t: p.sampledAt.getTime(), v: inUnit(p.percent) }))}
             domain={[start, end]}
