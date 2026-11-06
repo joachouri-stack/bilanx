@@ -99,6 +99,22 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
     </details>
   );
 
+  // Carte du capteur Libre : affichée dans toutes les vues (jour et périodes).
+  const libreCard = canWrite && (
+    <Card id="capteur-libre" className="scroll-mt-20">
+      <CardHeader title="Capteur FreeStyle Libre" icon="drop" iconTone="glucose" />
+      <LibreLink
+        status={
+          libre && {
+            ...libre,
+            lastSyncAt: libre.lastSyncAt?.toISOString() ?? null,
+            lastReadingAt: libre.lastReadingAt?.toISOString() ?? null,
+          }
+        }
+      />
+    </Card>
+  );
+
   if (periode) {
     // Un jour civil de plus de chaque côté : la fenêtre glissante commence en cours de journée.
     const pFrom = addDays(today, -periode);
@@ -111,6 +127,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
       <div className="fade-in">
         <PageHeader title="Glycémie" subtitle={`${periode} derniers jours.`} actions={periodNav} />
         <GlucosePeriod days={periode} today={today} now={now} readings={readings} previous={previous} meter={meter} unit={unit} unitQuery={unitQuery} isDemo={isDemo} />
+        {libreCard && <div className="mt-6 max-w-2xl">{libreCard}</div>}
         <div className="mt-6">{unitChoice(`periode=${periode}`)}</div>
       </div>
     );
@@ -256,20 +273,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
 
         {addCard}
 
-        {canWrite && (
-          <Card id="capteur-libre" className="scroll-mt-20">
-            <CardHeader title="Capteur FreeStyle Libre" icon="drop" iconTone="glucose" />
-            <LibreLink
-              status={
-                libre && {
-                  ...libre,
-                  lastSyncAt: libre.lastSyncAt?.toISOString() ?? null,
-                  lastReadingAt: libre.lastReadingAt?.toISOString() ?? null,
-                }
-              }
-            />
-          </Card>
-        )}
+        {libreCard}
 
         <Card>
           <CardHeader title="Plage cible" />
