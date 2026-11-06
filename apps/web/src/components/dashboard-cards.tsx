@@ -747,7 +747,7 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
         {days.map((d, i) => {
           const isToday = d.date === today;
           const future = d.date > today;
-          const circle = `grid size-10 place-items-center rounded-full transition ${d.done ? 'bg-sage text-on-accent' : future ? 'border-2 border-line opacity-50' : 'border-2 border-line'} ${
+          const circle = `grid size-10 place-items-center rounded-full transition ${d.done ? 'border-2 border-go bg-surface text-go' : future ? 'border-2 border-line opacity-50' : 'border-2 border-line'} ${
             isToday ? 'ring-2 ring-petrol ring-offset-2 ring-offset-surface' : ''
           }`;
           const label = `${gymDayLong(d.date)}${isToday ? ' (aujourd’hui)' : ''}`;
@@ -762,13 +762,13 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
                     aria-pressed={d.done}
                     aria-label={`${label} : ${d.done ? 'séance notée, appuyer pour la retirer' : 'appuyer pour noter une séance'}`}
                   >
-                    {d.done && <Icon name="check" className="size-5" strokeWidth={2.4} />}
+                    {d.done && <Icon name="close" className="size-6" strokeWidth={3} />}
                   </GymSubmit>
                 </form>
               ) : (
                 <>
                   <span aria-hidden className={circle}>
-                    {d.done && <Icon name="check" className="size-5" strokeWidth={2.4} />}
+                    {d.done && <Icon name="close" className="size-6" strokeWidth={3} />}
                   </span>
                   <span className="sr-only">
                     {label} : {d.done ? 'séance' : future ? 'à venir' : 'pas de séance'}
@@ -854,10 +854,13 @@ function GymMiniWeek({ days, bar, today, visits }: { days: (string | null)[]; ba
         <span key={d ?? `x${i}`} className="grid place-items-center">
           {d && (
             <span
-              className={`size-4 rounded-[5px] ${
-                visits.has(d) ? 'bg-sage' : d > today ? 'bg-surface-2 opacity-60' : 'border border-ink-3/40'
+              className={`grid size-5 place-items-center rounded-[6px] ${
+                visits.has(d) ? 'border-2 border-go text-go' : d > today ? 'bg-surface-2 opacity-60' : 'border border-ink-3/40'
               } ${d === today ? 'ring-2 ring-petrol ring-offset-1 ring-offset-surface' : ''}`}
-            />
+            >
+              {/* Séance faite : une croix dans la case, comme cochée à la main. */}
+              {visits.has(d) && <Icon name="close" className="size-3.5" strokeWidth={3.4} />}
+            </span>
           )}
         </span>
       ))}

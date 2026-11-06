@@ -193,12 +193,12 @@ function WeekRow({ week, set, todayIso, canWrite }: { week: GymMonthWeek; set: S
         const future = d > todayIso;
         const label = `${gymDayLong(d)}${isToday ? ' (aujourd’hui)' : ''}`;
         const cls = `flex min-h-12 w-full flex-col items-center justify-center rounded-lg text-[15px] leading-none tabular ${
-          done ? 'bg-sage font-semibold text-on-accent' : future ? 'text-ink-3' : 'text-ink'
-        } ${isToday ? 'ring-2 ring-inset ring-petrol' : ''}`;
+          done ? 'bg-sage-2 font-semibold text-go' : future ? 'text-ink-3' : 'text-ink'
+        } ${isToday ? 'ring-2 ring-inset ring-petrol' : done ? 'ring-2 ring-inset ring-go' : ''}`;
         const content = (
           <>
             <span>{Number(d.slice(8, 10))}</span>
-            {done ? <Icon name="check" className="mt-0.5 size-4" strokeWidth={2.6} /> : <span className="mt-0.5 size-4" />}
+            {done ? <Icon name="close" className="mt-0.5 size-4" strokeWidth={3.2} /> : <span className="mt-0.5 size-4" />}
           </>
         );
         if (canWrite && !future)
