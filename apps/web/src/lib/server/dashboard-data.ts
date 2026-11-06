@@ -27,7 +27,7 @@ import {
 import type { AppointmentRow, DoseOfDay } from '@bilanx/records';
 import { DEMO_NEXT_APPOINTMENT, DEMO_TIMEZONE, demoDay, demoToday } from '@/lib/demo-data';
 import { DOC_SHORTCUTS } from '@/lib/document-categories';
-import { appointments, documents, glucose, profiles } from './auth';
+import { appointments, documents, glucose, journal, profiles } from './auth';
 import { moduleAllowed, type AppContext } from './context';
 import { labResults, sensorRange, type LabRow } from './data';
 import { insulinDoses, insulinProducts } from './insulin-data';
@@ -73,7 +73,7 @@ export interface SensorSummary {
   moments: KeyMomentDay[];
 }
 
-export type KeyMomentKey = 'fasting' | 'lunch' | 'dinner';
+export type KeyMomentKey = 'fasting' | 'lunch' | 'lunchAfter' | 'dinner' | 'dinnerAfter';
 
 /** Valeur retenue pour un moment clé : mesure au doigt notée pour ce moment, sinon capteur à l'heure habituelle. */
 export interface KeyMomentValue {
@@ -89,15 +89,30 @@ export interface KeyMomentDay {
   values: Record<KeyMomentKey, KeyMomentValue>;
 }
 
+export interface KeyMomentDef {
+  key: KeyMomentKey;
+  label: string;
+  short: string;
+  /** Fenêtre par défaut (heure de Paris, minutes depuis minuit) et heure de référence. */
+  from: number;
+  to: number;
+  ref: number;
+  context: GlucoseContext;
+  /** Repas lié : si un repas est noté dans le journal ce jour-là, la fenêtre suit son heure réelle. */
+  meal?: { kind: 'lunch' | 'dinner'; phase: 'before' | 'after' };
+}
+
 /**
- * Fenêtres des moments clés (heure de Paris, en minutes depuis minuit) et heure de référence :
- * on retient la mesure au doigt notée pour ce moment dans la fenêtre, sinon la valeur du capteur la plus proche
- * de l'heure de référence. Heures habituelles par défaut.
+ * Moments clés : réveil à jeun, avant et 2 h après le déjeuner, avant et 2 h après le dîner.
+ * Mesure au doigt notée pour ce moment en priorité ; sinon la valeur du capteur la plus proche de l'heure de référence.
+ * Repas noté dans le journal : « avant » = dans l'heure qui précède, « +2 h » = entre 1 h 30 et 2 h 30 après.
  */
-export const KEY_MOMENTS: { key: KeyMomentKey; label: string; short: string; from: number; to: number; ref: number; context: GlucoseContext }[] = [
+export const KEY_MOMENTS: KeyMomentDef[] = [
   { key: 'fasting', label: 'Réveil, à jeun', short: 'À jeun', from: 5 * 60, to: 10 * 60, ref: 7 * 60 + 30, context: 'fasting' },
-  { key: 'lunch', label: 'Avant le déjeuner', short: 'Midi', from: 11 * 60, to: 14 * 60, ref: 12 * 60, context: 'before_meal' },
-  { key: 'dinner', label: 'Avant le dîner', short: 'Soir', from: 18 * 60, to: 21 * 60 + 30, ref: 19 * 60 + 30, context: 'before_meal' },
+  { key: 'lunch', label: 'Avant', short: 'Midi', from: 11 * 60, to: 13 * 60 + 30, ref: 12 * 60, context: 'before_meal', meal: { kind: 'lunch', phase: 'before' } },
+  { key: 'lunchAfter', label: '+2 h', short: 'Midi +2 h', from: 13 * 60 + 30, to: 16 * 60, ref: 14 * 60, context: 'after_meal', meal: { kind: 'lunch', phase: 'after' } },
+  { key: 'dinner', label: 'Avant', short: 'Soir', from: 18 * 60, to: 20 * 60 + 30, ref: 19 * 60 + 30, context: 'before_meal', meal: { kind: 'dinner', phase: 'before' } },
+  { key: 'dinnerAfter', label: '+2 h', short: 'Soir +2 h', from: 20 * 60 + 30, to: 23 * 60 + 59, ref: 21 * 60 + 30, context: 'after_meal', meal: { kind: 'dinner', phase: 'after' } },
 ];
 
 export interface Hba1cPoint {
@@ -259,28 +274,41 @@ const minutesOfDay = (() => {
   };
 })();
 
-/** Moments clés des 7 derniers jours : mesure au doigt notée (à jeun / avant repas), sinon capteur au plus près de l'heure habituelle. */
-export function keyMoments(sensor: Reading[], capillary: Reading[], today: LocalDate, now: Date): KeyMomentDay[] {
+/** Repas noté dans le journal (déjeuner ou dîner). */
+export interface MealMark {
+  at: Date;
+  kind: 'lunch' | 'dinner';
+}
+
+/** Moments clés des 7 derniers jours (voir `KEY_MOMENTS`), aujourd'hui en dernier. */
+export function keyMoments(sensor: Reading[], capillary: Reading[], meals: MealMark[], today: LocalDate, now: Date): KeyMomentDay[] {
   const nowMin = minutesOfDay(now);
-  const byDay = (rows: Reading[]) => {
-    const m = new Map<string, Reading[]>();
-    for (const r of rows) {
-      const k = formatLocalDate(localDateOf(r.at, DEMO_TIMEZONE));
-      m.set(k, [...(m.get(k) ?? []), r]);
-    }
+  const dayKey = (d: Date) => formatLocalDate(localDateOf(d, DEMO_TIMEZONE));
+  const byDay = <T extends { at: Date }>(rows: T[]) => {
+    const m = new Map<string, T[]>();
+    for (const r of rows) m.set(dayKey(r.at), [...(m.get(dayKey(r.at)) ?? []), r]);
     return m;
   };
   const sDays = byDay(sensor);
   const cDays = byDay(capillary);
+  const mDays = byDay(meals);
   return [6, 5, 4, 3, 2, 1, 0].map((i) => {
     const date = formatLocalDate(addDays(today, -i));
     const values = {} as Record<KeyMomentKey, KeyMomentValue>;
     for (const k of KEY_MOMENTS) {
+      // Fenêtre : celle du repas noté ce jour-là (premier de ce type), sinon la fenêtre habituelle.
+      let { from, to, ref } = k;
+      const meal = k.meal && (mDays.get(date) ?? []).filter((m) => m.kind === k.meal!.kind).sort((a, b) => a.at.getTime() - b.at.getTime())[0];
+      if (meal) {
+        const mm = minutesOfDay(meal.at);
+        if (k.meal!.phase === 'before') [from, to, ref] = [mm - 60, mm, mm - 10];
+        else [from, to, ref] = [mm + 90, Math.min(mm + 150, 24 * 60 - 1), mm + 120];
+      }
       const inWin = (r: Reading) => {
-        const mm = minutesOfDay(r.at);
-        return mm >= k.from && mm <= k.to;
+        const x = minutesOfDay(r.at);
+        return x >= from && x <= to;
       };
-      const upcoming = i === 0 && nowMin < k.from;
+      const upcoming = i === 0 && nowMin < from;
       const meter = (cDays.get(date) ?? []).filter((r) => inWin(r) && r.context === k.context).at(0);
       if (meter) {
         values[k.key] = { mgdl: meter.mgdl, at: meter.at, source: 'meter', upcoming: false };
@@ -288,12 +316,19 @@ export function keyMoments(sensor: Reading[], capillary: Reading[], today: Local
       }
       const near = (sDays.get(date) ?? [])
         .filter(inWin)
-        .sort((a, b) => Math.abs(minutesOfDay(a.at) - k.ref) - Math.abs(minutesOfDay(b.at) - k.ref))
+        .sort((a, b) => Math.abs(minutesOfDay(a.at) - ref) - Math.abs(minutesOfDay(b.at) - ref))
         .at(0);
       values[k.key] = near ? { mgdl: near.mgdl, at: near.at, source: 'sensor', upcoming: false } : { mgdl: null, at: null, source: null, upcoming };
     }
     return { date, values };
   });
+}
+
+/** Déjeuners et dîners notés dans le journal ces 8 derniers jours (si le module journal est autorisé). */
+async function recentMeals(ctx: AppContext, now: Date): Promise<MealMark[]> {
+  if (ctx.active.kind !== 'real' || !moduleAllowed(ctx.active, 'journal')) return [];
+  const rows = await journal().list(ctx.user, ctx.active.access.profileId, new Date(now.getTime() - 8 * DAY), new Date(now.getTime() + 3_600_000));
+  return rows.filter((r) => r.kind === 'meal' && (r.mealKind === 'lunch' || r.mealKind === 'dinner')).map((r) => ({ at: r.at, kind: r.mealKind as 'lunch' | 'dinner' }));
 }
 
 async function hasAnyGlucose(ctx: AppContext): Promise<boolean> {
@@ -335,7 +370,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
   ]);
 
   const meter = meterSummary(cap, now, today);
-  if (sensor) sensor.moments = keyMoments(sensor.recent, cap, today, now);
+  if (sensor) sensor.moments = keyMoments(sensor.recent, cap, await recentMeals(ctx, now), today, now);
 
   const hba1c = labs
     .filter((r) => r.analyteCode === 'hba1c')

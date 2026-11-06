@@ -19,7 +19,7 @@ import { GLUCOSE_CONTEXTS } from '@bilanx/domain';
 import { DEMO_TIMEZONE } from '@/lib/demo-data';
 import { DOC_SHORTCUTS, type DocShortcut } from '@/lib/document-categories';
 import { DocIcon } from '@/components/documents-icons';
-import type { DashboardDocs, FirstStep, GymSummary, Hba1cPoint, AppointmentsSummary, MeterSummary, SensorSummary, StepsSummary, TodaySummary, KeyMomentDay } from '@/lib/server/dashboard-data';
+import type { DashboardDocs, FirstStep, GymSummary, Hba1cPoint, AppointmentsSummary, MeterSummary, SensorSummary, StepsSummary, TodaySummary, KeyMomentDay, KeyMomentKey } from '@/lib/server/dashboard-data';
 import { toggleGymAction } from '@/lib/server/actions';
 import { GymSubmit } from '@/components/gym-forms';
 import { GYM_INITIALS, GYM_WEEKDAYS_SHORT, gymDayLong, gymMonthName, gymPlural, gymRemainingLabel, gymWeekBar, gymWeekSentence } from '@/components/gym-shared';
@@ -271,19 +271,31 @@ function KeyMoments({ days, unit }: { days: KeyMomentDay[]; unit: GlucoseUnit })
       <div>
         <h3 className="mb-2 text-sm font-semibold text-ink-2">Moments clés aujourd’hui</h3>
         <ul className="grid grid-cols-3 gap-2">
-          {KEY_MOMENTS.map((k) => {
-            const v = todayRow.values[k.key];
-            const lvl = v.mgdl !== null ? glucoseLevel(v.mgdl) : null;
-            return (
-              <li key={k.key} className={`rounded-xl px-2 py-2.5 text-center ${lvl ? LEVEL_CELL[lvl.tone] : 'bg-surface-2'}`}>
-                <p className="text-[12px] font-medium leading-tight text-ink-2">{k.label}</p>
-                <p className={`tabular mt-1 text-2xl font-bold leading-none ${lvl ? lvl.text : 'text-ink-3'}`}>{v.mgdl !== null ? g(v.mgdl) : '—'}</p>
-                <p className="mt-1 text-[11px] leading-tight text-ink-3">
-                  {v.at ? `${frTime(v.at)}${v.source === 'meter' ? ' · doigt' : ''}` : v.upcoming ? 'à venir' : 'pas de mesure'}
-                </p>
-              </li>
-            );
-          })}
+          {(
+            [
+              ['Matin', ['fasting']],
+              ['Midi', ['lunch', 'lunchAfter']],
+              ['Soir', ['dinner', 'dinnerAfter']],
+            ] as [string, KeyMomentKey[]][]
+          ).map(([title, keys]) => (
+            <li key={title} className="flex flex-col gap-1.5 rounded-xl bg-surface-2 p-1.5">
+              <p className="pt-0.5 text-center text-[12px] font-semibold text-ink-2">{title}</p>
+              {keys.map((key) => {
+                const k = KEY_MOMENTS.find((m) => m.key === key)!;
+                const v = todayRow.values[key];
+                const lvl = v.mgdl !== null ? glucoseLevel(v.mgdl) : null;
+                return (
+                  <div key={key} className={`${keys.length > 1 ? 'flex-1' : ''} rounded-lg px-1 py-1.5 text-center ${lvl ? LEVEL_CELL[lvl.tone] : 'bg-surface'}`}>
+                    <p className="text-[11px] leading-tight text-ink-2">{key === 'fasting' ? 'À jeun' : k.label}</p>
+                    <p className={`tabular text-xl font-bold leading-tight ${lvl ? lvl.text : 'text-ink-3'}`}>{v.mgdl !== null ? g(v.mgdl) : '—'}</p>
+                    <p className="text-[11px] leading-tight text-ink-3">
+                      {v.at ? `${frTime(v.at)}${v.source === 'meter' ? ' · doigt' : ''}` : v.upcoming ? 'à venir' : 'aucune'}
+                    </p>
+                  </div>
+                );
+              })}
+            </li>
+          ))}
         </ul>
       </div>
 
@@ -293,7 +305,7 @@ function KeyMoments({ days, unit }: { days: KeyMomentDay[]; unit: GlucoseUnit })
           <caption className="sr-only">Glycémie aux moments clés des 7 derniers jours, en {unit}</caption>
           <thead>
             <tr>
-              <th scope="col" className="w-[4.5rem]">
+              <th scope="col" className="w-[4.75rem]">
                 <span className="sr-only">Moment</span>
               </th>
               {days.map((d, i) => (
@@ -324,7 +336,7 @@ function KeyMoments({ days, unit }: { days: KeyMomentDay[]; unit: GlucoseUnit })
           </tbody>
         </table>
         <Meta className="mt-1">Vert : dans la cible · orange : un peu à côté · rouge : hors plage.</Meta>
-        <Meta>Capteur vers 7 h 30, 12 h et 19 h 30, ou votre mesure au doigt notée « à jeun » / « avant repas ».</Meta>
+        <Meta>Repas noté dans le journal : juste avant, puis 2 h après. Sinon, heures habituelles (7 h 30, 12 h, 14 h, 19 h 30, 21 h 30).</Meta>
       </div>
     </div>
   );
