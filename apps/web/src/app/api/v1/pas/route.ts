@@ -34,14 +34,18 @@ export async function POST(request: Request) {
   } catch {
     return json({ ok: false, error: 'Corps JSON attendu : { "pas": 8450 }.' }, 400);
   }
-  const steps = parseSteps(body?.pas ?? body?.steps);
-  if (steps === null) return json({ ok: false, error: 'Champ « pas » manquant ou illisible.' }, 400);
+  const rawSteps = body?.pas ?? body?.steps;
+  const steps = parseSteps(rawSteps);
+  // Ce qui a été reçu (tronqué) : aide à corriger le raccourci, renvoyé uniquement à l'expéditeur.
+  const seen = `Reçu : « ${String(rawSteps ?? '(rien)').replace(/\s+/g, ' ').slice(0, 80)} ».`;
+  if (steps === null)
+    return json({ ok: false, error: `Champ « pas » manquant, illisible ou avec plusieurs valeurs (vérifiez « Grouper par : Jour »). ${seen}` }, 400);
   const day = parseDay(body?.date);
   if (!day) return json({ ok: false, error: 'Date illisible (format AAAA-MM-JJ).' }, 400);
 
   try {
     const r = await activity().syncDay({ accountId: who.accountId, email: '' }, who.profileId, day, steps);
-    if (!r.ok) return json({ ok: false, error: r.error }, 400);
+    if (!r.ok) return json({ ok: false, error: `${r.error} ${seen}` }, 400);
   } catch (e) {
     if (e instanceof ForbiddenError) return json({ ok: false, error: 'Ce compte n’a plus le droit de modifier l’activité de ce profil.' }, 403);
     throw e;
