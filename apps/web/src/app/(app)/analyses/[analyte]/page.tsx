@@ -45,7 +45,7 @@ export default async function AnalytePage({
   );
   const banner = sp.ajout ? 'Résultat enregistré.' : sp.suppression ? 'Résultat supprimé.' : null;
   const isHbA1c = code === 'hba1c';
-  const subtitle = isHbA1c ? 'Prise de sang, laboratoire. À ne pas confondre avec l’HbA1c estimée par le capteur.' : 'Résultats de laboratoire';
+  const subtitle = isHbA1c ? 'Prise de sang au laboratoire' : 'Résultats de laboratoire';
   if (results.length === 0) {
     return (
       <div className="fade-in">
@@ -62,6 +62,8 @@ export default async function AnalytePage({
   const ev = latestEvolution(results)!;
   const latest = ev.latest;
   const fmt = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'medium' });
+  const fmtShort = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, day: 'numeric', month: 'short' });
+  const hasRef = latest.refLow != null || latest.refHigh != null;
   const series = chartSeries(results, analyte);
   const ref = (low: number | null, high: number | null) =>
     low != null && high != null ? `${formatNumberFr(low)} – ${formatNumberFr(high)}` : high != null ? `< ${formatNumberFr(high)}` : low != null ? `> ${formatNumberFr(low)}` : 'non notées';
@@ -85,45 +87,44 @@ export default async function AnalytePage({
         </p>
       )}
       <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <Card className="flex flex-col items-center gap-2 text-center">
-          <Chip tone="petrol">Laboratoire</Chip>
-          <CapsuleGauge value={latest.value} refLow={latest.refLow ?? null} refHigh={latest.refHigh ?? null} label={analyte.nameFr} />
-          <p className="flex items-baseline gap-1.5">
-            <strong className="tabular text-4xl font-semibold">
-              {latest.comparator ? `${latest.comparator} ` : ''}
-              {formatNumberFr(latest.value)}
-            </strong>
-            <span className="text-ink-3">{latest.unit}</span>
-          </p>
-          {isHbA1c && <p className="text-ink-2">soit {Math.round(hba1cPercentToMmolMol(latest.value))} mmol/mol</p>}
-          <ReferenceChip value={latest.value} refLow={latest.refLow} refHigh={latest.refHigh} />
-          <Meta>
-            Prélèvement du {fmt.format(latest.sampledAt)}
-            {latest.laboratory && (
-              <>
-                <br />
-                {latest.laboratory}
-              </>
+        <Card accent="petrol">
+          <CardHeader title="Dernier résultat" icon="flask" iconTone="petrol" tag="Laboratoire" tagTone="petrol" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="flex items-baseline gap-1.5">
+                <strong className="tabular text-5xl font-semibold tracking-tight">
+                  {latest.comparator ? `${latest.comparator} ` : ''}
+                  {formatNumberFr(latest.value)}
+                </strong>
+                <span className="text-lg text-ink-3">{latest.unit}</span>
+              </p>
+              {isHbA1c && <p className="mt-1 text-ink-2">soit {Math.round(hba1cPercentToMmolMol(latest.value))} mmol/mol</p>}
+            </div>
+            {hasRef && <CapsuleGauge value={latest.value} refLow={latest.refLow ?? null} refHigh={latest.refHigh ?? null} label={analyte.nameFr} />}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {ev.previous && ev.delta !== null && (
+              <Chip tone="neutral">
+                {ev.delta > 0 ? '↑ +' : ev.delta < 0 ? '↓ −' : '= '}
+                {formatNumberFr(Math.abs(ev.delta))}{' '}
+                {/* Écart d'un pourcentage (HbA1c) : en points, pour ne pas suggérer une variation relative. */}
+                {(ev.converted ? analyte.canonicalUnit : latest.unit) === '%'
+                  ? Math.abs(ev.delta) >= 2 ? 'points' : 'point'
+                  : ev.converted ? analyte.canonicalUnit : latest.unit}{' '}
+                depuis le {fmtShort.format(ev.previous.sampledAt)}
+              </Chip>
             )}
-            <br />
-            Valeurs de référence : {ref(latest.refLow, latest.refHigh)}
+            {hasRef && <ReferenceChip value={latest.value} refLow={latest.refLow} refHigh={latest.refHigh} />}
+          </div>
+          <Meta className="mt-3">
+            {fmt.format(latest.sampledAt)}
+            {latest.laboratory ? ` · ${latest.laboratory}` : ''}
+            {hasRef ? ` · référence ${ref(latest.refLow, latest.refHigh)} ${latest.unit}` : ''}
           </Meta>
-          {ev.previous && ev.delta !== null && (
-            <p className="text-sm text-ink-2">
-              {ev.delta > 0 ? '+' : ev.delta < 0 ? '−' : '±'}
-              {formatNumberFr(Math.abs(ev.delta))}{' '}
-              {/* Écart d'un pourcentage (HbA1c) : en points, pour ne pas suggérer une variation relative. */}
-              {(ev.converted ? analyte.canonicalUnit : latest.unit) === '%'
-                ? Math.abs(ev.delta) >= 2 ? 'points' : 'point'
-                : ev.converted ? analyte.canonicalUnit : latest.unit}{' '}
-              depuis le {fmt.format(ev.previous.sampledAt)} ({ev.daysBetween} jour{(ev.daysBetween ?? 0) > 1 ? 's' : ''})
-            </p>
-          )}
-          <Meta className="mt-1">La bande verte montre les valeurs de référence de votre laboratoire. Le repère montre votre résultat. Parlez-en avec votre médecin.</Meta>
         </Card>
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
-            <CardHeader title="Évolution" />
+            <CardHeader title="Évolution" icon="chart" iconTone="petrol" />
             {series.converted && <p className="mb-2 text-sm text-ink-2">Résultats rendus dans des unités différentes : tous affichés ici en {series.unit}.</p>}
             <AnalysesChart
               points={series.rows.map((r) => ({ t: r.sampledAt.getTime(), v: r.value, label: formatNumberFr(r.value) }))}
@@ -131,40 +132,43 @@ export default async function AnalytePage({
               refHigh={series.rows.at(-1)!.refHigh ?? null}
               unit={series.unit}
             />
-            {series.rows.length > 1 && <Meta className="mt-2">Points uniquement aux dates réelles de prélèvement. Aucune valeur inventée entre deux.</Meta>}
           </Card>
           <Card>
-            <CardHeader title="Tous les résultats" />
+            <CardHeader title="Tous les résultats" icon="journal" iconTone="neutral" />
             <ul className="divide-y divide-line">
               {[...results].reverse().map((r) => (
                 <li
                   key={r.id ?? r.sampledAt.toISOString()}
                   data-resultat
-                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-center"
+                  className="relative flex items-center gap-3 py-2.5 has-[details[open]]:pb-[4.75rem]"
                 >
-                  <span className="font-medium sm:font-normal">{fmt.format(r.sampledAt)}</span>
-                  <span className="tabular text-right sm:text-left">
-                    <strong>
+                  <span className="min-w-0 flex-1">
+                    <span className="block">{fmt.format(r.sampledAt)}</span>
+                    {/* Provenance toujours indiquée (saisie ou bilan), en petit. */}
+                    <span className="block truncate text-[13px] text-ink-3">
+                      <span>{sourceLabel(r.source)}</span>
+                      {[r.refLow != null || r.refHigh != null ? `réf. ${ref(r.refLow, r.refHigh)}` : null, r.note].filter(Boolean).map((t) => ` · ${t}`)}
+                    </span>
+                  </span>
+                  <span className="tabular text-right">
+                    <strong className="text-lg">
                       {r.comparator ? `${r.comparator} ` : ''}
                       {formatNumberFr(r.value)}
                     </strong>{' '}
-                    {r.unit}
-                    {isHbA1c && <span className="block text-sm text-ink-3">({Math.round(hba1cPercentToMmolMol(r.value))} mmol/mol)</span>}
-                  </span>
-                  <span className="text-sm text-ink-2">
-                    Valeurs de référence : {ref(r.refLow, r.refHigh)}
-                    {r.note && <span className="block text-ink-3">{r.note}</span>}
-                  </span>
-                  <span className="flex flex-wrap items-center justify-end gap-2">
-                    <Chip tone={r.source === 'manual' ? 'neutral' : 'petrol'}>{sourceLabel(r.source)}</Chip>
+                    <span className="text-ink-3">{r.unit}</span>
+                    {isHbA1c && <span className="block text-[13px] text-ink-3">{Math.round(hba1cPercentToMmolMol(r.value))} mmol/mol</span>}
                   </span>
                   {canWrite && r.id && (
-                    <details className="col-span-full">
-                      <summary className={buttonClass({ variant: 'ghost', className: '-ml-3 cursor-pointer list-none !text-red [&::-webkit-details-marker]:hidden' })}>Supprimer</summary>
-                      <form action={deleteLabResultAction} className="mt-2 flex flex-col gap-2 rounded-xl border border-red bg-red-2 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    // Seule la petite croix ouvre la confirmation ; le panneau s'affiche sous la ligne.
+                    <details className="shrink-0">
+                      <summary className="grid size-11 cursor-pointer list-none place-items-center rounded-lg text-ink-3 hover:bg-red-2 hover:text-red [&::-webkit-details-marker]:hidden" title="Supprimer">
+                        <Icon name="close" className="size-5" />
+                        <span className="sr-only">Supprimer le résultat du {fmt.format(r.sampledAt)}</span>
+                      </summary>
+                      <form action={deleteLabResultAction} className="absolute inset-x-0 bottom-2 flex items-center justify-between gap-2 rounded-xl border border-red bg-red-2 p-2.5 pl-3">
                         <input type="hidden" name="resultId" value={r.id} />
                         <input type="hidden" name="analyteCode" value={code} />
-                        <span className="text-sm text-ink">Ce résultat sera effacé de l’historique.</span>
+                        <span className="text-sm text-ink">Effacer ce résultat ?</span>
                         <Button type="submit" variant="danger">
                           Confirmer la suppression
                         </Button>
