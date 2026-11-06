@@ -26,7 +26,7 @@ import { GYM_INITIALS, GYM_WEEKDAYS_SHORT, gymDayLong, gymMonthName, gymPlural, 
 import { GLUCOSE_TARGETS, frTime } from '@/lib/server/dashboard-data';
 import type { LabRow } from '@/lib/server/data';
 import type { IconName } from '@/components/icon';
-import { ButtonLink, buttonClass, Card, CardHeader, Chip, EmptyState, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
+import { ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import { DashboardSparkline } from '@/components/dashboard-sparkline';
 
@@ -729,7 +729,7 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
 
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <p className="flex items-baseline gap-2">
-          <span className="tabular text-4xl font-semibold leading-tight">
+          <span className="tabular text-4xl font-bold leading-tight">
             {week.count}
             <span className="text-ink-3">&nbsp;/&nbsp;{week.goal}</span>
           </span>
@@ -740,29 +740,44 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
           {gymRemainingLabel(week)}
         </Chip>
       </div>
-      {gym.streak > 0 && <Meta className="mt-1">{gymPlural(gym.streak, 'semaine')} d’affilée avec l’objectif atteint</Meta>}
+
+      {/* Jauge de l'objectif : un segment par séance attendue, vert quand la séance est faite. */}
+      <div className="mt-3 flex gap-1.5" aria-hidden>
+        {Array.from({ length: week.goal }, (_, i) => (
+          <span key={i} className={`h-2 flex-1 rounded-full transition-colors ${i < week.count ? 'bg-go' : 'bg-surface-2'}`} />
+        ))}
+      </div>
+      {gym.streak > 0 && <Meta className="mt-2">{gymPlural(gym.streak, 'semaine')} d’affilée avec l’objectif atteint</Meta>}
 
       {/* Jours de la semaine : un appui coche ou décoche le jour directement (au-dessus du lien de la carte). */}
-      <ol className="relative z-10 mt-4 grid grid-cols-7 gap-1" aria-label="Séances de la semaine en cours">
+      <ol className="relative z-10 mt-4 grid grid-cols-7 gap-0.5 rounded-2xl bg-surface-2 px-0.5 py-3" aria-label="Séances de la semaine en cours">
         {days.map((d, i) => {
           const isToday = d.date === today;
           const future = d.date > today;
-          const circle = `grid size-10 place-items-center rounded-full transition ${d.done ? 'border-2 border-go bg-surface text-go' : future ? 'border-2 border-line opacity-50' : 'border-2 border-line'} ${
-            isToday ? 'ring-2 ring-petrol ring-offset-2 ring-offset-surface' : ''
+          const circle = `grid size-[42px] place-items-center rounded-full transition ${
+            d.done
+              ? 'border-2 border-go bg-surface text-go shadow-sm'
+              : future
+                ? 'border-2 border-dashed border-line opacity-60'
+                : `border-2 bg-surface ${isToday ? 'border-petrol text-petrol' : 'border-line text-ink-3'}`
           }`;
           const label = `${gymDayLong(d.date)}${isToday ? ' (aujourd’hui)' : ''}`;
           return (
-            <li key={d.date} className="flex flex-col items-center gap-1">
+            <li key={d.date} className="flex flex-col items-center gap-1.5">
+              <span aria-hidden className={`text-[12px] ${isToday ? 'font-bold text-petrol' : 'font-medium text-ink-3'}`}>
+                {isToday ? 'auj.' : GYM_WEEKDAYS_SHORT[i]!.replace('.', '')}
+              </span>
               {canWrite && !future ? (
                 <form action={toggleGymAction}>
                   <input type="hidden" name="day" value={d.date} />
                   <input type="hidden" name="present" value={d.done ? '0' : '1'} />
                   <GymSubmit
-                    className={`${circle} cursor-pointer hover:border-sage active:scale-95`}
+                    className={`${circle} cursor-pointer hover:border-go active:scale-90`}
                     aria-pressed={d.done}
                     aria-label={`${label} : ${d.done ? 'séance notée, appuyer pour la retirer' : 'appuyer pour noter une séance'}`}
                   >
-                    {d.done && <Icon name="close" className="size-6" strokeWidth={3} />}
+                    {/* Fait : une croix verte ; sinon un « + » discret pour montrer qu'on peut cocher. */}
+                    {d.done ? <Icon name="close" className="size-6" strokeWidth={3} /> : <Icon name="plus" className="size-4 opacity-60" strokeWidth={2.2} />}
                   </GymSubmit>
                 </form>
               ) : (
@@ -775,43 +790,10 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
                   </span>
                 </>
               )}
-              <span aria-hidden className={`text-[12px] ${isToday ? 'font-semibold text-ink' : 'text-ink-3'}`}>
-                {GYM_WEEKDAYS_SHORT[i]!.replace('.', '')}
-              </span>
             </li>
           );
         })}
       </ol>
-      {canWrite && <Meta className="relative z-10 mt-1 text-center">Appuyez sur un jour pour le cocher ou le décocher.</Meta>}
-
-      {canWrite && (
-        <div className="relative z-10 mt-4">
-          {gym.doneToday ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sage-2 px-4 py-1.5">
-              <p className="flex min-h-11 items-center gap-2 font-semibold text-sage">
-                <Icon name="check" className="size-5" strokeWidth={2.4} />
-                Séance notée aujourd’hui
-              </p>
-              <form action={toggleGymAction}>
-                <input type="hidden" name="day" value={today} />
-                <input type="hidden" name="present" value="0" />
-                <GymSubmit className={buttonClass({ variant: 'ghost', className: 'text-ink-2' })} aria-label="Annuler la séance d’aujourd’hui">
-                  Annuler
-                </GymSubmit>
-              </form>
-            </div>
-          ) : (
-            <form action={toggleGymAction}>
-              <input type="hidden" name="day" value={today} />
-              <input type="hidden" name="present" value="1" />
-              <GymSubmit className={buttonClass({ variant: 'primary', className: 'w-full sm:w-auto' })}>
-                <Icon name="dumbbell" className="size-5" />
-                J’y suis allé aujourd’hui
-              </GymSubmit>
-            </form>
-          )}
-        </div>
-      )}
 
       <GymMiniMonth month={month} today={today} visits={visits} />
       {isDemo && <Meta className="mt-2">Démonstration : données fictives.</Meta>}
