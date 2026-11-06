@@ -80,6 +80,8 @@ export interface StepsSummary {
   days7: number;
   meanPrev7: number | null;
   goal: number;
+  /** Les 7 derniers jours, du plus ancien à aujourd'hui (null : rien de noté ce jour-là). */
+  week: { date: string; steps: number | null }[];
 }
 
 export interface FirstStep {
@@ -266,7 +268,8 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     const val = (i: number) => steps.get(formatLocalDate(addDays(today, -i)));
     const last7 = [0, 1, 2, 3, 4, 5, 6].map(val).filter((v): v is number => v !== undefined);
     const prev7 = [7, 8, 9, 10, 11, 12, 13].map(val).filter((v): v is number => v !== undefined);
-    stepsSummary = { today: val(0) ?? null, mean7: mean(last7), days7: last7.length, meanPrev7: mean(prev7), goal };
+    const week = [6, 5, 4, 3, 2, 1, 0].map((i) => ({ date: formatLocalDate(addDays(today, -i)), steps: val(i) ?? null }));
+    stepsSummary = { today: val(0) ?? null, mean7: mean(last7), days7: last7.length, meanPrev7: mean(prev7), goal, week };
   }
 
   const firstSteps: FirstStep[] = [];

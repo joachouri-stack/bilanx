@@ -444,53 +444,83 @@ export function StepsCard({ steps, canWrite, isDemo }: { steps: StepsSummary; ca
     );
   const ratio = steps.today !== null ? steps.today / steps.goal : 0;
   return (
-    <Card>
+    // Toute la carte mène à l'historique (jour, semaine, mois, année).
+    <Card href="/activite">
       <CardHeader
         title="Pas"
         action={
-          <Link href="/activite" className="inline-flex min-h-11 items-center font-medium text-petrol hover:underline">
-            Détails
-          </Link>
+          <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
+            Historique <span aria-hidden>›</span>
+          </span>
         }
       />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {steps.today !== null && (
-          <div className="min-w-0">
-            <Stat label="Aujourd’hui" value={formatNumberFr(steps.today)} hint={`${Math.round(ratio * 100)} % de l’objectif`} />
-            <div className="mt-2 h-2 rounded-full bg-surface-2" aria-hidden>
-              <div className="h-full rounded-full bg-sage" style={{ width: `${Math.min(100, ratio * 100)}%` }} />
-            </div>
-          </div>
-        )}
+      <div className="grid grid-cols-2 gap-4">
+        <Stat
+          label="Aujourd’hui"
+          value={steps.today !== null ? formatNumberFr(steps.today) : '—'}
+          hint={steps.today !== null ? `${Math.round(ratio * 100)} % de l’objectif` : 'Pas encore noté'}
+        />
         {steps.mean7 !== null && (
           <Stat
-            size={steps.today !== null ? 'md' : 'lg'}
+            size="md"
             label="Moyenne sur 7 jours"
             value={formatNumberFr(Math.round(steps.mean7))}
             hint={
-              <>
-                {steps.meanPrev7 !== null && (
-                  <>
-                    <Trend delta={Math.round(steps.mean7 - steps.meanPrev7)} format={(v) => formatNumberFr(v)} unit="pas" />
-                    <br />
-                  </>
-                )}
-                Objectif {formatNumberFr(steps.goal)} par jour
-                {steps.days7 < 7 ? ` · ${plural(steps.days7, 'jour noté', 'jours notés')}` : ''}
-              </>
+              steps.meanPrev7 !== null ? (
+                <Trend delta={Math.round(steps.mean7 - steps.meanPrev7)} format={(v) => formatNumberFr(v)} unit="pas" />
+              ) : steps.days7 < 7 ? (
+                plural(steps.days7, 'jour noté', 'jours notés')
+              ) : undefined
             }
           />
         )}
       </div>
-      {steps.today === null && canWrite && (
-        <div className="mt-3">
-          <ButtonLink href="/activite#saisir-pas" variant="ghost">
-            Saisir mes pas du jour
-          </ButtonLink>
-        </div>
-      )}
+      <WeekBars week={steps.week} goal={steps.goal} />
       {isDemo && <Meta className="mt-2">Démonstration : données fictives.</Meta>}
     </Card>
+  );
+}
+
+/** Les 7 derniers jours en barres (HTML, sans graphique à charger) ; trait pointillé = objectif. */
+function WeekBars({ week, goal }: { week: { date: string; steps: number | null }[]; goal: number }) {
+  const max = Math.max(goal * 1.15, ...week.map((d) => d.steps ?? 0));
+  const day = (iso: string) => new Intl.DateTimeFormat('fr-FR', { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`)).replace('.', '');
+  const short = (v: number) => (v >= 10_000 ? `${formatNumberFr(Math.round(v / 1000))} k` : v >= 1000 ? `${formatNumberFr(Math.round(v / 100) / 10)} k` : formatNumberFr(v));
+  const goalPct = (goal / max) * 100;
+  const label = week.map((d) => `${day(d.date)} : ${d.steps === null ? 'non noté' : `${formatNumberFr(d.steps)} pas`}`).join(', ');
+  return (
+    <figure className="mt-4">
+      <div role="img" aria-label={`Pas des 7 derniers jours : ${label}. Objectif ${formatNumberFr(goal)} pas.`} className="relative">
+        <div className="relative flex h-28 items-end gap-1.5" aria-hidden>
+          <div className="pointer-events-none absolute inset-x-0 border-t border-dashed border-ink-3/60" style={{ bottom: `${goalPct}%` }} />
+          {week.map((d, i) => {
+            const today = i === week.length - 1;
+            const reached = d.steps !== null && d.steps >= goal;
+            return (
+              <div key={d.date} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end">
+                <span className="tabular mb-1 text-[12px] leading-none text-ink-2">{d.steps === null ? '' : short(d.steps)}</span>
+                {d.steps === null ? (
+                  <div className="h-1 w-full rounded-full bg-surface-2" />
+                ) : (
+                  <div
+                    className={`w-full rounded-t-md ${reached ? 'bg-sage' : 'bg-sage/45'} ${today ? 'ring-2 ring-sage ring-offset-1 ring-offset-surface' : ''}`}
+                    style={{ height: `${Math.max(4, (d.steps / max) * 100)}%` }}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-1.5 flex gap-1.5" aria-hidden>
+          {week.map((d, i) => (
+            <span key={d.date} className={`flex-1 text-center text-[12px] ${i === week.length - 1 ? 'font-semibold text-ink' : 'text-ink-3'}`}>
+              {i === week.length - 1 ? 'auj.' : day(d.date)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <figcaption className="mt-2 text-[13px] text-ink-3">Pointillés : objectif de {formatNumberFr(goal)} pas par jour.</figcaption>
+    </figure>
   );
 }
 
