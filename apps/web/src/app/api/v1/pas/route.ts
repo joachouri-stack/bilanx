@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const error = !auth
       ? 'En-tête « Authorization » absent : vérifiez les En-têtes du raccourci (nom exact : Authorization).'
       : !/^bx_[A-Za-z0-9_-]{43}$/.test(token)
-        ? 'Clé incomplète ou mal copiée : elle doit commencer par « Bearer bx_ » suivi de 43 caractères.'
+        ? `Clé incomplète ou mal copiée : elle doit commencer par « Bearer bx_ » suivi de 43 caractères. Reçu : « ${token.slice(0, 3)}… », ${Math.max(0, token.length - 3)} caractères après le début.`
         : 'Clé inconnue ou révoquée : créez-en une nouvelle dans Activité & Pas.';
     return json({ ok: false, error }, 401);
   }
