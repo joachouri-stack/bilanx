@@ -8,6 +8,7 @@ import {
   computeGlucoseStats,
   formatLocalDate,
   getAnalyte,
+  localDateOf,
   hba1cMmolMolToPercent,
   normalizeUnit,
   referenceStatus,
@@ -42,6 +43,8 @@ export interface MeterSummary {
   meanPrev7: number | null;
   fasting7: number | null;
   afterMeal7: number | null;
+  /** Les 7 derniers jours civils, du plus ancien à aujourd'hui, avec leurs mesures. */
+  week: { date: string; readings: { at: Date; mgdl: number }[] }[];
 }
 
 export interface SensorSummary {
@@ -141,7 +144,7 @@ async function capillaryReadings(ctx: AppContext, today: LocalDate, now: Date): 
   return [...list].sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
-function meterSummary(rows: Reading[], now: Date): MeterSummary | null {
+function meterSummary(rows: Reading[], now: Date, today: LocalDate): MeterSummary | null {
   const last = rows.filter((r) => r.at.getTime() <= now.getTime() + 3_600_000).at(-1);
   if (!last) return null;
   const start = now.getTime() - 7 * DAY;
@@ -155,6 +158,10 @@ function meterSummary(rows: Reading[], now: Date): MeterSummary | null {
     meanPrev7: mean(prev.map((r) => r.mgdl)),
     fasting7: mean(win.filter((r) => r.context === 'fasting').map((r) => r.mgdl)),
     afterMeal7: mean(win.filter((r) => r.context === 'after_meal').map((r) => r.mgdl)),
+    week: [6, 5, 4, 3, 2, 1, 0].map((i) => {
+      const date = formatLocalDate(addDays(today, -i));
+      return { date, readings: rows.filter((r) => formatLocalDate(localDateOf(r.at, DEMO_TIMEZONE)) === date).map((r) => ({ at: r.at, mgdl: r.mgdl })) };
+    }),
   };
 }
 
@@ -207,7 +214,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     showGlucose ? hasAnyGlucose(ctx) : Promise.resolve(false),
   ]);
 
-  const meter = meterSummary(cap, now);
+  const meter = meterSummary(cap, now, today);
 
   const hba1c = labs
     .filter((r) => r.analyteCode === 'hba1c')

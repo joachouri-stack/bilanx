@@ -128,16 +128,34 @@ export function GlucoseCard({
 }) {
   const g = (v: number) => formatGlucose(v, unit);
   const range = `${g(GLUCOSE_TARGETS.low)}–${g(GLUCOSE_TARGETS.high)} ${unit}`;
+  const hasData = !!sensor || !!meter;
+  const header = (
+    <CardHeader
+      title="Glycémie"
+      action={
+        hasData ? (
+          <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
+            Historique <span aria-hidden>›</span>
+          </span>
+        ) : undefined
+      }
+    />
+  );
+  if (!hasData)
+    return (
+      <Card>
+        {header}
+        <EmptyState
+          title="Aucune glycémie enregistrée"
+          description="Notez la valeur de votre lecteur, ou importez les mesures de votre capteur."
+          action={canWrite ? <ButtonLink href="/glycemie#ajouter-glycemie" variant="primary">Ajouter une glycémie</ButtonLink> : undefined}
+        />
+      </Card>
+    );
   return (
-    <Card>
-      <CardHeader
-        title="Glycémie"
-        action={
-          <Link href="/glycemie" className="inline-flex min-h-11 items-center font-medium text-petrol hover:underline">
-            Détails
-          </Link>
-        }
-      />
+    // Toute la carte mène à l'historique de la glycémie (lecteur : vue 7 jours).
+    <Card href={meter && !sensor ? '/glycemie?periode=7' : '/glycemie'}>
+      {header}
       {!sensor && !meter && (
         <EmptyState
           title="Aucune glycémie enregistrée"
@@ -203,39 +221,84 @@ export function GlucoseCard({
                 Lecteur (doigt)
               </h3>
             )}
-            <Stat
-              label="Dernière mesure"
-              value={<span className="text-glucose">{g(meter.last.mgdl)}</span>}
-              unit={unit}
-              hint={`Lecteur (doigt) · ${when(meter.last.at, today)}${meter.last.context ? ` · ${GLUCOSE_CONTEXTS[meter.last.context]}` : ''}`}
-            />
-            <div className="mt-2">
-              <Chip tone={glucoseStatus(meter.last.mgdl).tone}>{glucoseStatus(meter.last.mgdl).label}</Chip>
+            {/* Même disposition que la carte Pas : deux chiffres, puis les 7 derniers jours en barres. */}
+            <div className="grid grid-cols-2 gap-4">
+              <Stat
+                label="Dernière mesure"
+                value={<span className={glucoseText(meter.last.mgdl)}>{g(meter.last.mgdl)}</span>}
+                unit={unit}
+                hint={`${glucoseStatus(meter.last.mgdl).label} · ${when(meter.last.at, today)}`}
+              />
+              <Stat
+                size="md"
+                label="Moyenne sur 7 jours"
+                value={meter.mean7 !== null ? g(meter.mean7) : '—'}
+                unit={meter.mean7 !== null ? unit : undefined}
+                hint={
+                  meter.mean7 !== null && meter.meanPrev7 !== null ? (
+                    <Trend delta={meter.mean7 - meter.meanPrev7} format={g} unit={unit} />
+                  ) : (
+                    plural(meter.count7, 'mesure', 'mesures')
+                  )
+                }
+              />
             </div>
-            {meter.count7 > 0 ? (
-              <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
-                <Stat
-                  size="md"
-                  label="Moyenne sur 7 jours"
-                  value={meter.mean7 !== null ? g(meter.mean7) : '—'}
-                  unit={unit}
-                  hint={
-                    meter.mean7 !== null && meter.meanPrev7 !== null ? (
-                      <Trend delta={meter.mean7 - meter.meanPrev7} format={g} unit={unit} />
-                    ) : undefined
-                  }
-                />
-                <Stat size="md" label="Mesures" value={formatNumberFr(meter.count7)} hint="7 derniers jours" />
-                {meter.fasting7 !== null && <Stat size="md" label="À jeun (moyenne)" value={g(meter.fasting7)} unit={unit} />}
-                {meter.afterMeal7 !== null && <Stat size="md" label="Après un repas (moyenne)" value={g(meter.afterMeal7)} unit={unit} />}
-              </div>
-            ) : (
-              <Meta className="mt-2">Aucune mesure ces 7 derniers jours.</Meta>
-            )}
+            <MeterWeek week={meter.week} unit={unit} />
           </section>
         )}
       </div>
     </Card>
+  );
+}
+
+/** Couleur du chiffre selon la cible (comme la pastille). */
+function glucoseText(v: number): string {
+  return v < GLUCOSE_TARGETS.low ? 'text-red' : v > GLUCOSE_TARGETS.high ? 'text-amber' : 'text-glucose';
+}
+
+/** Moyenne de chaque jour des 7 derniers jours, en barres (même gabarit que les pas) ; bande verte = cible. */
+function MeterWeek({ week, unit }: { week: { date: string; readings: { at: Date; mgdl: number }[] }[]; unit: GlucoseUnit }) {
+  const days = week.map((d) => ({ date: d.date, n: d.readings.length, mean: d.readings.length ? d.readings.reduce((a, r) => a + r.mgdl, 0) / d.readings.length : null }));
+  const max = Math.max(GLUCOSE_TARGETS.high * 1.4, ...days.map((d) => (d.mean ?? 0) * 1.1));
+  const pct = (v: number) => (v / max) * 100;
+  const day = (iso: string) => new Intl.DateTimeFormat('fr-FR', { weekday: 'short', timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`)).replace('.', '');
+  const tone = (v: number) => (v < GLUCOSE_TARGETS.low ? 'bg-red' : v > GLUCOSE_TARGETS.high ? 'bg-amber' : 'bg-sage');
+  const g = (v: number) => formatGlucose(v, unit);
+  const desc = days.map((d) => `${day(d.date)} : ${d.mean === null ? 'aucune mesure' : `${g(d.mean)} ${unit} (${plural(d.n, 'mesure', 'mesures')})`}`).join(', ');
+  return (
+    <figure className="mt-4">
+      <div role="img" aria-label={`Moyenne de la glycémie de chaque jour, 7 derniers jours : ${desc}. Cible ${g(GLUCOSE_TARGETS.low)}–${g(GLUCOSE_TARGETS.high)} ${unit}.`}>
+        <div className="relative flex h-28 items-end gap-1.5" aria-hidden>
+          <div
+            className="pointer-events-none absolute inset-x-0 rounded bg-sage-2"
+            style={{ bottom: `${pct(GLUCOSE_TARGETS.low)}%`, height: `${pct(GLUCOSE_TARGETS.high) - pct(GLUCOSE_TARGETS.low)}%` }}
+          />
+          {days.map((d, i) => (
+            <div key={d.date} className="relative flex h-full min-w-0 flex-1 flex-col items-center justify-end">
+              <span className="tabular mb-1 text-[12px] leading-none text-ink-2">{d.mean === null ? '' : g(d.mean)}</span>
+              {d.mean === null ? (
+                <div className="h-1 w-full rounded-full bg-surface-2" />
+              ) : (
+                <div
+                  className={`w-full rounded-t-md ${tone(d.mean)} ${i === days.length - 1 ? 'ring-2 ring-ink-3 ring-offset-1 ring-offset-surface' : ''}`}
+                  style={{ height: `${Math.max(4, pct(d.mean))}%` }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-1.5 flex gap-1.5" aria-hidden>
+          {days.map((d, i) => (
+            <span key={d.date} className={`flex-1 text-center text-[12px] ${i === days.length - 1 ? 'font-semibold text-ink' : 'text-ink-3'}`}>
+              {i === days.length - 1 ? 'auj.' : day(d.date)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <figcaption className="mt-2 text-[13px] text-ink-3">
+        Moyenne de chaque jour · bande verte : cible {g(GLUCOSE_TARGETS.low)}–{g(GLUCOSE_TARGETS.high)} {unit}.
+      </figcaption>
+    </figure>
   );
 }
 
