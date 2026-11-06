@@ -312,7 +312,23 @@ function MeterWeek({ week, unit }: { week: { date: string; readings: { at: Date;
 /* ------------------------------------------------------------------ Bandeau d'accueil */
 
 /** Bandeau coloré en haut du tableau de bord : salutation, date et 3 chiffres du jour au plus. */
-export function DashboardHero({ title, subtitle, items }: { title: string; subtitle: React.ReactNode; items: { icon: IconName; label: string; value: string; href: string }[] }) {
+export interface HeroItem {
+  icon: IconName;
+  label: string;
+  value: string;
+  unit?: string;
+  /** Ligne d'information sous le chiffre (évolution, statut, date). */
+  sub?: string;
+  /** Point de couleur en haut à droite (statut de la glycémie) et son libellé pour les lecteurs d'écran. */
+  dot?: 'ok' | 'high' | 'low';
+  dotLabel?: string;
+  href: string;
+}
+
+const HERO_DOT: Record<NonNullable<HeroItem['dot']>, string> = { ok: 'bg-[#7fd6a4]', high: 'bg-[#ffb36b]', low: 'bg-[#ff8a7a]' };
+
+/** Bandeau coloré en haut du tableau de bord : salutation, date et 3 chiffres clés au plus. */
+export function DashboardHero({ title, subtitle, items }: { title: string; subtitle: React.ReactNode; items: HeroItem[] }) {
   return (
     <section
       aria-label="Résumé du jour"
@@ -321,19 +337,28 @@ export function DashboardHero({ title, subtitle, items }: { title: string; subti
       <h1 className="font-display text-[28px] font-semibold leading-tight sm:text-[34px]">{title}</h1>
       <p className="mt-1 text-white/85 first-letter:uppercase">{subtitle}</p>
       {items.length > 0 && (
-        <ul className={`mt-4 grid gap-2 ${items.length === 3 ? 'grid-cols-3' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <ul className={`mt-4 grid gap-2 sm:gap-3 ${items.length === 3 ? 'grid-cols-3' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
           {items.map((it) => (
             <li key={it.label} className="min-w-0">
               <Link
                 href={it.href}
-                className="flex h-full min-h-14 flex-col gap-1.5 rounded-2xl bg-white/15 px-2.5 py-3 transition sm:px-3 hover:bg-white/25 sm:flex-row sm:items-center sm:gap-3"
+                className="flex h-full min-h-[104px] flex-col rounded-2xl bg-white/10 px-2.5 py-3 ring-1 ring-inset ring-white/20 backdrop-blur-sm transition hover:bg-white/15 active:scale-[0.98] sm:p-4"
               >
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/20" aria-hidden>
-                  <Icon name={it.icon} className="size-[18px]" />
+                <span className="flex items-center gap-1 text-[12.5px] font-medium text-white/85 sm:gap-1.5 sm:text-[13px]">
+                  <Icon name={it.icon} className="size-3.5 shrink-0 sm:size-4" />
+                  <span className="truncate">{it.label}</span>
                 </span>
-                <span className="min-w-0">
-                  <span className="block text-[13px] leading-tight text-white/85">{it.label}</span>
-                  <span className="tabular block whitespace-nowrap text-[16px] font-semibold leading-tight sm:text-lg">{it.value}</span>
+                <span className="mt-auto pt-2">
+                  <span className="tabular block whitespace-nowrap leading-none">
+                    <span className="text-[26px] font-semibold tracking-tight sm:text-3xl">{it.value}</span>
+                    {it.dot && (
+                      <span className={`ml-1.5 inline-block size-2.5 -translate-y-1 rounded-full ring-2 ring-white/30 ${HERO_DOT[it.dot]}`} title={it.dotLabel}>
+                        <span className="sr-only">{it.dotLabel}</span>
+                      </span>
+                    )}
+                    {it.unit && <span className="ml-1 text-[13px] font-medium text-white/80">{it.unit}</span>}
+                  </span>
+                  {it.sub && <span className="mt-1.5 block truncate text-[12px] leading-tight text-white/85">{it.sub}</span>}
                 </span>
               </Link>
             </li>

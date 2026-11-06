@@ -5,9 +5,10 @@ import { appContext, displayUnits, moduleAllowed, NAV_MODULES } from '@/lib/serv
 import { dashboardData } from '@/lib/server/dashboard-data';
 import { QUICK_ADD } from '@/lib/navigation';
 import { ButtonLink } from '@/components/ui';
-import { Icon, type IconName } from '@/components/icon';
+import { Icon } from '@/components/icon';
 import {
   DashboardHero,
+  type HeroItem,
   AppointmentCard,
   DocumentsCard,
   FirstStepsCard,
@@ -44,21 +45,43 @@ export default async function DashboardPage() {
   const dateFr = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'full' }).format(now);
 
   // Chiffres du bandeau : dernière HbA1c, glycémie moyenne, prochain rendez-vous (seulement ceux qui existent).
-  const heroItems: { icon: IconName; label: string; value: string; href: string }[] = [];
+  const heroItems: HeroItem[] = [];
   const lastA1c = data.hba1c.at(-1);
   if (lastA1c) {
     const f = formatHba1c(lastA1c.percent, A1C);
-    heroItems.push({ icon: 'flask', label: 'HbA1c', value: `${f.value}\u00a0${f.unit}`, href: '/analyses/hba1c' });
+    const prevA1c = data.hba1c.at(-2);
+    let sub = `Le ${new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, day: 'numeric', month: 'short' }).format(lastA1c.sampledAt)}`;
+    if (prevA1c) {
+      const d = Math.round((lastA1c.percent - prevA1c.percent) * 10) / 10;
+      sub = d === 0 ? 'Stable' : `${d < 0 ? '↓' : '↑'} ${String(Math.abs(d)).replace('.', ',')}\u00a0pt`;
+    }
+    heroItems.push({ icon: 'flask', label: 'HbA1c', value: f.value, unit: f.unit, sub, href: '/analyses/hba1c' });
   }
   // Glycémie : moyenne du lecteur sur 7 jours ; à défaut, celle du capteur sur 14 jours.
-  if (data.meter?.mean7 != null)
-    heroItems.push({ icon: 'drop', label: 'Glycémie 7 j', value: `${formatGlucose(data.meter.mean7, UNIT)}\u00a0${UNIT}`, href: '/glycemie?periode=7' });
-  else if (data.sensor?.stats14.mean != null)
-    heroItems.push({ icon: 'drop', label: 'Glycémie 14 j', value: `${formatGlucose(data.sensor.stats14.mean, UNIT)}\u00a0${UNIT}`, href: '/glycemie?periode=14' });
+  const gMean = data.meter?.mean7 ?? data.sensor?.stats14.mean ?? null;
+  if (gMean != null) {
+    const dot = gMean < 70 ? 'low' : gMean > 180 ? 'high' : 'ok';
+    heroItems.push({
+      icon: 'drop',
+      label: 'Glycémie',
+      value: formatGlucose(gMean, UNIT),
+      sub: `${UNIT} · ${data.meter?.mean7 != null ? '7 j' : '14 j'}`,
+      dot,
+      dotLabel: dot === 'ok' ? 'Moyenne dans la cible' : dot === 'high' ? 'Moyenne trop haute' : 'Moyenne trop basse',
+      href: data.meter?.mean7 != null ? '/glycemie?periode=7' : '/glycemie?periode=14',
+    });
+  }
   const nextA = data.appointments?.upcoming[0];
   if (nextA) {
     const days = Math.round((Date.UTC(...ymdParis(nextA.startsAt)) - Date.UTC(...ymdParis(now))) / 86_400_000);
-    heroItems.push({ icon: 'calendar', label: 'RDV', value: days <= 0 ? 'Aujourd’hui' : days === 1 ? 'Demain' : `Dans ${days}\u00a0j`, href: '/rendez-vous' });
+    const when = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, day: 'numeric', month: 'short' }).format(nextA.startsAt).replace('.', '');
+    heroItems.push({
+      icon: 'calendar',
+      label: 'RDV',
+      value: days <= 0 ? 'Auj.' : days === 1 ? 'Demain' : `J-${days}`,
+      sub: when,
+      href: '/rendez-vous',
+    });
   }
 
   return (
