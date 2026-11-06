@@ -4,17 +4,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import { Icon } from './icon';
+import { dayHref } from '@/lib/day-href';
 
 const SHORT = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const LONG = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Construit l'adresse d'un jour : `${basePath}?${param}=${jour}&${extraQuery}`. */
-export function dayHref(basePath: string, param: string, day: string, extraQuery?: string): string {
-  const q = new URLSearchParams(extraQuery);
-  q.set(param, day);
-  return `${basePath}?${q.toString()}`;
-}
 
 /**
  * Navigation par jour : « ← [date] → ». La date affichée (« ven. 6 nov. », en entier sur ordinateur) est

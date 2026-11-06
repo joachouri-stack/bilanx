@@ -18,7 +18,8 @@ import { glucoseDay, hasSensorSince, meterRange, sensorRange } from '@/lib/serve
 import { GlucosePeriod } from './periode';
 import { ModuleForbidden } from '@/components/module-forbidden';
 import { Button, ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, PageHeader, RangeBar, Segmented, Stat, buttonClass, pct } from '@/components/ui';
-import { DayNav, dayHref } from '@/components/day-nav';
+import { DayNav } from '@/components/day-nav';
+import { dayHref } from '@/lib/day-href';
 import { GlucoseDayChart } from '@/components/glucose-day-chart';
 import { GlucoseEntryForm } from '@/components/glucose-forms';
 import { removeGlucoseAction } from '@/lib/server/actions';
