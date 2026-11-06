@@ -679,7 +679,7 @@ function WeekBars({ week, goal }: { week: { date: string; steps: number | null }
                   <div className="h-1 w-full rounded-full bg-surface-2" />
                 ) : (
                   <div
-                    className={`w-full rounded-t-md ${reached ? 'bg-sage' : 'bg-sage/45'} ${today ? 'ring-2 ring-sage ring-offset-1 ring-offset-surface' : ''}`}
+                    className={`w-full rounded-t-md ${reached ? 'bg-sage' : 'bg-amber'} ${today ? `ring-2 ${reached ? 'ring-sage' : 'ring-amber'} ring-offset-1 ring-offset-surface` : ''}`}
                     style={{ height: `${Math.max(4, (d.steps / max) * 100)}%` }}
                   />
                 )}
@@ -695,7 +695,7 @@ function WeekBars({ week, goal }: { week: { date: string; steps: number | null }
           ))}
         </div>
       </div>
-      <figcaption className="mt-2 text-[13px] text-ink-3">Pointillés : objectif de {formatNumberFr(goal)} pas par jour.</figcaption>
+      <figcaption className="mt-2 text-[13px] text-ink-3">Pointillés : objectif de {formatNumberFr(goal)} pas par jour. Orange : non atteint.</figcaption>
     </figure>
   );
 }
