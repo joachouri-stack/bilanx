@@ -6,6 +6,8 @@ import { NextResponse, type NextRequest } from 'next/server';
  * SANS identifiants (manifeste, icônes, service worker) ; protégés, l'installation échouerait.
  */
 const PUBLIC_FILES = new Set(['/api/sante', '/manifest.webmanifest', '/sw.js', '/hors-ligne.html', '/icon.svg']);
+/** Réception des envois automatiques (Raccourci iPhone) : protégée par sa propre clé personnelle, pas par le mot de passe du site. */
+const OWN_AUTH = new Set(['/api/v1/pas']);
 
 /**
  * Protection optionnelle de tout le site par mot de passe (authentification HTTP « Basic »),
@@ -34,7 +36,7 @@ function demoPass(expected: string, secret = process.env.BILANX_SECRET_KEY ?? ''
 export function proxy(request: NextRequest) {
   const expected = process.env.BILANX_BASIC_AUTH;
   const path = request.nextUrl.pathname;
-  if (!expected || PUBLIC_FILES.has(path) || path.startsWith('/icons/')) return NextResponse.next();
+  if (!expected || PUBLIC_FILES.has(path) || OWN_AUTH.has(path) || path.startsWith('/icons/')) return NextResponse.next();
   const pass = demoPass(expected);
   const cookie = request.cookies.get(PASS_COOKIE)?.value ?? '';
   if (cookie && same(cookie, pass)) return NextResponse.next();

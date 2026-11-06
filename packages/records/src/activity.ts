@@ -153,7 +153,7 @@ export function createActivityService(cfg: ActivityConfig) {
     const rows = await P.withProfileData(actor, profileId, 'activity', 'read', (tx) =>
       tx<{ device_label: string; status: string; last_sync_at: Date | null; data_from: string | null; data_to: string | null; details: { sources?: string[] } }[]>`
         SELECT device_label, status, last_sync_at, to_char(data_from, 'YYYY-MM-DD') AS data_from, to_char(data_to, 'YYYY-MM-DD') AS data_to, details
-        FROM activity_source WHERE profile_id = ${profileId} ORDER BY (status = 'manual'), last_sync_at DESC NULLS LAST`,
+        FROM activity_source WHERE profile_id = ${profileId} ORDER BY (status = 'manual'), (status <> 'active'), last_sync_at DESC NULLS LAST`,
     );
     const s = rows[0];
     return s
@@ -174,6 +174,24 @@ export function createActivityService(cfg: ActivityConfig) {
    * Un import Apple Santé ultérieur contenant ce jour le recalcule à partir des heures.
    */
   async function setManualDay(actor: Actor, profileId: string, dayIso: string, steps: number): Promise<{ ok: true } | { ok: false; error: string }> {
+    return writeDay(actor, profileId, dayIso, steps, { type: 'manual', label: 'Saisie manuelle', status: 'manual' });
+  }
+
+  /**
+   * Total d'un jour envoyé automatiquement par le Raccourci iPhone (lu dans Apple Santé, déjà dédoublonné iPhone/Montre).
+   * Remplace la valeur de ce jour ; renvoyer le même jour plusieurs fois ne crée pas de doublon.
+   */
+  async function syncDay(actor: Actor, profileId: string, dayIso: string, steps: number): Promise<{ ok: true } | { ok: false; error: string }> {
+    return writeDay(actor, profileId, dayIso, steps, { type: 'ios_shortcut', label: 'Raccourci iPhone (Apple Santé)', status: 'active' });
+  }
+
+  async function writeDay(
+    actor: Actor,
+    profileId: string,
+    dayIso: string,
+    steps: number,
+    origin: { type: 'manual' | 'ios_shortcut'; label: string; status: 'manual' | 'active' },
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
     const day = parseLocalDate(dayIso);
     if (!day) return { ok: false, error: 'Choisissez une date.' };
     const today = localDateOf(now(), tz);
@@ -184,8 +202,8 @@ export function createActivityService(cfg: ActivityConfig) {
     await P.withProfileData(actor, profileId, 'activity', 'write', async (tx) => {
       const [src] = await tx<{ id: string }[]>`
         INSERT INTO activity_source (profile_id, source_type, device_label, status, last_sync_at)
-        VALUES (${profileId}, 'manual', 'Saisie manuelle', 'manual', ${now()})
-        ON CONFLICT (profile_id, source_type) DO UPDATE SET last_sync_at = EXCLUDED.last_sync_at
+        VALUES (${profileId}, ${origin.type}, ${origin.label}, ${origin.status}, ${now()})
+        ON CONFLICT (profile_id, source_type) DO UPDATE SET last_sync_at = EXCLUDED.last_sync_at, status = EXCLUDED.status
         RETURNING id`;
       await tx`DELETE FROM activity_hourly WHERE profile_id = ${profileId} AND (hour_start AT TIME ZONE ${tz})::date = ${iso}::date`;
       await tx`
@@ -229,7 +247,7 @@ export function createActivityService(cfg: ActivityConfig) {
     });
   }
 
-  return { importAppleHealth, daily, hourly, goal, setGoal, source, setManualDay, removeManualDay, manualDays, clear };
+  return { importAppleHealth, daily, hourly, goal, setGoal, source, setManualDay, syncDay, removeManualDay, manualDays, clear };
 }
 
 export type ActivityService = ReturnType<typeof createActivityService>;

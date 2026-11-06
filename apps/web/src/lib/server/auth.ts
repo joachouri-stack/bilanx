@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createAuthService, mailerFromEnv, SmtpMailer, parseSecretKey, sessionLifetimeMinutes, type AuthService, type SessionInfo } from '@bilanx/auth';
+import { createApiTokenService, type ApiTokenService, createAuthService, mailerFromEnv, SmtpMailer, parseSecretKey, sessionLifetimeMinutes, type AuthService, type SessionInfo } from '@bilanx/auth';
 import { createAppSql, type Sql } from '@bilanx/db';
 import { createProfilesService, type ProfilesService } from '@bilanx/profiles';
 import {
@@ -33,7 +33,7 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService; bilanxApiTokens?: ApiTokenService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createAppSql();
@@ -78,6 +78,11 @@ export function documents(): DocumentsService {
 export function glucose(): GlucoseService {
   globalForAuth.bilanxGlucose ??= createGlucoseService({ profiles: profiles() });
   return globalForAuth.bilanxGlucose;
+}
+
+export function apiTokens(): ApiTokenService {
+  globalForAuth.bilanxApiTokens ??= createApiTokenService({ sql: sql() });
+  return globalForAuth.bilanxApiTokens;
 }
 
 export function activity(): ActivityService {

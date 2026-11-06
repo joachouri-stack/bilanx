@@ -15,6 +15,7 @@ import { collectReport } from './report-data';
 import { demoToday } from '@/lib/demo-data';
 import {
   activity,
+  apiTokens,
   gym,
   glucose,
   appointments,
@@ -54,6 +55,8 @@ export interface FormState {
   attempt?: string;
   /** Codes de secours, affichés une seule fois après l'activation de la MFA. */
   recoveryCodes?: string[];
+  /** Clé d'envoi automatique, affichée une seule fois après sa création. */
+  token?: string;
 }
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? '');
@@ -1040,6 +1043,31 @@ export async function removeStepsAction(fd: FormData): Promise<void> {
   if (ctx.active.kind === 'real') await activity().removeManualDay(ctx.user, ctx.active.access.profileId, str(fd, 'day'));
   revalidatePath('/activite');
   revalidatePath('/tableau-de-bord');
+}
+
+/** Envoi automatique des pas (Raccourci iPhone) : crée une clé pour le profil affiché, montrée une seule fois. */
+export async function createStepsTokenAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Choisissez votre profil (le profil de démonstration est en lecture seule).' } };
+  const profileId = ctx.active.access.profileId;
+  try {
+    // Vérifie le droit d'écriture sur l'activité de ce profil (lève ForbiddenError sinon).
+    await profiles().withProfileData(ctx.user, profileId, 'activity', 'write', async () => null);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message } };
+    throw e;
+  }
+  const label = str(fd, 'label').trim() || 'iPhone';
+  const r = await apiTokens().create(ctx.user.accountId, profileId, 'steps', label);
+  if (!r.ok) return { errors: { form: r.error } };
+  revalidatePath('/activite');
+  return { ok: true, token: r.token };
+}
+
+export async function revokeStepsTokenAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  await apiTokens().revoke(ctx.user.accountId, str(fd, 'id'));
+  revalidatePath('/activite');
 }
 
 /** Salle de sport : coche (present=1) ou décoche (present=0) un jour. Profil de démonstration : sans effet. */

@@ -23,6 +23,8 @@ import { StepsBars, type Bar } from '@/components/steps-bars';
 import { AppleHealthImport, GoalForm, ManualStepsForm } from '@/components/activity-forms';
 import { ConfirmDelete } from '@/components/autres-confirmer';
 import { ModuleForbidden } from '@/components/module-forbidden';
+import { StepsSync } from '@/components/steps-sync';
+import { apiTokens } from '@/lib/server/auth';
 
 export const metadata: Metadata = { title: 'Activité & Pas' };
 
@@ -84,6 +86,8 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
     view === 'jour' ? stepsHourly(ctx, day, now) : Promise.resolve(new Map<number, number>()),
     canWrite ? manualSteps(ctx) : Promise.resolve([]),
   ]);
+  const syncTokens = canWrite && ctx.active.kind === 'real' ? await apiTokens().list(ctx.user.accountId, ctx.active.access.profileId, 'steps') : [];
+  const endpoint = `${(process.env.BILANX_APP_URL ?? 'http://localhost:3000').replace(/\/$/, '')}/api/v1/pas`;
   const days = compareLocalDates(from, today) > 0 ? [] : stepsSeries(daily, from, lastTo);
   const stats = stepsStats(days, goal);
   const cmpStats = view === 'jour' ? stepsStats(stepsSeries(cmpDaily!, cmp.from, cmpTo), goal) : stats;
@@ -300,17 +304,22 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
             {source ? (
               <div className="text-sm">
                 <p>
-                  {source.label} <Chip tone="neutral">{source.status === 'demo' ? 'fictif' : source.status === 'manual' ? 'saisie' : 'import de fichier'}</Chip>
+                  {source.label}{' '}
+                  <Chip tone={source.status === 'active' ? 'sage' : 'neutral'}>
+                    {source.status === 'demo' ? 'fictif' : source.status === 'manual' ? 'saisie' : source.status === 'active' ? 'automatique' : 'import de fichier'}
+                  </Chip>
                 </p>
                 {source.lastImportAt && (
                   <Meta className="mt-1">
-                    {source.status === 'manual' ? 'Dernière saisie' : 'Dernier import'} : {fmtDT.format(source.lastImportAt)}
+                    {source.status === 'manual' ? 'Dernière saisie' : source.status === 'active' ? 'Dernier envoi' : 'Dernier import'} : {fmtDT.format(source.lastImportAt)}
                   </Meta>
                 )}
                 {source.status !== 'manual' && source.kinds.includes('manual') && <Meta>Certains jours ont aussi été saisis à la main.</Meta>}
                 {source.dataFrom && source.dataTo && <Meta>Données du {dd(source.dataFrom)} au {dd(source.dataTo)}</Meta>}
                 {source.sources.length > 0 && <Meta>Appareils : {source.sources.join(', ')}</Meta>}
-                {!isDemo && <Meta className="mt-2">Aucune synchronisation automatique : saisissez vos pas ou importez un nouvel export.</Meta>}
+                {!isDemo && !source.kinds.includes('active') && (
+                  <Meta className="mt-2">Pas encore d’envoi automatique : réglez-le ci-dessous, ou saisissez vos pas à la main.</Meta>
+                )}
               </div>
             ) : (
               <p className="text-sm text-ink-2">Aucune donnée d’activité pour ce profil.</p>
@@ -319,8 +328,16 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
               L’iPhone et l’Apple Watch comptent souvent les mêmes pas : pour chaque heure, BILANX garde l’appareil qui en a compté le plus, sans
               additionner.
             </Meta>
-            <Meta className="mt-2">Bientôt : envoi automatique des pas depuis l’iPhone.</Meta>
           </Card>
+          {canWrite && (
+            <Card id="envoi-automatique">
+              <CardHeader title="Envoi automatique depuis l’iPhone" icon="steps" iconTone="sage" />
+              <StepsSync
+                endpoint={endpoint}
+                tokens={syncTokens.map((t) => ({ id: t.id, label: t.label, hint: t.hint, createdAt: t.createdAt.toISOString(), lastUsedAt: t.lastUsedAt?.toISOString() ?? null }))}
+              />
+            </Card>
+          )}
           {canWrite && (
             <Card>
               <CardHeader title="Importer depuis Apple Santé" />
