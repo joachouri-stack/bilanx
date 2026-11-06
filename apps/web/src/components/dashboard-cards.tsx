@@ -335,8 +335,6 @@ function KeyMoments({ days, unit }: { days: KeyMomentDay[]; unit: GlucoseUnit })
             ))}
           </tbody>
         </table>
-        <Meta className="mt-1">Vert : dans la cible · orange : un peu à côté · rouge : hors plage.</Meta>
-        <Meta>Repas noté dans le journal : juste avant, puis 2 h après. Sinon, heures habituelles (7 h 30, 12 h, 14 h, 19 h 30, 21 h 30).</Meta>
       </div>
     </div>
   );
