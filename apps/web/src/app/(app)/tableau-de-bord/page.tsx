@@ -60,8 +60,8 @@ export default async function DashboardPage() {
     }
     heroItems.push({ icon: 'flask', label: 'HbA1c', value: f.value, unit: f.unit, sub, subTone, href: '/analyses/hba1c' });
   }
-  // Glycémie : moyenne du lecteur sur 7 jours ; à défaut, celle du capteur sur 14 jours.
-  const gMean = data.meter?.mean7 ?? data.sensor?.stats14.mean ?? null;
+  // Glycémie : moyenne du capteur sur 7 jours s'il y en a un (référence, mesures continues) ; sinon celle du lecteur.
+  const gMean = data.sensor?.mean7 ?? data.meter?.mean7 ?? null;
   if (gMean != null) {
     // Vert : dans la plage 70–180 ; orange : entre les deux (54–69 ou 181–250) ; rouge : hors plage (< 54 ou > 250).
     const dot = gMean >= 70 && gMean <= 180 ? 'ok' : gMean >= 54 && gMean <= 250 ? 'mid' : 'out';
@@ -69,13 +69,13 @@ export default async function DashboardPage() {
       icon: 'drop',
       label: 'Glycémie',
       value: formatGlucose(gMean, UNIT),
-      sub: `${UNIT} · ${data.meter?.mean7 != null ? '7 j' : '14 j'}`,
+      sub: `${UNIT} · 7 j`,
       dot,
       dotLabel:
         dot === 'ok'
           ? 'Moyenne dans la plage'
           : `Moyenne ${dot === 'mid' ? 'un peu ' : ''}${gMean > 180 ? 'au-dessus' : 'en dessous'} de la plage`,
-      href: data.meter?.mean7 != null ? '/glycemie?periode=7' : '/glycemie?periode=14',
+      href: '/glycemie?periode=7',
     });
   }
   const nextA = data.appointments?.upcoming[0];

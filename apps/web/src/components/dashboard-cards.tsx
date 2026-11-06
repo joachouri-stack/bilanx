@@ -79,6 +79,7 @@ function Trend({ delta, format, unit, period = 'les 7 jours d’avant' }: { delt
   );
 }
 
+const DAY_MS = 86_400_000;
 const sectionTitle = 'flex items-center gap-2 text-sm font-semibold text-ink-2';
 
 /* ------------------------------------------------------------------ Premiers pas */
@@ -170,64 +171,24 @@ export function GlucoseCard({
           action={canWrite ? <ButtonLink href="/glycemie#ajouter-glycemie" variant="primary">Ajouter une glycémie</ButtonLink> : undefined}
         />
       )}
-      <div className="space-y-5">
-        {sensor && (
-          <section aria-label="Capteur">
-            {meter && (
-              <h3 className={`${sectionTitle} mb-2`}>
-                <Icon name="chart" className="size-4" />
-                Capteur
-              </h3>
-            )}
-            <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-              <Stat
-                label="Dernière mesure"
-                value={<span className="text-glucose">{g(sensor.last.mgdl)}</span>}
-                unit={unit}
-                hint={`Capteur · ${when(sensor.last.at, today)}`}
-              />
-              <Stat label="Dans la cible" value={sensor.stats14.count ? pct(sensor.stats14.pctInRange) : '—'} size="md" hint="14 derniers jours" />
-            </div>
-            <div className="mt-2">
-              <Chip tone={glucoseStatus(sensor.last.mgdl).tone}>{glucoseStatus(sensor.last.mgdl).label}</Chip>
-            </div>
-            {sensor.curve.length > 1 && (
-              <>
-                <DashboardSparkline
-                  points={sensor.curve}
-                  min={40}
-                  max={300}
-                  band={[GLUCOSE_TARGETS.low, GLUCOSE_TARGETS.high]}
-                  label={`Courbe du capteur sur les dernières 24 heures, cible ${range}`}
-                />
-                <Meta>Dernières 24 h · bande verte : cible</Meta>
-              </>
-            )}
-            <RangeBar
-              veryLow={sensor.stats14.pctVeryLow}
-              low={sensor.stats14.pctLow}
-              inRange={sensor.stats14.pctInRange}
-              high={sensor.stats14.pctHigh}
-              veryHigh={sensor.stats14.pctVeryHigh}
-            />
-            <Meta>
-              Trop bas {pct(sensor.stats14.pctVeryLow + sensor.stats14.pctLow)} · trop haut {pct(sensor.stats14.pctHigh + sensor.stats14.pctVeryHigh)} · cible {range}
-            </Meta>
-            {sensor.stats14.coveragePct < 70 && (
-              <Meta className="mt-1">Mesures sur {pct(sensor.stats14.coveragePct)} du temps seulement : chiffres à lire avec prudence.</Meta>
-            )}
-            {isDemo && <Meta className="mt-1">Démonstration : données fictives.</Meta>}
+      <div className="space-y-4">
+        {sensor && <SensorBlock sensor={sensor} unit={unit} isDemo={isDemo} />}
+
+        {meter && sensor && (
+          // Avec un capteur : le lecteur (doigt) tient en une ligne, la courbe du capteur reste la référence.
+          <section aria-label="Lecteur (doigt)" className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line pt-3 text-sm">
+            <span className="flex items-center gap-2 text-ink-2">
+              <Icon name="drop" className="size-4" />
+              Lecteur (doigt)
+            </span>
+            <span className="tabular">
+              <strong className={`text-base ${glucoseLevel(meter.last.mgdl).text}`}>{g(meter.last.mgdl)}</strong> {unit}
+              <span className="text-ink-3"> · {when(meter.last.at, today)}</span>
+            </span>
           </section>
         )}
-
-        {meter && (
-          <section aria-label="Lecteur (doigt)" className={sensor ? 'border-t border-line pt-4' : ''}>
-            {sensor && (
-              <h3 className={`${sectionTitle} mb-2`}>
-                <Icon name="drop" className="size-4" />
-                Lecteur (doigt)
-              </h3>
-            )}
+        {meter && !sensor && (
+          <section aria-label="Lecteur (doigt)">
             {/* Même disposition que la carte Pas : deux chiffres, puis les 7 derniers jours en barres. */}
             <div className="grid grid-cols-2 gap-4">
               <Stat
@@ -255,6 +216,108 @@ export function GlucoseCard({
         )}
       </div>
     </Card>
+  );
+}
+
+/** Trois niveaux, comme le chiffre du bandeau : vert dans la cible, orange un peu à côté, rouge hors plage. */
+function glucoseLevel(v: number): { text: string; dot: string; tone: Tone; label: string } {
+  if (v >= GLUCOSE_TARGETS.low && v <= GLUCOSE_TARGETS.high) return { text: 'text-go', dot: 'var(--go)', tone: 'sage', label: 'Dans la cible' };
+  if (v >= 54 && v <= 250) return { text: 'text-amber', dot: 'var(--amber)', tone: 'amber', label: v > GLUCOSE_TARGETS.high ? 'Un peu haut' : 'Un peu bas' };
+  return { text: 'text-red', dot: 'var(--red)', tone: 'red', label: v > GLUCOSE_TARGETS.high ? 'Trop haut' : 'Trop bas' };
+}
+
+/** « il y a 6 min », sinon l'heure (« 22 h 55 », « hier, 22 h 55 »). */
+function agoLabel(at: Date, nowMs: number, today: LocalDate): string {
+  const min = Math.round((nowMs - at.getTime()) / 60_000);
+  if (min < 1) return 'à l’instant';
+  if (min < 60) return `il y a ${min} min`;
+  return `à ${when(at, today)}`;
+}
+
+/** Graduations toutes les 6 h (0 h, 6 h, 12 h, 18 h, heure de Paris) sur les 24 dernières heures. */
+function sixHourTicks(from: number, to: number): { t: number; label: string }[] {
+  const hourOf = new Intl.DateTimeFormat('en-GB', { timeZone: DEMO_TIMEZONE, hour: '2-digit', hourCycle: 'h23' });
+  const out: { t: number; label: string }[] = [];
+  for (let t = Math.ceil(from / 3_600_000) * 3_600_000; t <= to; t += 3_600_000) {
+    const h = Number(hourOf.format(new Date(t)));
+    if (h % 6 === 0) out.push({ t, label: `${h} h` });
+  }
+  return out;
+}
+
+/** Capteur : la dernière valeur en grand, la courbe des 24 h à la bonne échelle, puis les chiffres du jour. */
+function SensorBlock({ sensor, unit, isDemo }: { sensor: SensorSummary; unit: GlucoseUnit; isDemo: boolean }) {
+  const g = (v: number) => formatGlucose(v, unit);
+  const nowMs = Math.max(Date.now(), sensor.last.at.getTime());
+  const today = localDateOf(new Date(nowMs), DEMO_TIMEZONE);
+  const lvl = glucoseLevel(sensor.last.mgdl);
+  const t = sensor.today;
+  // Échelle : au moins 40–300, élargie aux valeurs mesurées (jusqu'à 500) pour ne rien couper.
+  const top = Math.min(500, Math.max(300, Math.ceil((Math.max(...sensor.curve.map((p) => p.v), sensor.last.mgdl) + 20) / 50) * 50));
+  const range = `${g(GLUCOSE_TARGETS.low)}–${g(GLUCOSE_TARGETS.high)} ${unit}`;
+  const tile = 'rounded-xl bg-surface-2 px-2 py-2.5 text-center';
+  return (
+    <section aria-label="Capteur" className="space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm text-ink-2">Dernière mesure du capteur</p>
+          <p className="tabular mt-1 leading-none">
+            <span className={`text-5xl font-bold tracking-tight ${lvl.text}`}>{g(sensor.last.mgdl)}</span>
+            <span className="ml-1.5 text-ink-3">{unit}</span>
+          </p>
+          <p className="mt-1.5 text-sm text-ink-2">{agoLabel(sensor.last.at, nowMs, today)}</p>
+        </div>
+        <Chip tone={lvl.tone}>{lvl.label}</Chip>
+      </div>
+
+      {sensor.curve.length > 1 && (
+        <div>
+          <DashboardSparkline
+            points={sensor.curve}
+            min={40}
+            max={top}
+            height={84}
+            band={[GLUCOSE_TARGETS.low, GLUCOSE_TARGETS.high]}
+            bandLabels={[g(GLUCOSE_TARGETS.high), g(GLUCOSE_TARGETS.low)]}
+            lastDot={lvl.dot}
+            domain={[nowMs - DAY_MS, nowMs]}
+            ticks={sixHourTicks(nowMs - DAY_MS, nowMs)}
+            label={`Courbe du capteur sur les 24 dernières heures, cible ${range}`}
+          />
+          <Meta>24 dernières heures · bande verte : cible {range}</Meta>
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className={tile}>
+          <p className="text-[12px] leading-tight text-ink-2">Moyenne aujourd’hui</p>
+          <p className={`tabular mt-1 text-xl font-bold ${t.mean !== null ? glucoseLevel(t.mean).text : ''}`}>{t.mean !== null ? g(t.mean) : '—'}</p>
+        </div>
+        <div className={tile}>
+          <p className="text-[12px] leading-tight text-ink-2">Min – max aujourd’hui</p>
+          <p className="tabular mt-1 text-xl font-bold">{t.min !== null && t.max !== null ? `${g(t.min)}–${g(t.max)}` : '—'}</p>
+        </div>
+        <div className={tile}>
+          <p className="text-[12px] leading-tight text-ink-2">Moyenne 7 jours</p>
+          <p className={`tabular mt-1 text-xl font-bold ${sensor.mean7 !== null ? glucoseLevel(sensor.mean7).text : ''}`}>{sensor.mean7 !== null ? g(sensor.mean7) : '—'}</p>
+        </div>
+      </div>
+      <p className="-mt-1 text-center text-[12px] text-ink-3">en {unit}</p>
+
+      {t.count > 0 && (
+        <div>
+          <p className="mb-1.5 text-sm">
+            <strong className="tabular">{pct(t.pctInRange)}</strong> <span className="text-ink-2">du temps dans la cible aujourd’hui</span>
+          </p>
+          <RangeBar veryLow={t.pctVeryLow} low={t.pctLow} inRange={t.pctInRange} high={t.pctHigh} veryHigh={t.pctVeryHigh} />
+          <Meta>
+            En dessous {pct(t.pctVeryLow + t.pctLow)} · dans la cible {pct(t.pctInRange)} · au-dessus {pct(t.pctHigh + t.pctVeryHigh)}
+          </Meta>
+          {t.coveragePct < 50 && <Meta className="mt-1">Capteur actif {pct(t.coveragePct)} de la journée : chiffres partiels.</Meta>}
+        </div>
+      )}
+      {isDemo && <Meta>Démonstration : données fictives.</Meta>}
+    </section>
   );
 }
 

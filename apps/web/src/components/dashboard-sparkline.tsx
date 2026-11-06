@@ -18,6 +18,8 @@ export function DashboardSparkline({
   label,
   domain,
   ticks,
+  bandLabels,
+  lastDot,
 }: {
   /** Abscisse (ms ou rang) et valeur. */
   points: { t: number; v: number }[];
@@ -37,6 +39,10 @@ export function DashboardSparkline({
   domain?: [number, number];
   /** Graduations sous la courbe (ex. mois), aux mêmes abscisses que `points`. */
   ticks?: { t: number; label: string }[];
+  /** Valeurs écrites à droite des bords de la zone cible (ex. « 180 », « 70 »). */
+  bandLabels?: [string, string];
+  /** Couleur du point final (dernière mesure), mise en évidence. */
+  lastDot?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
@@ -52,10 +58,11 @@ export function DashboardSparkline({
   const top = labels ? 20 : 4;
   const bottom = ticks ? 24 : 4;
   const padX = dots ? 14 : 1;
+  const padR = bandLabels ? 30 : padX;
   const H = height + (labels ? 16 : 0) + (ticks ? 20 : 0);
   const t0 = domain?.[0] ?? points[0]?.t ?? 0;
   const t1 = domain?.[1] ?? points.at(-1)?.t ?? 1;
-  const x = (t: number) => padX + (t1 === t0 ? (w - 2 * padX) / 2 : ((t - t0) / (t1 - t0)) * (w - 2 * padX));
+  const x = (t: number) => padX + (t1 === t0 ? (w - padX - padR) / 2 : ((t - t0) / (t1 - t0)) * (w - padX - padR));
   const y = (v: number) => top + (1 - (Math.min(max, Math.max(min, v)) - min) / (max - min)) * (H - top - bottom);
   // Une interruption de plus de 45 min coupe la courbe (rien n'est complété).
   const gap = dots ? Infinity : 45 * 60_000;
@@ -73,8 +80,17 @@ export function DashboardSparkline({
               </text>
             </g>
           ))}
-          {band && <rect x={0} y={y(band[1])} width={w} height={Math.max(0, y(band[0]) - y(band[1]))} fill="var(--sage-2)" rx={4} />}
+          {band && <rect x={0} y={y(band[1])} width={w - (bandLabels ? padR - 4 : 0)} height={Math.max(0, y(band[0]) - y(band[1]))} fill="var(--sage-2)" rx={4} />}
+          {band &&
+            bandLabels?.map((l, i) => (
+              <text key={l} x={w} y={y(band[1 - i]!) + 4} textAnchor="end" fontSize={11} fill="var(--ink-3)" className="tabular">
+                {l}
+              </text>
+            ))}
           {points.length > 1 && <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
+          {lastDot && points.length > 0 && (
+            <circle cx={x(points.at(-1)!.t)} cy={y(points.at(-1)!.v)} r={5} fill={lastDot} stroke="var(--surface)" strokeWidth={2} />
+          )}
           {dots &&
             points.map((p, i) => (
               <circle key={i} cx={x(p.t)} cy={y(p.v)} r={i === points.length - 1 ? 4.5 : 3.5} fill={i === points.length - 1 ? color : 'var(--surface)'} stroke={color} strokeWidth={2} />

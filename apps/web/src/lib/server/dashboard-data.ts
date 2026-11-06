@@ -6,6 +6,7 @@
 import {
   addDays,
   computeGlucoseStats,
+  dayBounds,
   formatLocalDate,
   getAnalyte,
   gymMonthStats,
@@ -62,6 +63,10 @@ export interface SensorSummary {
   stats14: GlucoseStats;
   /** Courbe des dernières 24 h (horodatage en ms, mg/dL). */
   curve: { t: number; v: number }[];
+  /** Statistiques d'aujourd'hui (depuis minuit, heure de Paris, jusqu'à maintenant). */
+  today: GlucoseStats;
+  /** Moyenne des 7 derniers jours (null sans mesure). */
+  mean7: number | null;
 }
 
 export interface Hba1cPoint {
@@ -205,7 +210,13 @@ async function sensorSummary(ctx: AppContext, today: LocalDate, now: Date): Prom
   if (!last) return null;
   const stats14 = computeGlucoseStats(inWindow, { periodStart: start, periodEnd: now, targets: GLUCOSE_TARGETS });
   const curve = inWindow.filter((r) => r.at.getTime() >= now.getTime() - DAY).map((r) => ({ t: r.at.getTime(), v: r.mgdl }));
-  return { last: { at: last.at, mgdl: last.mgdl, context: null }, stats14, curve };
+  const midnight = dayBounds(today, DEMO_TIMEZONE).start;
+  const todayStats = computeGlucoseStats(
+    inWindow.filter((r) => r.at.getTime() >= midnight.getTime()),
+    { periodStart: midnight, periodEnd: now, targets: GLUCOSE_TARGETS },
+  );
+  const mean7 = mean(inWindow.filter((r) => r.at.getTime() >= now.getTime() - 7 * DAY).map((r) => r.mgdl));
+  return { last: { at: last.at, mgdl: last.mgdl, context: null }, stats14, curve, today: todayStats, mean7 };
 }
 
 async function hasAnyGlucose(ctx: AppContext): Promise<boolean> {
