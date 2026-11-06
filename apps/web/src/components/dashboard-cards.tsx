@@ -18,7 +18,7 @@ import {
 import { GLUCOSE_CONTEXTS } from '@bilanx/domain';
 import { DEMO_TIMEZONE } from '@/lib/demo-data';
 import { documentTitle } from '@/lib/document-categories';
-import type { DashboardDoc, FirstStep, Hba1cPoint, MeterSummary, NextAppointment, SensorSummary, StepsSummary, TodaySummary } from '@/lib/server/dashboard-data';
+import type { DashboardDoc, FirstStep, Hba1cPoint, AppointmentsSummary, MeterSummary, SensorSummary, StepsSummary, TodaySummary } from '@/lib/server/dashboard-data';
 import { GLUCOSE_TARGETS, frTime } from '@/lib/server/dashboard-data';
 import type { LabRow } from '@/lib/server/data';
 import { ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
@@ -440,42 +440,64 @@ export function TodayCard({ data }: { data: TodaySummary }) {
 
 /* ------------------------------------------------------------------ Rendez-vous */
 
-export function AppointmentCard({ appt, now, showReport }: { appt: NextAppointment; now: Date; showReport: boolean }) {
-  const date = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, weekday: 'long', day: 'numeric', month: 'long' }).format(appt.startsAt);
-  const days = Math.round(
-    (Date.UTC(...ymd(appt.startsAt)) - Date.UTC(...ymd(now))) / 86_400_000,
-  );
+/** Agenda : prochains rendez-vous (et le dernier passé) ; toute la carte mène à tous les rendez-vous. */
+export function AppointmentCard({ data, now }: { data: AppointmentsSummary; now: Date }) {
+  const rel = (d: Date) => {
+    const days = Math.round((Date.UTC(...ymd(d)) - Date.UTC(...ymd(now))) / 86_400_000);
+    return days === 0 ? 'aujourd’hui' : days === 1 ? 'demain' : days > 0 ? `dans ${days} jours` : days === -1 ? 'hier' : `il y a ${-days} jours`;
+  };
+  const wd = (d: Date) => new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, weekday: 'short', day: 'numeric', month: 'short' }).format(d).replace(/\./g, '');
+  const more = data.upcomingTotal - data.upcoming.length;
   return (
-    <Card>
+    <Card href="/rendez-vous">
       <CardHeader
-        title="Prochain rendez-vous"
+        title="Rendez-vous"
         action={
-          <Link href="/rendez-vous" className="inline-flex min-h-11 items-center font-medium text-petrol hover:underline">
-            Tous
-          </Link>
+          <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
+            Tous <span aria-hidden>›</span>
+          </span>
         }
       />
-      {appt.id ? (
-        <Link href={`/rendez-vous/${appt.id}`} className="font-semibold text-ink underline-offset-2 hover:underline">
-          {appt.title}
-        </Link>
+      {data.upcoming.length === 0 ? (
+        <p className="text-sm text-ink-2">Aucun rendez-vous à venir.</p>
       ) : (
-        <p className="font-semibold">{appt.title}</p>
+        <ol className="space-y-3">
+          {data.upcoming.map((a, i) => (
+            <li key={a.id ?? i} className="flex items-center gap-3">
+              <DateTile date={a.startsAt} highlight={i === 0} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold first-letter:uppercase">{a.title}</p>
+                <p className="text-sm text-ink-2 first-letter:uppercase">
+                  {wd(a.startsAt)} · {a.time} · <span className="text-ink-3">{rel(a.startsAt)}</span>
+                </p>
+                {i === 0 && a.toPrepare && <p className="mt-0.5 truncate text-sm text-ink-3">À préparer : {a.toPrepare}</p>}
+              </div>
+            </li>
+          ))}
+        </ol>
       )}
-      <p className="first-letter:uppercase">
-        {date} · {appt.time}
-      </p>
-      <Meta>{days <= 0 ? 'Aujourd’hui' : days === 1 ? 'Demain' : `Dans ${days} jours`}</Meta>
-      {appt.toPrepare && <p className="mt-2 text-sm text-ink-2">À préparer : {appt.toPrepare}</p>}
-      {showReport && (
-        <div className="mt-4">
-          <ButtonLink href="/rapports">
-            <Icon name="share" className="size-5" />
-            Préparer le rapport
-          </ButtonLink>
-        </div>
+      {more > 0 && <Meta className="mt-3">Et {more === 1 ? 'un autre rendez-vous' : `${more} autres rendez-vous`} à venir.</Meta>}
+      {data.last && (
+        <p className="mt-3 border-t border-line pt-3 text-sm text-ink-3">
+          Dernier : <span className="text-ink-2 first-letter:uppercase">{data.last.title}</span>, {wd(data.last.startsAt)} ({rel(data.last.startsAt)})
+        </p>
       )}
     </Card>
+  );
+}
+
+/** Petite page de calendrier : jour en grand, mois en dessous. */
+function DateTile({ date, highlight }: { date: Date; highlight: boolean }) {
+  const day = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, day: 'numeric' }).format(date);
+  const month = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, month: 'short' }).format(date).replace('.', '');
+  return (
+    <span
+      aria-hidden
+      className={`flex size-14 shrink-0 flex-col items-center justify-center rounded-xl border ${highlight ? 'border-petrol bg-petrol-2 text-petrol' : 'border-line bg-surface-2 text-ink-2'}`}
+    >
+      <span className="tabular text-xl font-semibold leading-none">{day}</span>
+      <span className="mt-0.5 text-[12px] uppercase leading-none">{month}</span>
+    </span>
   );
 }
 

@@ -77,6 +77,14 @@ export interface NextAppointment {
   toPrepare: string | null;
 }
 
+export interface AppointmentsSummary {
+  /** Prochains rendez-vous (4 au plus), du plus proche au plus lointain. */
+  upcoming: NextAppointment[];
+  upcomingTotal: number;
+  /** Dernier rendez-vous passé. */
+  last: NextAppointment | null;
+}
+
 export interface StepsSummary {
   today: number | null;
   mean7: number | null;
@@ -116,7 +124,7 @@ export interface DashboardData {
   /** Dernier résultat de chaque analyse (hors HbA1c) en dehors des valeurs de référence. */
   watch: LabRow[];
   today_: TodaySummary | null;
-  appointment: NextAppointment | null;
+  appointments: AppointmentsSummary | null;
   steps: StepsSummary | null;
   docs: DashboardDoc[] | null;
   firstSteps: FirstStep[];
@@ -250,23 +258,33 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
         }
       : null;
 
-  let appointment: NextAppointment | null = null;
+  const toNext = (a: AppointmentRow): NextAppointment => ({
+    id: a.id,
+    title: [a.specialty, a.practitioner].filter(Boolean).join(' — ') || 'Rendez-vous',
+    startsAt: a.startsAt,
+    time: frTime(a.startsAt),
+    toPrepare: a.toPrepare,
+  });
+  let appointmentsSummary: AppointmentsSummary | null = null;
   if (isDemo) {
-    appointment = {
-      id: null,
-      title: DEMO_NEXT_APPOINTMENT.specialty,
-      startsAt: new Date(now.getTime() + DEMO_NEXT_APPOINTMENT.inDays * DAY),
-      time: DEMO_NEXT_APPOINTMENT.time.replace(':', ' h '),
-      toPrepare: DEMO_NEXT_APPOINTMENT.toPrepare,
+    appointmentsSummary = {
+      upcoming: [
+        {
+          id: null,
+          title: DEMO_NEXT_APPOINTMENT.specialty,
+          startsAt: new Date(now.getTime() + DEMO_NEXT_APPOINTMENT.inDays * DAY),
+          time: DEMO_NEXT_APPOINTMENT.time.replace(':', ' h '),
+          toPrepare: DEMO_NEXT_APPOINTMENT.toPrepare,
+        },
+      ],
+      upcomingTotal: 1,
+      last: null,
     };
-  } else if (appts?.upcoming[0]) {
-    const a: AppointmentRow = appts.upcoming[0];
-    appointment = {
-      id: a.id,
-      title: [a.specialty, a.practitioner].filter(Boolean).join(' — ') || 'Rendez-vous',
-      startsAt: a.startsAt,
-      time: frTime(a.startsAt),
-      toPrepare: a.toPrepare,
+  } else if (appts && (appts.upcoming.length || appts.past.length)) {
+    appointmentsSummary = {
+      upcoming: appts.upcoming.slice(0, 4).map(toNext),
+      upcomingTotal: appts.upcoming.length,
+      last: appts.past[0] ? toNext(appts.past[0]) : null,
     };
   }
 
@@ -302,7 +320,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     hba1c,
     watch,
     today_: todaySummary,
-    appointment,
+    appointments: appointmentsSummary,
     steps: stepsSummary,
     docs: docs ? docs.slice(0, 3).map((d) => ({ id: d.id, title: d.title, kind: d.kind, exam_type: d.exam_type, document_date: d.document_date, uploaded_at: d.uploaded_at })) : null,
     firstSteps: firstSteps.some((s) => !s.done) ? firstSteps : [],

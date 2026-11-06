@@ -120,7 +120,7 @@ export default async function DashboardPage() {
         )}
         {data.showLab && <Hba1cCard points={data.hba1c} unit={A1C} canWrite={canWrite('lab')} />}
         {data.today_ && <TodayCard data={data.today_} />}
-        {data.appointment && <AppointmentCard appt={data.appointment} now={now} showReport={moduleAllowed(ctx.active, 'reports')} />}
+        {data.appointments && <AppointmentCard data={data.appointments} now={now} />}
         {/* Seulement s'il y a un résultat à signaler (le message « tout va bien » est retiré). */}
         {data.showLab && data.watch.length > 0 && <WatchCard watch={data.watch} />}
         {sentences.length > 0 && <SummaryCard sentences={sentences} />}
