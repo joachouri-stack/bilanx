@@ -15,9 +15,17 @@ const json = (body: unknown, status = 200) => Response.json(body, { status, head
 
 export async function POST(request: Request) {
   const auth = request.headers.get('authorization') ?? '';
-  const token = auth.replace(/^Bearer\s+/i, '').trim();
+  // Tolérant aux erreurs de copier-coller sur iPhone : « Bearer » en double ou absent, espaces, retours à la ligne, guillemets.
+  const token = auth.replace(/["'\s\u00a0\u200b]/g, '').replace(/^(Bearer:?)+/i, '');
   const who = token ? await apiTokens().verify(token, 'steps') : null;
-  if (!who) return json({ ok: false, error: 'Clé absente, invalide ou révoquée.' }, 401);
+  if (!who) {
+    const error = !auth
+      ? 'En-tête « Authorization » absent : vérifiez les En-têtes du raccourci (nom exact : Authorization).'
+      : !/^bx_[A-Za-z0-9_-]{43}$/.test(token)
+        ? 'Clé incomplète ou mal copiée : elle doit commencer par « Bearer bx_ » suivi de 43 caractères.'
+        : 'Clé inconnue ou révoquée : créez-en une nouvelle dans Activité & Pas.';
+    return json({ ok: false, error }, 401);
+  }
 
   if (Number(request.headers.get('content-length') ?? 0) > 10_000) return json({ ok: false, error: 'Requête trop volumineuse.' }, 413);
   let body: Record<string, unknown>;
