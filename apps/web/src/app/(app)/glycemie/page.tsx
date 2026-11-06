@@ -17,6 +17,8 @@ import { appContext, displayUnits, moduleAllowed } from '@/lib/server/context';
 import { glucoseDay, hasSensorSince, meterRange, sensorRange } from '@/lib/server/data';
 import { GlucosePeriod } from './periode';
 import { ModuleForbidden } from '@/components/module-forbidden';
+import { LibreLink } from '@/components/libre-link';
+import { libreLink } from '@/lib/server/auth';
 import { Button, ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, PageHeader, RangeBar, Segmented, Stat, buttonClass, pct } from '@/components/ui';
 import { DayNav } from '@/components/day-nav';
 import { dayHref } from '@/lib/day-href';
@@ -51,6 +53,7 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
   const isToday = compareLocalDates(day, today) === 0;
   const canWrite = ctx.active.kind === 'real' && moduleAllowed(ctx.active, 'glucose', 'write');
   const profileHref = ctx.active.kind === 'real' ? `/famille/${ctx.active.access.profileId}#unites` : null;
+  const libre = canWrite && ctx.active.kind === 'real' ? await libreLink().status(ctx.user, ctx.active.access.profileId) : null;
 
   const periode = [7, 14, 30, 90].includes(Number(sp.periode)) ? Number(sp.periode) : null;
   const periodNav = (
@@ -188,7 +191,9 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
             ) : (
               <EmptyState
                 title="Aucune mesure ce jour-là."
-                description={isDemo ? undefined : 'Ajoutez la glycémie de votre lecteur. Aucune synchronisation automatique de capteur n’est active.'}
+                description={
+                  isDemo ? undefined : libre ? 'Le capteur est relié : les mesures arrivent toutes les 5 minutes environ.' : 'Ajoutez la glycémie de votre lecteur, ou reliez votre capteur FreeStyle Libre ci-dessous.'
+                }
               />
             )}
           </div>
@@ -250,6 +255,21 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
         )}
 
         {addCard}
+
+        {canWrite && (
+          <Card id="capteur-libre" className="scroll-mt-20">
+            <CardHeader title="Capteur FreeStyle Libre" icon="drop" iconTone="glucose" />
+            <LibreLink
+              status={
+                libre && {
+                  ...libre,
+                  lastSyncAt: libre.lastSyncAt?.toISOString() ?? null,
+                  lastReadingAt: libre.lastReadingAt?.toISOString() ?? null,
+                }
+              }
+            />
+          </Card>
+        )}
 
         <Card>
           <CardHeader title="Plage cible" />

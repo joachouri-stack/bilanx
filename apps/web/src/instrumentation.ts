@@ -1,12 +1,13 @@
 /**
- * Au démarrage : vérification de l'envoi des e-mails. Chaque minute : rappels de prise (notifications).
+ * Au démarrage : vérification de l'envoi des e-mails. Chaque minute : rappels de prise (notifications) et capteur
+ * FreeStyle Libre (LibreLinkUp, toutes les 5 min par profil).
  * Tâches de fond du serveur : effacement différé (comptes dont le délai de grâce est écoulé,
  * profils supprimés depuis plus de 30 jours, rapports partagés expirés). Exécuté au démarrage puis toutes
  * les 6 heures.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs' || !process.env.DATABASE_URL || !process.env.BILANX_SECRET_KEY) return;
-  const { privacy, mailer, sharing, reminders } = await import('./lib/server/auth');
+  const { privacy, mailer, sharing, reminders, libreLink } = await import('./lib/server/auth');
   const { SmtpMailer } = await import('@bilanx/auth');
   if (mailer instanceof SmtpMailer) {
     void mailer.verify().then((ok) => ok && console.info('E-mails : serveur SMTP joignable, envoi réel activé.'));
@@ -40,6 +41,22 @@ export async function register() {
       busy = false;
     }
   };
+  // Capteur FreeStyle Libre (LibreLinkUp) : chaque minute, les profils dont la dernière synchronisation a plus de 5 min.
+  let libreBusy = false;
+  const libre = async () => {
+    if (libreBusy) return;
+    libreBusy = true;
+    try {
+      const r = await libreLink().syncDue();
+      if (r.failed) console.warn(`Capteur Libre : ${r.failed} synchronisation(s) en échec.`);
+    } catch (e) {
+      console.error('Capteur Libre en échec :', (e as Error).message);
+    } finally {
+      libreBusy = false;
+    }
+  };
+  setTimeout(libre, 30_000).unref();
+  setInterval(libre, 60_000).unref();
   setTimeout(remind, 15_000).unref();
   setInterval(remind, 60_000).unref();
   setTimeout(run, 60_000).unref();

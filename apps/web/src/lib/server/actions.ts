@@ -16,6 +16,7 @@ import { demoToday } from '@/lib/demo-data';
 import {
   activity,
   apiTokens,
+  libreLink,
   gym,
   glucose,
   appointments,
@@ -1068,6 +1069,45 @@ export async function revokeStepsTokenAction(fd: FormData): Promise<void> {
   const ctx = await appContext();
   await apiTokens().revoke(ctx.user.accountId, str(fd, 'id'));
   revalidatePath('/activite');
+}
+
+/** Capteur FreeStyle Libre : relie le compte suiveur LibreLinkUp au profil affiché, puis importe les mesures. */
+export async function connectLibreAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Choisissez votre profil (le profil de démonstration est en lecture seule).' } };
+  try {
+    const r = await libreLink().connect(ctx.user, ctx.active.access.profileId, str(fd, 'email'), str(fd, 'password'));
+    if (!r.ok) return { errors: { form: r.error }, values: { email: str(fd, 'email') } };
+    revalidatePath('/glycemie');
+    revalidatePath('/tableau-de-bord');
+    return { ok: true, message: `Capteur relié${r.patientName ? ` (${r.patientName})` : ''} : ${r.readings} mesure${r.readings > 1 ? 's' : ''} importée${r.readings > 1 ? 's' : ''}.` };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message } };
+    throw e;
+  }
+}
+
+export async function syncLibreAction(): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return;
+  try {
+    await libreLink().syncNow(ctx.user, ctx.active.access.profileId);
+  } catch (e) {
+    if (!(e instanceof ForbiddenError)) throw e;
+  }
+  revalidatePath('/glycemie');
+  revalidatePath('/tableau-de-bord');
+}
+
+export async function disconnectLibreAction(): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return;
+  try {
+    await libreLink().disconnect(ctx.user, ctx.active.access.profileId);
+  } catch (e) {
+    if (!(e instanceof ForbiddenError)) throw e;
+  }
+  revalidatePath('/glycemie');
 }
 
 /** Salle de sport : coche (present=1) ou décoche (present=0) un jour. Profil de démonstration : sans effet. */
