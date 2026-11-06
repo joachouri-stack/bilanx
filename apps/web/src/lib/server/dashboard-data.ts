@@ -67,7 +67,38 @@ export interface SensorSummary {
   today: GlucoseStats;
   /** Moyenne des 7 derniers jours (null sans mesure). */
   mean7: number | null;
+  /** Mesures du capteur des 8 derniers jours (pour les moments clés). */
+  recent: Reading[];
+  /** Moments clés (réveil à jeun, avant déjeuner, avant dîner) des 7 derniers jours, aujourd'hui en dernier. */
+  moments: KeyMomentDay[];
 }
+
+export type KeyMomentKey = 'fasting' | 'lunch' | 'dinner';
+
+/** Valeur retenue pour un moment clé : mesure au doigt notée pour ce moment, sinon capteur à l'heure habituelle. */
+export interface KeyMomentValue {
+  mgdl: number | null;
+  at: Date | null;
+  source: 'meter' | 'sensor' | null;
+  /** Vrai si l'heure de ce moment n'est pas encore arrivée (aujourd'hui). */
+  upcoming: boolean;
+}
+
+export interface KeyMomentDay {
+  date: string;
+  values: Record<KeyMomentKey, KeyMomentValue>;
+}
+
+/**
+ * Fenêtres des moments clés (heure de Paris, en minutes depuis minuit) et heure de référence :
+ * on retient la mesure au doigt notée pour ce moment dans la fenêtre, sinon la valeur du capteur la plus proche
+ * de l'heure de référence. Heures habituelles par défaut.
+ */
+export const KEY_MOMENTS: { key: KeyMomentKey; label: string; short: string; from: number; to: number; ref: number; context: GlucoseContext }[] = [
+  { key: 'fasting', label: 'Réveil, à jeun', short: 'À jeun', from: 5 * 60, to: 10 * 60, ref: 7 * 60 + 30, context: 'fasting' },
+  { key: 'lunch', label: 'Avant le déjeuner', short: 'Midi', from: 11 * 60, to: 14 * 60, ref: 12 * 60, context: 'before_meal' },
+  { key: 'dinner', label: 'Avant le dîner', short: 'Soir', from: 18 * 60, to: 21 * 60 + 30, ref: 19 * 60 + 30, context: 'before_meal' },
+];
 
 export interface Hba1cPoint {
   /** Valeur en % (convertie si le résultat était en mmol/mol). */
@@ -216,7 +247,53 @@ async function sensorSummary(ctx: AppContext, today: LocalDate, now: Date): Prom
     { periodStart: midnight, periodEnd: now, targets: GLUCOSE_TARGETS },
   );
   const mean7 = mean(inWindow.filter((r) => r.at.getTime() >= now.getTime() - 7 * DAY).map((r) => r.mgdl));
-  return { last: { at: last.at, mgdl: last.mgdl, context: null }, stats14, curve, today: todayStats, mean7 };
+  const recent: Reading[] = inWindow.filter((r) => r.at.getTime() >= now.getTime() - 8 * DAY).map((r) => ({ at: r.at, mgdl: r.mgdl, context: null }));
+  return { last: { at: last.at, mgdl: last.mgdl, context: null }, stats14, curve, today: todayStats, mean7, recent, moments: [] };
+}
+
+const minutesOfDay = (() => {
+  const f = new Intl.DateTimeFormat('en-GB', { timeZone: DEMO_TIMEZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  return (d: Date) => {
+    const [h, m] = f.format(d).split(':').map(Number);
+    return h! * 60 + m!;
+  };
+})();
+
+/** Moments clés des 7 derniers jours : mesure au doigt notée (à jeun / avant repas), sinon capteur au plus près de l'heure habituelle. */
+export function keyMoments(sensor: Reading[], capillary: Reading[], today: LocalDate, now: Date): KeyMomentDay[] {
+  const nowMin = minutesOfDay(now);
+  const byDay = (rows: Reading[]) => {
+    const m = new Map<string, Reading[]>();
+    for (const r of rows) {
+      const k = formatLocalDate(localDateOf(r.at, DEMO_TIMEZONE));
+      m.set(k, [...(m.get(k) ?? []), r]);
+    }
+    return m;
+  };
+  const sDays = byDay(sensor);
+  const cDays = byDay(capillary);
+  return [6, 5, 4, 3, 2, 1, 0].map((i) => {
+    const date = formatLocalDate(addDays(today, -i));
+    const values = {} as Record<KeyMomentKey, KeyMomentValue>;
+    for (const k of KEY_MOMENTS) {
+      const inWin = (r: Reading) => {
+        const mm = minutesOfDay(r.at);
+        return mm >= k.from && mm <= k.to;
+      };
+      const upcoming = i === 0 && nowMin < k.from;
+      const meter = (cDays.get(date) ?? []).filter((r) => inWin(r) && r.context === k.context).at(0);
+      if (meter) {
+        values[k.key] = { mgdl: meter.mgdl, at: meter.at, source: 'meter', upcoming: false };
+        continue;
+      }
+      const near = (sDays.get(date) ?? [])
+        .filter(inWin)
+        .sort((a, b) => Math.abs(minutesOfDay(a.at) - k.ref) - Math.abs(minutesOfDay(b.at) - k.ref))
+        .at(0);
+      values[k.key] = near ? { mgdl: near.mgdl, at: near.at, source: 'sensor', upcoming: false } : { mgdl: null, at: null, source: null, upcoming };
+    }
+    return { date, values };
+  });
 }
 
 async function hasAnyGlucose(ctx: AppContext): Promise<boolean> {
@@ -258,6 +335,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
   ]);
 
   const meter = meterSummary(cap, now, today);
+  if (sensor) sensor.moments = keyMoments(sensor.recent, cap, today, now);
 
   const hba1c = labs
     .filter((r) => r.analyteCode === 'hba1c')

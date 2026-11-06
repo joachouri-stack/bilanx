@@ -19,11 +19,11 @@ import { GLUCOSE_CONTEXTS } from '@bilanx/domain';
 import { DEMO_TIMEZONE } from '@/lib/demo-data';
 import { DOC_SHORTCUTS, type DocShortcut } from '@/lib/document-categories';
 import { DocIcon } from '@/components/documents-icons';
-import type { DashboardDocs, FirstStep, GymSummary, Hba1cPoint, AppointmentsSummary, MeterSummary, SensorSummary, StepsSummary, TodaySummary } from '@/lib/server/dashboard-data';
+import type { DashboardDocs, FirstStep, GymSummary, Hba1cPoint, AppointmentsSummary, MeterSummary, SensorSummary, StepsSummary, TodaySummary, KeyMomentDay } from '@/lib/server/dashboard-data';
 import { toggleGymAction } from '@/lib/server/actions';
 import { GymSubmit } from '@/components/gym-forms';
 import { GYM_INITIALS, GYM_WEEKDAYS_SHORT, gymDayLong, gymMonthName, gymPlural, gymRemainingLabel, gymWeekBar, gymWeekSentence } from '@/components/gym-shared';
-import { GLUCOSE_TARGETS, frTime } from '@/lib/server/dashboard-data';
+import { GLUCOSE_TARGETS, KEY_MOMENTS, frTime } from '@/lib/server/dashboard-data';
 import type { LabRow } from '@/lib/server/data';
 import type { IconName } from '@/components/icon';
 import { ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
@@ -245,17 +245,98 @@ function sixHourTicks(from: number, to: number): { t: number; label: string }[] 
   return out;
 }
 
-/** Capteur : la dernière valeur en grand, la courbe des 24 h à la bonne échelle, puis les chiffres du jour. */
+const LEVEL_CELL: Record<Tone, string> = {
+  sage: 'bg-sage-2 text-go',
+  amber: 'bg-amber-2 text-amber',
+  red: 'bg-red-2 text-red',
+  glucose: '',
+  petrol: '',
+  violet: '',
+  rose: '',
+  neutral: '',
+};
+
+/**
+ * Moments clés de la journée (réveil à jeun, avant le déjeuner, avant le dîner) : aujourd'hui en grand,
+ * puis les 7 derniers jours en tableau (une case colorée par moment).
+ */
+function KeyMoments({ days, unit }: { days: KeyMomentDay[]; unit: GlucoseUnit }) {
+  const g = (v: number) => formatGlucose(v, unit);
+  const todayRow = days.at(-1);
+  const wd = new Intl.DateTimeFormat('fr-FR', { weekday: 'narrow', timeZone: 'UTC' });
+  const longDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  if (!todayRow) return null;
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-ink-2">Moments clés aujourd’hui</h3>
+        <ul className="grid grid-cols-3 gap-2">
+          {KEY_MOMENTS.map((k) => {
+            const v = todayRow.values[k.key];
+            const lvl = v.mgdl !== null ? glucoseLevel(v.mgdl) : null;
+            return (
+              <li key={k.key} className={`rounded-xl px-2 py-2.5 text-center ${lvl ? LEVEL_CELL[lvl.tone] : 'bg-surface-2'}`}>
+                <p className="text-[12px] font-medium leading-tight text-ink-2">{k.label}</p>
+                <p className={`tabular mt-1 text-2xl font-bold leading-none ${lvl ? lvl.text : 'text-ink-3'}`}>{v.mgdl !== null ? g(v.mgdl) : '—'}</p>
+                <p className="mt-1 text-[11px] leading-tight text-ink-3">
+                  {v.at ? `${frTime(v.at)}${v.source === 'meter' ? ' · doigt' : ''}` : v.upcoming ? 'à venir' : 'pas de mesure'}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-semibold text-ink-2">7 derniers jours</h3>
+        <table className="w-full table-fixed border-separate border-spacing-1 text-center">
+          <caption className="sr-only">Glycémie aux moments clés des 7 derniers jours, en {unit}</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="w-[4.5rem]">
+                <span className="sr-only">Moment</span>
+              </th>
+              {days.map((d, i) => (
+                <th key={d.date} scope="col" className={`text-[12px] font-medium ${i === days.length - 1 ? 'text-ink' : 'text-ink-3'}`}>
+                  <span aria-hidden>{i === days.length - 1 ? 'auj.' : wd.format(new Date(`${d.date}T12:00:00Z`)).toUpperCase()}</span>
+                  <span className="sr-only">{longDay.format(new Date(`${d.date}T12:00:00Z`))}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {KEY_MOMENTS.map((k) => (
+              <tr key={k.key}>
+                <th scope="row" className="pr-1 text-left text-[12px] font-medium leading-tight text-ink-2">
+                  {k.short}
+                </th>
+                {days.map((d) => {
+                  const v = d.values[k.key];
+                  const lvl = v.mgdl !== null ? glucoseLevel(v.mgdl) : null;
+                  return (
+                    <td key={d.date} className={`tabular h-9 rounded-lg text-[12px] font-semibold ${lvl ? LEVEL_CELL[lvl.tone] : 'bg-surface-2 text-ink-3'}`}>
+                      {v.mgdl !== null ? g(v.mgdl) : <span aria-label={v.upcoming ? 'à venir' : 'pas de mesure'}>·</span>}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Meta className="mt-1">Vert : dans la cible · orange : un peu à côté · rouge : hors plage.</Meta>
+        <Meta>Capteur vers 7 h 30, 12 h et 19 h 30, ou votre mesure au doigt notée « à jeun » / « avant repas ».</Meta>
+      </div>
+    </div>
+  );
+}
+
+/** Capteur : la dernière valeur en grand, les moments clés (aujourd'hui et 7 jours), puis le temps dans la cible. */
 function SensorBlock({ sensor, unit, isDemo }: { sensor: SensorSummary; unit: GlucoseUnit; isDemo: boolean }) {
   const g = (v: number) => formatGlucose(v, unit);
   const nowMs = Math.max(Date.now(), sensor.last.at.getTime());
   const today = localDateOf(new Date(nowMs), DEMO_TIMEZONE);
   const lvl = glucoseLevel(sensor.last.mgdl);
   const t = sensor.today;
-  // Échelle : au moins 40–300, élargie aux valeurs mesurées (jusqu'à 500) pour ne rien couper.
-  const top = Math.min(500, Math.max(300, Math.ceil((Math.max(...sensor.curve.map((p) => p.v), sensor.last.mgdl) + 20) / 50) * 50));
-  const range = `${g(GLUCOSE_TARGETS.low)}–${g(GLUCOSE_TARGETS.high)} ${unit}`;
-  const tile = 'rounded-xl bg-surface-2 px-2 py-2.5 text-center';
   return (
     <section aria-label="Capteur" className="space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -270,39 +351,7 @@ function SensorBlock({ sensor, unit, isDemo }: { sensor: SensorSummary; unit: Gl
         <Chip tone={lvl.tone}>{lvl.label}</Chip>
       </div>
 
-      {sensor.curve.length > 1 && (
-        <div>
-          <DashboardSparkline
-            points={sensor.curve}
-            min={40}
-            max={top}
-            height={84}
-            band={[GLUCOSE_TARGETS.low, GLUCOSE_TARGETS.high]}
-            bandLabels={[g(GLUCOSE_TARGETS.high), g(GLUCOSE_TARGETS.low)]}
-            lastDot={lvl.dot}
-            domain={[nowMs - DAY_MS, nowMs]}
-            ticks={sixHourTicks(nowMs - DAY_MS, nowMs)}
-            label={`Courbe du capteur sur les 24 dernières heures, cible ${range}`}
-          />
-          <Meta>24 dernières heures · bande verte : cible {range}</Meta>
-        </div>
-      )}
-
-      <div className="grid grid-cols-3 gap-2">
-        <div className={tile}>
-          <p className="text-[12px] leading-tight text-ink-2">Moyenne aujourd’hui</p>
-          <p className={`tabular mt-1 text-xl font-bold ${t.mean !== null ? glucoseLevel(t.mean).text : ''}`}>{t.mean !== null ? g(t.mean) : '—'}</p>
-        </div>
-        <div className={tile}>
-          <p className="text-[12px] leading-tight text-ink-2">Min – max aujourd’hui</p>
-          <p className="tabular mt-1 text-xl font-bold">{t.min !== null && t.max !== null ? `${g(t.min)}–${g(t.max)}` : '—'}</p>
-        </div>
-        <div className={tile}>
-          <p className="text-[12px] leading-tight text-ink-2">Moyenne 7 jours</p>
-          <p className={`tabular mt-1 text-xl font-bold ${sensor.mean7 !== null ? glucoseLevel(sensor.mean7).text : ''}`}>{sensor.mean7 !== null ? g(sensor.mean7) : '—'}</p>
-        </div>
-      </div>
-      <p className="-mt-1 text-center text-[12px] text-ink-3">en {unit}</p>
+      <KeyMoments days={sensor.moments} unit={unit} />
 
       {t.count > 0 && (
         <div>
