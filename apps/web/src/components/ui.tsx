@@ -12,7 +12,7 @@
 import Link from 'next/link';
 import { Icon, type IconName } from './icon';
 
-export type Tone = 'glucose' | 'sage' | 'amber' | 'red' | 'petrol' | 'violet' | 'neutral';
+export type Tone = 'glucose' | 'sage' | 'amber' | 'red' | 'petrol' | 'violet' | 'rose' | 'neutral';
 
 const TONES: Record<Tone, string> = {
   glucose: 'bg-glucose-2 text-glucose',
@@ -21,6 +21,7 @@ const TONES: Record<Tone, string> = {
   red: 'bg-red-2 text-red',
   petrol: 'bg-petrol-2 text-petrol',
   violet: 'bg-violet-2 text-violet',
+  rose: 'bg-rose-2 text-rose',
   neutral: 'bg-surface-2 text-ink-2',
 };
 
@@ -35,6 +36,7 @@ const ACCENT_VAR: Record<Tone, [string, string]> = {
   red: ['--red-2', '--red'],
   petrol: ['--petrol-2', '--petrol'],
   violet: ['--violet-2', '--violet'],
+  rose: ['--rose-2', '--rose'],
   neutral: ['--surface-2', '--line'],
 };
 function accentStyle(t: Tone): React.CSSProperties {
