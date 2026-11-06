@@ -26,7 +26,7 @@ const BASE = `http://localhost:${PORT}`;
 const ALL = [
   'comptes', 'famille', 'analyses', 'documents', 'insuline', 'journal', 'rendez-vous', 'rapports', 'rgpd', 'activite',
   'medicaments', 'compte-securite', 'telephone-2fa', 'cles-acces', 'partage', 'ordonnances', 'rappels', 'unites', 'glycemie',
-  'accessibilite', 'application-installable',
+  'salle-de-sport', 'accessibilite', 'application-installable',
 ];
 const wanted = process.argv.slice(2).filter((a) => !a.startsWith('-'));
 const unknown = wanted.filter((w) => !ALL.includes(w));
