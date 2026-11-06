@@ -946,17 +946,16 @@ export function DocumentsCard({ docs }: { docs: DashboardDocs }) {
             <li key={s.key} className="min-w-0">
               <Link
                 href={s.href}
-                className="flex h-full min-h-14 items-center gap-3 rounded-xl border border-line px-3 py-2.5 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-petrol"
+                className="flex h-full min-h-14 flex-col gap-2 rounded-xl border border-line p-3 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-petrol"
               >
-                <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${SHORTCUT_TONES[s.tone]}`} aria-hidden>
-                  <DocIcon name={s.icon} className="size-5" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block font-medium leading-5 [overflow-wrap:anywhere]">{s.label}</span>
-                  <span className="block text-[13px] text-ink-3">
+                <span className="flex items-start justify-between gap-2">
+                  <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${SHORTCUT_TONES[s.tone]}`} aria-hidden>
+                    <DocIcon name={s.icon} className="size-5" />
+                  </span>
+                  <span className={`text-[13px] ${n ? 'tabular font-semibold text-ink-2' : 'text-ink-3'}`}>
                     {n ? (
                       <>
-                        <span className="tabular">{n}</span>
+                        {n}
                         <span className="sr-only"> {n > 1 ? 'documents' : 'document'}</span>
                       </>
                     ) : (
@@ -964,6 +963,7 @@ export function DocumentsCard({ docs }: { docs: DashboardDocs }) {
                     )}
                   </span>
                 </span>
+                <span className="truncate whitespace-nowrap break-normal font-semibold leading-5">{s.label}</span>
               </Link>
             </li>
           );
