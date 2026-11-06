@@ -90,8 +90,13 @@ export default async function DashboardPage() {
       {/* Une colonne sur téléphone (ordre de lecture = ordre d'importance) ; deux colonnes sans trou au-delà. */}
       <div className="lg:columns-2 lg:gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid">
         {/* Les pas en premier (choix de l'utilisateur). */}
-        {data.steps && <StepsCard steps={data.steps} canWrite={canWrite('activity')} isDemo={isDemo} />}
-        {data.gym && <GymCard gym={data.gym} canWrite={canWrite('activity')} isDemo={isDemo} />}
+        {/* Pas puis Salle de sport, toujours ensemble (la salle juste en dessous, même sur deux colonnes). */}
+        {(data.steps || data.gym) && (
+          <div className="space-y-4">
+            {data.steps && <StepsCard steps={data.steps} canWrite={canWrite('activity')} isDemo={isDemo} />}
+            {data.gym && <GymCard gym={data.gym} canWrite={canWrite('activity')} isDemo={isDemo} />}
+          </div>
+        )}
         {data.showGlucose && (
           <GlucoseCard sensor={data.sensor} meter={data.meter} unit={UNIT} today={data.today} isDemo={isDemo} canWrite={canWrite('glucose')} />
         )}
