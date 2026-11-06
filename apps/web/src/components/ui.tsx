@@ -10,6 +10,7 @@
  * `Icon` (components/icon.tsx).
  */
 import Link from 'next/link';
+import { Icon, type IconName } from './icon';
 
 export type Tone = 'glucose' | 'sage' | 'amber' | 'red' | 'petrol' | 'neutral';
 
@@ -21,6 +22,26 @@ const TONES: Record<Tone, string> = {
   petrol: 'bg-petrol-2 text-petrol',
   neutral: 'bg-surface-2 text-ink-2',
 };
+
+/**
+ * Teinte d'une carte selon sa rubrique : dégradé léger en haut et liseré de couleur (clair et sombre).
+ * En style en ligne : la règle `.card` de globals.css fixe déjà le fond et l'ombre.
+ */
+const ACCENT_VAR: Record<Tone, [string, string]> = {
+  glucose: ['--glucose-2', '--glucose'],
+  sage: ['--sage-2', '--sage'],
+  amber: ['--amber-2', '--amber'],
+  red: ['--red-2', '--red'],
+  petrol: ['--petrol-2', '--petrol'],
+  neutral: ['--surface-2', '--line'],
+};
+function accentStyle(t: Tone): React.CSSProperties {
+  const [soft, strong] = ACCENT_VAR[t];
+  return {
+    backgroundImage: `linear-gradient(180deg, var(${soft}) 0%, var(--surface) 150px)`,
+    boxShadow: `inset 0 4px 0 var(${strong}), var(--shadow-card)`,
+  };
+}
 
 /** Pastille de statut ou de catégorie (« Dans la cible », « Démo »…). */
 export function Chip({ tone = 'neutral', children }: { tone?: Tone; children: React.ReactNode }) {
@@ -62,19 +83,23 @@ export function Card({
   href,
   className = '',
   id,
+  accent,
 }: {
   children: React.ReactNode;
   href?: string;
   className?: string;
   id?: string;
+  /** Teinte douce en haut de la carte (couleur de la rubrique). */
+  accent?: Tone;
 }) {
   const cls = `card block min-w-0 p-5 ${className}`;
+  const style = accent ? accentStyle(accent) : undefined;
   return href ? (
-    <Link href={href} className={`${cls} transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-petrol`}>
+    <Link href={href} className={`${cls} transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-petrol`} style={style}>
       {children}
     </Link>
   ) : (
-    <section id={id} className={cls}>
+    <section id={id} className={cls} style={style}>
       {children}
     </section>
   );
@@ -100,19 +125,31 @@ export function CardHeader({
   tagTone = 'neutral',
   action,
   as: H = 'h2',
+  icon,
+  iconTone = 'petrol',
 }: {
   title: React.ReactNode;
   tag?: React.ReactNode;
   tagTone?: Tone;
   action?: React.ReactNode;
+  /** Icône de rubrique dans une pastille colorée, à gauche du titre. */
+  icon?: IconName;
+  iconTone?: Tone;
   /** Niveau de titre : `h2` (défaut) ou `h3` dans une section déjà titrée. */
   as?: 'h2' | 'h3';
 }) {
   return (
-    <div className="mb-3 flex items-start justify-between gap-3">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        <H className="text-[17px] font-semibold leading-6">{title}</H>
-        {tag && <Chip tone={tagTone}>{tag}</Chip>}
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-3">
+        {icon && (
+          <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${TONES[iconTone]}`} aria-hidden>
+            <Icon name={icon} className="size-5" />
+          </span>
+        )}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <H className="text-[17px] font-semibold leading-6">{title}</H>
+          {tag && <Chip tone={tagTone}>{tag}</Chip>}
+        </div>
       </div>
       {action && <div className="shrink-0 whitespace-nowrap text-sm">{action}</div>}
     </div>

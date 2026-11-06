@@ -1,12 +1,13 @@
 import type { Metadata } from 'next';
-import { formatGlucose, formatHba1c, getAnalyte } from '@bilanx/domain';
+import { formatGlucose, formatHba1c, formatNumberFr, getAnalyte, localDateOf } from '@bilanx/domain';
 import { DEMO_PROFILE, DEMO_TIMEZONE } from '@/lib/demo-data';
 import { appContext, displayUnits, moduleAllowed, NAV_MODULES } from '@/lib/server/context';
 import { dashboardData } from '@/lib/server/dashboard-data';
 import { QUICK_ADD } from '@/lib/navigation';
-import { ButtonLink, PageHeader, pct } from '@/components/ui';
-import { Icon } from '@/components/icon';
+import { ButtonLink, pct } from '@/components/ui';
+import { Icon, type IconName } from '@/components/icon';
 import {
+  DashboardHero,
   AppointmentCard,
   DocumentsRow,
   FirstStepsCard,
@@ -77,25 +78,28 @@ export default async function DashboardPage() {
       </>,
     );
 
+  // Chiffres du bandeau : pas du jour, dernière glycémie, prochain rendez-vous (seulement ceux qui existent).
+  const heroItems: { icon: IconName; label: string; value: string; href: string }[] = [];
+  if (data.steps?.today != null) heroItems.push({ icon: 'steps', label: 'Pas du jour', value: formatNumberFr(data.steps.today), href: '/activite' });
+  const lastG = [data.meter?.last, data.sensor?.last].filter((r): r is NonNullable<typeof r> => !!r).sort((x, y) => y.at.getTime() - x.at.getTime())[0];
+  if (lastG) heroItems.push({ icon: 'drop', label: 'Glycémie', value: `${formatGlucose(lastG.mgdl, UNIT)}\u00a0${UNIT}`, href: '/glycemie' });
+  const nextA = data.appointments?.upcoming[0];
+  if (nextA) {
+    const days = Math.round((Date.UTC(...ymdParis(nextA.startsAt)) - Date.UTC(...ymdParis(now))) / 86_400_000);
+    heroItems.push({ icon: 'calendar', label: 'RDV', value: days <= 0 ? 'Aujourd’hui' : days === 1 ? 'Demain' : `Dans ${days}\u00a0j`, href: '/rendez-vous' });
+  }
+
   return (
     <div className="fade-in">
-      <PageHeader
+      <DashboardHero
         title={isDemo || isSelf ? `Bonjour ${isDemo ? profileName : (ctx.user.displayName ?? '')}` : `Profil de ${profileName}`}
         subtitle={
-          <span className="first-letter:uppercase">
+          <>
             {dateFr}
             {isDemo || isSelf ? '' : ' · données de votre proche'}
-          </span>
+          </>
         }
-        actionsMobile={false}
-        actions={
-          real && moduleAllowed(ctx.active, 'documents', 'write') ? (
-            <ButtonLink href="/documents#ajouter" variant="primary">
-              <Icon name="plus" className="size-5" />
-              Ajouter un document
-            </ButtonLink>
-          ) : undefined
-        }
+        items={heroItems}
       />
 
       {quick.length > 0 && (
@@ -129,4 +133,10 @@ export default async function DashboardPage() {
       {data.docs && data.docs.length > 0 && <DocumentsRow docs={data.docs} />}
     </div>
   );
+}
+
+/** Jour civil à Paris, pour compter les jours jusqu'à un rendez-vous. */
+function ymdParis(d: Date): [number, number, number] {
+  const p = localDateOf(d, DEMO_TIMEZONE);
+  return [p.year, p.month - 1, p.day];
 }

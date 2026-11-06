@@ -21,6 +21,7 @@ import { documentTitle } from '@/lib/document-categories';
 import type { DashboardDoc, FirstStep, Hba1cPoint, AppointmentsSummary, MeterSummary, SensorSummary, StepsSummary, TodaySummary } from '@/lib/server/dashboard-data';
 import { GLUCOSE_TARGETS, frTime } from '@/lib/server/dashboard-data';
 import type { LabRow } from '@/lib/server/data';
+import type { IconName } from '@/components/icon';
 import { ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import { DashboardSparkline } from '@/components/dashboard-sparkline';
@@ -81,8 +82,8 @@ const sectionTitle = 'flex items-center gap-2 text-sm font-semibold text-ink-2';
 export function FirstStepsCard({ steps }: { steps: FirstStep[] }) {
   const done = steps.filter((s) => s.done).length;
   return (
-    <Card className="mb-4">
-      <CardHeader title="Premiers pas" tag={`${done} sur ${steps.length}`} tagTone="petrol" />
+    <Card className="mb-4" accent="petrol">
+      <CardHeader title="Premiers pas" tag={`${done} sur ${steps.length}`} tagTone="petrol" icon="check" iconTone="petrol" />
       <Meta className="-mt-2 mb-2">Quelques étapes pour bien démarrer. Elles se cochent toutes seules.</Meta>
       <ol className="grid grid-cols-1 gap-1 sm:grid-cols-2">
         {steps.map((s) =>
@@ -132,6 +133,8 @@ export function GlucoseCard({
   const header = (
     <CardHeader
       title="Glycémie"
+      icon="drop"
+      iconTone="glucose"
       action={
         hasData ? (
           <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
@@ -154,7 +157,7 @@ export function GlucoseCard({
     );
   return (
     // Toute la carte mène à l'historique de la glycémie (lecteur : vue 7 jours).
-    <Card href={meter && !sensor ? '/glycemie?periode=7' : '/glycemie'}>
+    <Card href={meter && !sensor ? '/glycemie?periode=7' : '/glycemie'} accent="glucose">
       {header}
       {!sensor && !meter && (
         <EmptyState
@@ -302,6 +305,41 @@ function MeterWeek({ week, unit }: { week: { date: string; readings: { at: Date;
   );
 }
 
+/* ------------------------------------------------------------------ Bandeau d'accueil */
+
+/** Bandeau coloré en haut du tableau de bord : salutation, date et 3 chiffres du jour au plus. */
+export function DashboardHero({ title, subtitle, items }: { title: string; subtitle: React.ReactNode; items: { icon: IconName; label: string; value: string; href: string }[] }) {
+  return (
+    <section
+      aria-label="Résumé du jour"
+      className="mb-4 overflow-hidden rounded-[var(--radius-card,18px)] bg-[linear-gradient(135deg,#0c4a56_0%,#13697a_55%,#1f5fa6_100%)] p-5 text-white shadow-[var(--shadow-card)] sm:p-6"
+    >
+      <h1 className="font-display text-[28px] font-semibold leading-tight sm:text-[34px]">{title}</h1>
+      <p className="mt-1 text-white/85 first-letter:uppercase">{subtitle}</p>
+      {items.length > 0 && (
+        <ul className={`mt-4 grid gap-2 ${items.length === 3 ? 'grid-cols-3' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {items.map((it) => (
+            <li key={it.label} className="min-w-0">
+              <Link
+                href={it.href}
+                className="flex h-full min-h-14 flex-col gap-1.5 rounded-2xl bg-white/15 p-3 transition hover:bg-white/25 sm:flex-row sm:items-center sm:gap-3"
+              >
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/20" aria-hidden>
+                  <Icon name={it.icon} className="size-[18px]" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] leading-tight text-white/85">{it.label}</span>
+                  <span className="tabular block text-[17px] font-semibold leading-tight sm:text-lg">{it.value}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------------ HbA1c */
 
 export function Hba1cCard({ points, unit, canWrite }: { points: Hba1cPoint[]; unit: HbA1cUnit; canWrite: boolean }) {
@@ -310,7 +348,7 @@ export function Hba1cCard({ points, unit, canWrite }: { points: Hba1cPoint[]; un
   if (!latest)
     return (
       <Card>
-        <CardHeader title="HbA1c" tag="Laboratoire" tagTone="petrol" />
+        <CardHeader title="HbA1c" tag="Laboratoire" tagTone="petrol" icon="flask" iconTone="petrol" />
         <EmptyState
           title="Aucune HbA1c enregistrée"
           description="L’HbA1c se mesure par une prise de sang au laboratoire."
@@ -350,9 +388,11 @@ export function Hba1cCard({ points, unit, canWrite }: { points: Hba1cPoint[]; un
   }
   return (
     // Toute la carte mène à l'historique complet.
-    <Card href="/analyses/hba1c">
+    <Card href="/analyses/hba1c" accent="petrol">
       <CardHeader
         title="HbA1c"
+        icon="flask"
+        iconTone="petrol"
         tag="Laboratoire"
         tagTone="petrol"
         action={
@@ -415,8 +455,8 @@ function TodayRow({ href, icon, title, children }: { href: string; icon: 'pill' 
 
 export function TodayCard({ data }: { data: TodaySummary }) {
   return (
-    <Card>
-      <CardHeader title="Aujourd’hui" />
+    <Card accent="sage">
+      <CardHeader title="Aujourd’hui" icon="pill" iconTone="sage" />
       <ul className="divide-y divide-line">
         {data.meds && (
           <TodayRow href="/medicaments#prises" icon="pill" title="Médicaments">
@@ -449,9 +489,11 @@ export function AppointmentCard({ data, now }: { data: AppointmentsSummary; now:
   const wd = (d: Date) => new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, weekday: 'short', day: 'numeric', month: 'short' }).format(d).replace(/\./g, '');
   const more = data.upcomingTotal - data.upcoming.length;
   return (
-    <Card href="/rendez-vous">
+    <Card href="/rendez-vous" accent="amber">
       <CardHeader
         title="Rendez-vous"
+        icon="calendar"
+        iconTone="amber"
         action={
           <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
             Tous <span aria-hidden>›</span>
@@ -515,7 +557,7 @@ export function StepsCard({ steps, canWrite, isDemo }: { steps: StepsSummary; ca
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sage-2 text-sage">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-sage-2 text-sage">
               <Icon name="steps" className="size-5" />
             </span>
             <div className="min-w-0">
@@ -530,9 +572,11 @@ export function StepsCard({ steps, canWrite, isDemo }: { steps: StepsSummary; ca
   const ratio = steps.today !== null ? steps.today / steps.goal : 0;
   return (
     // Toute la carte mène à l'historique (jour, semaine, mois, année).
-    <Card href="/activite">
+    <Card href="/activite" accent="sage">
       <CardHeader
         title="Pas"
+        icon="steps"
+        iconTone="sage"
         action={
           <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
             Historique <span aria-hidden>›</span>
@@ -645,9 +689,11 @@ export function WatchCard({ watch }: { watch: LabRow[] }) {
       </Card>
     );
   return (
-    <Card>
+    <Card accent="amber">
       <CardHeader
         title="À surveiller"
+        icon="flask"
+        iconTone="amber"
         action={
           <Link href="/analyses" className="inline-flex min-h-11 items-center font-medium text-petrol hover:underline">
             Analyses
@@ -694,8 +740,8 @@ export function WatchCard({ watch }: { watch: LabRow[] }) {
 
 export function SummaryCard({ sentences }: { sentences: React.ReactNode[] }) {
   return (
-    <Card>
-      <CardHeader title="Résumé" />
+    <Card accent="petrol">
+      <CardHeader title="Résumé de la semaine" icon="sparkle" iconTone="petrol" />
       <div className="space-y-1.5 text-ink-2">
         {sentences.map((s, i) => (
           <p key={i}>{s}</p>
@@ -715,12 +761,14 @@ export function DocumentsRow({ docs }: { docs: DashboardDoc[] }) {
       : `Ajouté le ${dateShort(d.uploaded_at)}`;
   return (
     <Card>
-      <CardHeader title="Derniers documents" />
+      <CardHeader title="Derniers documents" icon="folder" iconTone="neutral" />
       <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {docs.map((d) => (
           <li key={d.id} className="min-w-0">
             <Link href={`/documents/${d.id}`} className="flex min-h-11 items-center gap-3 rounded-xl border border-line px-3 py-2.5 hover:bg-surface-2">
-              <Icon name={d.kind === 'prescription' ? 'prescription' : 'document'} className="size-5 shrink-0 text-ink-3" />
+              <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${d.kind === 'prescription' ? 'bg-amber-2 text-amber' : d.kind === 'lab_report' ? 'bg-petrol-2 text-petrol' : 'bg-surface-2 text-ink-2'}`} aria-hidden>
+                <Icon name={d.kind === 'prescription' ? 'prescription' : 'document'} className="size-5" />
+              </span>
               <span className="min-w-0">
                 <span className="block truncate font-medium">{documentTitle(d)}</span>
                 <span className="block text-[13px] text-ink-3">{fmt(d)}</span>
