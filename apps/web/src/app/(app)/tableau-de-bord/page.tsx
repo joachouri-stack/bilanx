@@ -113,13 +113,14 @@ export default async function DashboardPage() {
 
       {/* Une colonne sur téléphone (ordre de lecture = ordre d'importance) ; deux colonnes sans trou au-delà. */}
       <div className="lg:columns-2 lg:gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid">
+        {/* Les pas en premier (choix de l'utilisateur). */}
+        {data.steps && <StepsCard steps={data.steps} canWrite={canWrite('activity')} isDemo={isDemo} />}
         {data.showGlucose && (
           <GlucoseCard sensor={data.sensor} meter={data.meter} unit={UNIT} today={data.today} isDemo={isDemo} canWrite={canWrite('glucose')} />
         )}
         {data.showLab && <Hba1cCard points={data.hba1c} unit={A1C} canWrite={canWrite('lab')} />}
         {data.today_ && <TodayCard data={data.today_} />}
         {data.appointment && <AppointmentCard appt={data.appointment} now={now} showReport={moduleAllowed(ctx.active, 'reports')} />}
-        {data.steps && <StepsCard steps={data.steps} canWrite={canWrite('activity')} isDemo={isDemo} />}
         {data.showLab && data.labsCount > 0 && <WatchCard watch={data.watch} />}
         {sentences.length > 0 && <SummaryCard sentences={sentences} />}
       </div>
