@@ -16,6 +16,8 @@ export function DashboardSparkline({
   dots = false,
   labels,
   label,
+  domain,
+  ticks,
 }: {
   /** Abscisse (ms ou rang) et valeur. */
   points: { t: number; v: number }[];
@@ -31,6 +33,10 @@ export function DashboardSparkline({
   labels?: string[];
   /** Description pour les lecteurs d'écran. */
   label: string;
+  /** Bornes de l'axe horizontal (sinon : premier et dernier point). */
+  domain?: [number, number];
+  /** Graduations sous la courbe (ex. mois), aux mêmes abscisses que `points`. */
+  ticks?: { t: number; label: string }[];
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
@@ -44,11 +50,11 @@ export function DashboardSparkline({
   }, []);
 
   const top = labels ? 20 : 4;
-  const bottom = 4;
-  const padX = dots ? 10 : 1;
-  const H = height + (labels ? 16 : 0);
-  const t0 = points[0]?.t ?? 0;
-  const t1 = points.at(-1)?.t ?? 1;
+  const bottom = ticks ? 24 : 4;
+  const padX = dots ? 14 : 1;
+  const H = height + (labels ? 16 : 0) + (ticks ? 20 : 0);
+  const t0 = domain?.[0] ?? points[0]?.t ?? 0;
+  const t1 = domain?.[1] ?? points.at(-1)?.t ?? 1;
   const x = (t: number) => padX + (t1 === t0 ? (w - 2 * padX) / 2 : ((t - t0) / (t1 - t0)) * (w - 2 * padX));
   const y = (v: number) => top + (1 - (Math.min(max, Math.max(min, v)) - min) / (max - min)) * (H - top - bottom);
   // Une interruption de plus de 45 min coupe la courbe (rien n'est complété).
@@ -59,6 +65,14 @@ export function DashboardSparkline({
     <div ref={ref} className="my-2 w-full touch-pan-y" style={{ height: H }}>
       {w > 0 && points.length > 0 && (
         <svg width={w} height={H} role="img" aria-label={label} className="block overflow-visible">
+          {ticks?.map((k) => (
+            <g key={k.t}>
+              <line x1={x(k.t)} x2={x(k.t)} y1={top - 6} y2={H - bottom} stroke="var(--line)" strokeDasharray="2 3" />
+              <text x={Math.min(w - 2, Math.max(2, x(k.t)))} y={H - 6} textAnchor={x(k.t) < 20 ? 'start' : x(k.t) > w - 20 ? 'end' : 'middle'} fontSize={12} fill="var(--ink-3)">
+                {k.label}
+              </text>
+            </g>
+          ))}
           {band && <rect x={0} y={y(band[1])} width={w} height={Math.max(0, y(band[0]) - y(band[1]))} fill="var(--sage-2)" rx={4} />}
           {points.length > 1 && <path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />}
           {dots &&

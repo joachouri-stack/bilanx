@@ -264,21 +264,34 @@ export function Hba1cCard({ points, unit, canWrite }: { points: Hba1cPoint[]; un
       : unit === 'mmol/mol'
         ? `${Math.round(delta) > 0 ? '+' : Math.round(delta) < 0 ? '−' : '±'}${formatNumberFr(Math.abs(Math.round(delta)))} mmol/mol`
         : `${delta > 0.04 ? '+' : delta < -0.04 ? '−' : '±'}${formatNumberFr(Math.abs(delta), 1)} point`;
-  const series = points.slice(-6);
+  // Six derniers mois : chaque résultat à sa date réelle. S'il y en a moins de deux dans cette période,
+  // la fenêtre remonte jusqu'au résultat précédent pour montrer l'évolution.
+  const end = Date.now();
+  let start = end - 183 * 86_400_000;
+  const before = points.filter((p) => p.sampledAt.getTime() < start);
+  if (points.filter((p) => p.sampledAt.getTime() >= start).length < 2 && before.length) start = before.at(-1)!.sampledAt.getTime();
+  const series = points.filter((p) => p.sampledAt.getTime() >= start);
   const vals = series.map((p) => inUnit(p.percent));
   const lo = Math.min(...vals);
   const hi = Math.max(...vals);
   const pad = Math.max((hi - lo) * 0.3, unit === 'mmol/mol' ? 3 : 0.3);
+  const monthFmt = new Intl.DateTimeFormat('fr-FR', { month: 'short', timeZone: 'Europe/Paris' });
+  const ticks: { t: number; label: string }[] = [];
+  const spanMonths = (end - start) / (30.4 * 86_400_000);
+  const stepMonths = spanMonths > 8 ? Math.ceil(spanMonths / 6) : 1;
+  for (let d = new Date(new Date(start).getFullYear(), new Date(start).getMonth() + 1, 1); d.getTime() <= end; d = new Date(d.getFullYear(), d.getMonth() + stepMonths, 1))
+    ticks.push({ t: d.getTime(), label: monthFmt.format(d).replace('.', '') });
   return (
-    <Card>
+    // Toute la carte mène à l'historique complet.
+    <Card href="/analyses/hba1c">
       <CardHeader
         title="HbA1c"
         tag="Laboratoire"
         tagTone="petrol"
         action={
-          <Link href="/analyses/hba1c" className="inline-flex min-h-11 items-center font-medium text-petrol hover:underline">
-            Historique
-          </Link>
+          <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
+            Historique <span aria-hidden>›</span>
+          </span>
         }
       />
       <Stat label="Dernier résultat" value={f.value} unit={f.unit} hint={`soit ${f.other}`} />
@@ -287,17 +300,22 @@ export function Hba1cCard({ points, unit, canWrite }: { points: Hba1cPoint[]; un
           {deltaText} par rapport au {dateShort(previous.sampledAt)} ({formatHba1c(previous.percent, unit).value} {f.unit})
         </p>
       )}
-      {series.length > 1 && (
-        <DashboardSparkline
-          points={series.map((p, i) => ({ t: i, v: inUnit(p.percent) }))}
-          min={lo - pad}
-          max={hi + pad}
-          dots
-          color="var(--petrol)"
-          height={52}
-          labels={series.map((p) => formatHba1c(p.percent, unit).value)}
-          label={`Dernières HbA1c : ${series.map((p) => `${formatHba1c(p.percent, unit).value} ${f.unit} le ${dateShort(p.sampledAt)}`).join(', ')}`}
-        />
+      {series.length > 0 && (
+        <>
+          <p className="mt-3 text-sm font-medium text-ink-2">{spanMonths > 6.5 ? 'Depuis le résultat précédent' : '6 derniers mois'}</p>
+          <DashboardSparkline
+            points={series.map((p) => ({ t: p.sampledAt.getTime(), v: inUnit(p.percent) }))}
+            domain={[start, end]}
+            ticks={ticks}
+            min={lo - pad}
+            max={hi + pad}
+            dots
+            color="var(--petrol)"
+            height={64}
+            labels={series.map((p) => formatHba1c(p.percent, unit).value)}
+            label={`HbA1c sur la période : ${series.map((p) => `${formatHba1c(p.percent, unit).value} ${f.unit} le ${dateShort(p.sampledAt)}`).join(', ')}`}
+          />
+        </>
       )}
       <Meta className="mt-1">
         Prise de sang du {dateShort(latest.sampledAt)}
