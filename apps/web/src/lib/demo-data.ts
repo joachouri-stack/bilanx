@@ -228,3 +228,30 @@ export function demoStepsHourly(d: LocalDate, now: Date = new Date()): Map<numbe
   }
   return out;
 }
+
+/**
+ * Séances de sport fictives (démonstration) sur un an : environ 3 par semaine
+ * (lundi, mercredi, vendredi ou samedi…), certaines semaines à 2, de rares semaines à 4.
+ */
+export function demoGymVisits(from: LocalDate, to: LocalDate, now: Date = new Date()): string[] {
+  const today = demoToday(now);
+  const first = addDays(today, -364);
+  const out: string[] = [];
+  const PATTERNS = [
+    [0, 2, 4, 5],
+    [1, 3, 5, 0],
+    [0, 2, 5, 3],
+    [1, 3, 6, 4],
+  ];
+  let d = compareLocalDates(from, first) < 0 ? first : from;
+  for (; compareLocalDates(d, to) <= 0 && compareLocalDates(d, today) <= 0; d = addDays(d, 1)) {
+    const dow = (new Date(Date.UTC(d.year, d.month - 1, d.day)).getUTCDay() + 6) % 7;
+    const rnd = seeded(daySeed(addDays(d, -dow)) * 13 + 5);
+    rnd(); // premier tirage presque linéaire en la graine : écarté
+    const r = rnd();
+    const count = r < 0.25 ? 2 : r > 0.93 ? 4 : 3;
+    const pattern = PATTERNS[Math.floor(rnd() * PATTERNS.length)]!;
+    if (pattern.slice(0, count).includes(dow)) out.push(`${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`);
+  }
+  return out;
+}

@@ -8,6 +8,13 @@ import {
   computeGlucoseStats,
   formatLocalDate,
   getAnalyte,
+  gymMonthStats,
+  gymStreak,
+  gymWeekDays,
+  gymWeekStart,
+  gymWeekStatus,
+  type GymMonthStats,
+  type GymWeekStatus,
   localDateOf,
   hba1cMmolMolToPercent,
   normalizeUnit,
@@ -24,6 +31,7 @@ import { labResults, sensorRange, type LabRow } from './data';
 import { insulinDoses, insulinProducts } from './insulin-data';
 import { stepsDaily, stepsGoal } from './activity-data';
 import { medicationDay, medicationList } from './medication-data';
+import { gymHistory } from './gym-data';
 
 const DAY = 86_400_000;
 /** Mêmes seuils que la page Glycémie (vue sur plusieurs jours). */
@@ -95,6 +103,22 @@ export interface StepsSummary {
   week: { date: string; steps: number | null }[];
 }
 
+export interface GymSummary {
+  /** Aujourd'hui (AAAA-MM-JJ). */
+  today: string;
+  /** Semaine en cours (lundi → dimanche). */
+  week: GymWeekStatus;
+  /** Les 7 jours de la semaine en cours. */
+  days: { date: string; done: boolean }[];
+  doneToday: boolean;
+  /** Semaines réussies d'affilée. */
+  streak: number;
+  /** Mois en cours (mini calendrier). */
+  month: GymMonthStats;
+  /** Jours de séance du mois en cours (et des jours voisins de sa grille). */
+  visits: string[];
+}
+
 export interface FirstStep {
   key: 'glucose' | 'hba1c' | 'prescription' | 'appointment';
   label: string;
@@ -126,6 +150,7 @@ export interface DashboardData {
   today_: TodaySummary | null;
   appointments: AppointmentsSummary | null;
   steps: StepsSummary | null;
+  gym: GymSummary | null;
   docs: DashboardDoc[] | null;
   firstSteps: FirstStep[];
 }
@@ -207,7 +232,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
   const showAppointments = moduleAllowed(ctx.active, 'appointments');
   const showDocs = !!real && moduleAllowed(ctx.active, 'documents');
 
-  const [cap, sensor, labs, medsNow, medsToday, products, doses, steps, goal, appts, docs, anyGlucose] = await Promise.all([
+  const [cap, sensor, labs, medsNow, medsToday, products, doses, steps, goal, appts, docs, anyGlucose, gymDays] = await Promise.all([
     showGlucose ? capillaryReadings(ctx, today, now) : Promise.resolve([] as Reading[]),
     showGlucose ? sensorSummary(ctx, today, now) : Promise.resolve(null),
     showLab ? labResults(ctx) : Promise.resolve([] as LabRow[]),
@@ -220,6 +245,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     real && showAppointments ? appointments().list(ctx.user, real.profileId) : Promise.resolve(null),
     showDocs && real ? documents().list(ctx.user, real.profileId) : Promise.resolve(null),
     showGlucose ? hasAnyGlucose(ctx) : Promise.resolve(false),
+    showActivity ? gymHistory(ctx, today, now) : Promise.resolve(null),
   ]);
 
   const meter = meterSummary(cap, now, today);
@@ -297,6 +323,23 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     stepsSummary = { today: val(0) ?? null, mean7: mean(last7), days7: last7.length, meanPrev7: mean(prev7), goal, week };
   }
 
+  let gymSummary: GymSummary | null = null;
+  if (gymDays) {
+    const todayIso = formatLocalDate(today);
+    const set = new Set(gymDays);
+    const monday = gymWeekStart(todayIso);
+    const days = gymWeekDays(monday).map((date) => ({ date, done: set.has(date) }));
+    gymSummary = {
+      today: todayIso,
+      week: gymWeekStatus(days.filter((d) => d.done).length, monday, todayIso),
+      days,
+      doneToday: set.has(todayIso),
+      streak: gymStreak(gymDays, todayIso),
+      month: gymMonthStats(gymDays, today.year, today.month, todayIso),
+      visits: gymDays.filter((d) => d >= formatLocalDate(addDays(today, -45))),
+    };
+  }
+
   const firstSteps: FirstStep[] = [];
   if (real) {
     const w = (m: Parameters<typeof moduleAllowed>[1]) => moduleAllowed(ctx.active, m, 'write');
@@ -322,6 +365,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     today_: todaySummary,
     appointments: appointmentsSummary,
     steps: stepsSummary,
+    gym: gymSummary,
     docs: docs ? docs.slice(0, 3).map((d) => ({ id: d.id, title: d.title, kind: d.kind, exam_type: d.exam_type, document_date: d.document_date, uploaded_at: d.uploaded_at })) : null,
     firstSteps: firstSteps.some((s) => !s.done) ? firstSteps : [],
   };

@@ -21,7 +21,7 @@ export interface NavItem {
 
 /**
  * Menu principal, dans l'ordre d'affichage :
- * Accueil ; Suivi (Glycémie, Analyses, Activité, Journal) ; Traitements (Médicaments, Insuline) ; Rendez-vous ;
+ * Accueil ; Suivi (Glycémie, Analyses, Activité, Salle de sport, Journal) ; Traitements (Médicaments, Insuline) ; Rendez-vous ;
  * Documents (Documents, Ordonnances, Partager avec un soignant) ; puis le compte (Famille & profils, Paramètres).
  * La route /assistant (prévue) existe toujours mais n'est plus dans le menu.
  */
@@ -30,6 +30,7 @@ export const NAV: NavItem[] = [
   { href: '/glycemie', label: 'Glycémie', short: 'Glycémie', icon: 'drop', status: 'available', group: 'main', section: 'Suivi' },
   { href: '/analyses', label: 'Analyses', short: 'Analyses', icon: 'flask', status: 'available', group: 'main', section: 'Suivi' },
   { href: '/activite', label: 'Activité', short: 'Activité', icon: 'steps', status: 'available', group: 'main', section: 'Suivi' },
+  { href: '/salle-de-sport', label: 'Salle de sport', short: 'Sport', icon: 'dumbbell', status: 'available', group: 'main', section: 'Suivi' },
   { href: '/journal', label: 'Journal', short: 'Journal', icon: 'journal', status: 'available', group: 'main', section: 'Suivi' },
   { href: '/medicaments', label: 'Médicaments', short: 'Médicaments', icon: 'pill', status: 'available', group: 'main', section: 'Traitements' },
   { href: '/traitements', label: 'Insuline', short: 'Insuline', icon: 'syringe', status: 'available', group: 'main', section: 'Traitements' },
@@ -63,6 +64,7 @@ export const QUICK_ADD: QuickAddItem[] = [
   { href: '/glycemie#ajouter-glycemie', label: 'Glycémie', icon: '🩸', svg: 'drop', base: '/glycemie' },
   { href: '/analyses/ajouter?analyse=hba1c', label: 'HbA1c', icon: '🧪', svg: 'flask', base: '/analyses' },
   { href: '/activite#saisir-pas', label: 'Pas du jour', icon: '👟', svg: 'steps', base: '/activite' },
+  { href: '/salle-de-sport', label: 'Séance de sport', icon: '🏋️', svg: 'dumbbell', base: '/salle-de-sport' },
   { href: '/journal#ajouter-journal', label: 'Repas ou événement', icon: '🍽️', svg: 'meal', base: '/journal' },
   { href: '/medicaments#prises', label: 'Prise de médicament', icon: '💊', svg: 'pill', base: '/medicaments' },
   { href: '/traitements#injection', label: 'Injection d’insuline', icon: '💉', svg: 'syringe', base: '/traitements' },

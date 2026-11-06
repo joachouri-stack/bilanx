@@ -22,6 +22,9 @@ export const ICONS = {
   /** Pas / activité : empreintes. */
   steps:
     'M7.5 3C9 3 10 4.8 10 7s-.8 4.5-2.5 4.5S5 9.2 5 7s1-4 2.5-4zM5.5 14h4.2l-.3 2.8a2 2 0 0 1-3.8 0zM16.5 7C18 7 19 8.8 19 11s-.8 4.5-2.5 4.5S14 13.2 14 11s1-4 2.5-4zM14.3 18h4.2l-.3 1.3a2 2 0 0 1-3.6 0z',
+  /** Salle de sport : haltère (barre, deux disques de chaque côté). */
+  dumbbell:
+    'M7.5 12h9M5.5 6.5h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM4.5 9H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1.5M17.5 6.5h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM19.5 9H21a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1.5',
   /** Journal / repas : fourchette et couteau. */
   meal: 'M5 3v5a2 2 0 0 0 4 0V3M7 10v11M17 21V3c-2.2 1.4-3.5 4.2-3.5 7.5V13H17',
   journal: 'M5 4h14v16H5zM9 9h6M9 13h6M9 17h3',

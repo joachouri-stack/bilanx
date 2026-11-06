@@ -20,7 +20,7 @@ export interface BackupReport {
   audit: AuditChainReport;
 }
 
-const COUNTED = ['account', 'profile', 'lab_result', 'glucose_reading', 'insulin_dose', 'medication', 'medication_intake', 'journal_entry', 'appointment', 'activity_daily', 'document', 'audit_log'] as const;
+const COUNTED = ['account', 'profile', 'lab_result', 'glucose_reading', 'insulin_dose', 'medication', 'medication_intake', 'journal_entry', 'appointment', 'activity_daily', 'gym_visit', 'document', 'audit_log'] as const;
 
 export async function checkBackup(sql: Sql, secretKey: Buffer, migrationsDir?: string): Promise<BackupReport> {
   const problems: string[] = [];

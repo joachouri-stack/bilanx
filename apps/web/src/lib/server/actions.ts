@@ -15,6 +15,7 @@ import { collectReport } from './report-data';
 import { demoToday } from '@/lib/demo-data';
 import {
   activity,
+  gym,
   glucose,
   appointments,
   auth,
@@ -1029,6 +1030,19 @@ export async function removeStepsAction(fd: FormData): Promise<void> {
   if (ctx.active.kind === 'real') await activity().removeManualDay(ctx.user, ctx.active.access.profileId, str(fd, 'day'));
   revalidatePath('/activite');
   revalidatePath('/tableau-de-bord');
+}
+
+/** Salle de sport : coche (present=1) ou décoche (present=0) un jour. Profil de démonstration : sans effet. */
+export async function toggleGymAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return;
+  try {
+    await gym().setVisit(ctx.user, ctx.active.access.profileId, str(fd, 'day'), str(fd, 'present') === '1');
+  } catch (e) {
+    if (!(e instanceof ForbiddenError)) throw e; // lecture seule : rien n'est modifié
+  }
+  revalidatePath('/tableau-de-bord');
+  revalidatePath('/salle-de-sport');
 }
 
 export async function clearActivityAction(): Promise<void> {

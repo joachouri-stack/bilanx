@@ -6,6 +6,8 @@ import { createAppSql, type Sql } from '@bilanx/db';
 import { createProfilesService, type ProfilesService } from '@bilanx/profiles';
 import {
   createActivityService,
+  createGymService,
+  type GymService,
   createGlucoseService,
   type GlucoseService,
   createAppointmentsService,
@@ -31,7 +33,7 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createAppSql();
@@ -81,6 +83,11 @@ export function glucose(): GlucoseService {
 export function activity(): ActivityService {
   globalForAuth.bilanxActivity ??= createActivityService({ profiles: profiles() });
   return globalForAuth.bilanxActivity;
+}
+
+export function gym(): GymService {
+  globalForAuth.bilanxGym ??= createGymService({ profiles: profiles() });
+  return globalForAuth.bilanxGym;
 }
 
 export function medications(): MedicationsService {

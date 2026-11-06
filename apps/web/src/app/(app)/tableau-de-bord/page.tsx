@@ -12,6 +12,7 @@ import {
   DocumentsRow,
   FirstStepsCard,
   GlucoseCard,
+  GymCard,
   Hba1cCard,
   StepsCard,
   TodayCard,
@@ -90,6 +91,7 @@ export default async function DashboardPage() {
       <div className="lg:columns-2 lg:gap-4 [&>*]:mb-4 [&>*]:break-inside-avoid">
         {/* Les pas en premier (choix de l'utilisateur). */}
         {data.steps && <StepsCard steps={data.steps} canWrite={canWrite('activity')} isDemo={isDemo} />}
+        {data.gym && <GymCard gym={data.gym} canWrite={canWrite('activity')} isDemo={isDemo} />}
         {data.showGlucose && (
           <GlucoseCard sensor={data.sensor} meter={data.meter} unit={UNIT} today={data.today} isDemo={isDemo} canWrite={canWrite('glucose')} />
         )}

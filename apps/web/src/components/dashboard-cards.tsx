@@ -18,11 +18,14 @@ import {
 import { GLUCOSE_CONTEXTS } from '@bilanx/domain';
 import { DEMO_TIMEZONE } from '@/lib/demo-data';
 import { documentTitle } from '@/lib/document-categories';
-import type { DashboardDoc, FirstStep, Hba1cPoint, AppointmentsSummary, MeterSummary, SensorSummary, StepsSummary, TodaySummary } from '@/lib/server/dashboard-data';
+import type { DashboardDoc, FirstStep, GymSummary, Hba1cPoint, AppointmentsSummary, MeterSummary, SensorSummary, StepsSummary, TodaySummary } from '@/lib/server/dashboard-data';
+import { toggleGymAction } from '@/lib/server/actions';
+import { GymSubmit } from '@/components/gym-forms';
+import { GYM_INITIALS, GYM_WEEKDAYS_SHORT, gymDayLong, gymMonthName, gymPlural, gymRemainingLabel, gymWeekBar, gymWeekSentence } from '@/components/gym-shared';
 import { GLUCOSE_TARGETS, frTime } from '@/lib/server/dashboard-data';
 import type { LabRow } from '@/lib/server/data';
 import type { IconName } from '@/components/icon';
-import { ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
+import { ButtonLink, buttonClass, Card, CardHeader, Chip, EmptyState, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import { DashboardSparkline } from '@/components/dashboard-sparkline';
 
@@ -650,6 +653,155 @@ function WeekBars({ week, goal }: { week: { date: string; steps: number | null }
       </div>
       <figcaption className="mt-2 text-[13px] text-ink-3">Pointillés : objectif de {formatNumberFr(goal)} pas par jour.</figcaption>
     </figure>
+  );
+}
+
+/* ------------------------------------------------------------------ Salle de sport */
+
+/**
+ * Salle de sport : séances de la semaine (objectif 3), bouton « J’y suis allé aujourd’hui », mini calendrier du mois.
+ * Toute la carte mène à l’historique : lien « étiré » sous le contenu, formulaire au-dessus (pas de lien imbriqué).
+ */
+export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: boolean; isDemo: boolean }) {
+  const { week, days, month, today } = gym;
+  const visits = new Set(gym.visits);
+  return (
+    <Card accent="sage" className="relative transition-transform hover:-translate-y-0.5">
+      <Link
+        href="/salle-de-sport"
+        aria-label="Historique de la salle de sport"
+        className="absolute inset-0 z-0 rounded-[var(--radius-card)] focus-visible:outline-2 focus-visible:outline-petrol"
+      />
+      <CardHeader
+        title="Salle de sport"
+        icon="dumbbell"
+        iconTone="sage"
+        action={
+          <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
+            Historique <span aria-hidden>›</span>
+          </span>
+        }
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <p className="flex items-baseline gap-2">
+          <span className="tabular text-4xl font-semibold leading-tight">
+            {week.count}
+            <span className="text-ink-3">&nbsp;/&nbsp;{week.goal}</span>
+          </span>
+          <span className="text-ink-2">cette semaine</span>
+        </p>
+        <Chip tone={week.reached ? 'sage' : 'red'}>
+          {week.reached && <Icon name="check" className="size-3.5" strokeWidth={2.4} />}
+          {gymRemainingLabel(week)}
+        </Chip>
+      </div>
+      {gym.streak > 0 && <Meta className="mt-1">{gymPlural(gym.streak, 'semaine')} d’affilée avec l’objectif atteint</Meta>}
+
+      <ol className="mt-4 grid grid-cols-7 gap-1" aria-label="Séances de la semaine en cours">
+        {days.map((d, i) => {
+          const isToday = d.date === today;
+          const future = d.date > today;
+          return (
+            <li key={d.date} className={`flex flex-col items-center gap-1 ${future ? 'opacity-45' : ''}`}>
+              <span
+                aria-hidden
+                className={`grid size-9 place-items-center rounded-full ${d.done ? 'bg-sage text-on-accent' : 'border-2 border-line'} ${
+                  isToday ? 'ring-2 ring-petrol ring-offset-2 ring-offset-surface' : ''
+                }`}
+              >
+                {d.done && <Icon name="check" className="size-5" strokeWidth={2.4} />}
+              </span>
+              <span aria-hidden className={`text-[12px] ${isToday ? 'font-semibold text-ink' : 'text-ink-3'}`}>
+                {GYM_WEEKDAYS_SHORT[i]!.replace('.', '')}
+              </span>
+              <span className="sr-only">
+                {gymDayLong(d.date)}
+                {isToday ? ' (aujourd’hui)' : ''} : {d.done ? 'séance' : future ? 'à venir' : 'pas de séance'}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
+      {canWrite && (
+        <div className="relative z-10 mt-4">
+          {gym.doneToday ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sage-2 px-4 py-1.5">
+              <p className="flex min-h-11 items-center gap-2 font-semibold text-sage">
+                <Icon name="check" className="size-5" strokeWidth={2.4} />
+                Séance notée aujourd’hui
+              </p>
+              <form action={toggleGymAction}>
+                <input type="hidden" name="day" value={today} />
+                <input type="hidden" name="present" value="0" />
+                <GymSubmit className={buttonClass({ variant: 'ghost', className: 'text-ink-2' })} aria-label="Annuler la séance d’aujourd’hui">
+                  Annuler
+                </GymSubmit>
+              </form>
+            </div>
+          ) : (
+            <form action={toggleGymAction}>
+              <input type="hidden" name="day" value={today} />
+              <input type="hidden" name="present" value="1" />
+              <GymSubmit className={buttonClass({ variant: 'primary', className: 'w-full sm:w-auto' })}>
+                <Icon name="dumbbell" className="size-5" />
+                J’y suis allé aujourd’hui
+              </GymSubmit>
+            </form>
+          )}
+        </div>
+      )}
+
+      <GymMiniMonth month={month} today={today} visits={visits} />
+      {isDemo && <Meta className="mt-2">Démonstration : données fictives.</Meta>}
+    </Card>
+  );
+}
+
+/** Mini calendrier du mois en cours ; trait vert (≥ 3 séances) ou rouge (< 3) à gauche de chaque semaine. */
+function GymMiniMonth({ month, today, visits }: { month: GymSummary['month']; today: string; visits: Set<string> }) {
+  const name = gymMonthName(month.year, month.month, false);
+  const summary = `${name} : ${gymPlural(month.visits, 'séance')}. ${month.weeks.map(gymWeekSentence).join('. ')}.`;
+  return (
+    <figure className="mt-5 border-t border-line pt-4">
+      <figcaption className="mb-2 flex items-baseline justify-between gap-3 text-sm">
+        <span className="font-semibold first-letter:uppercase">{name}</span>
+        <span className="text-ink-3">{gymPlural(month.visits, 'séance')}</span>
+      </figcaption>
+      <div role="img" aria-label={summary} className="mx-auto max-w-xs">
+        <div aria-hidden className="grid grid-cols-[6px_repeat(7,minmax(0,1fr))] gap-x-1.5 gap-y-1.5">
+          <span />
+          {GYM_INITIALS.map((l, i) => (
+            <span key={i} className="text-center text-[11px] font-medium text-ink-3">
+              {l}
+            </span>
+          ))}
+          {month.weeks.map((w) => (
+            <GymMiniWeek key={w.start} days={w.days} bar={gymWeekBar(w)} today={today} visits={visits} />
+          ))}
+        </div>
+      </div>
+    </figure>
+  );
+}
+
+function GymMiniWeek({ days, bar, today, visits }: { days: (string | null)[]; bar: string; today: string; visits: Set<string> }) {
+  return (
+    <>
+      <span className={`h-full min-h-4 w-1.5 rounded-full ${bar}`} />
+      {days.map((d, i) => (
+        <span key={d ?? `x${i}`} className="grid place-items-center">
+          {d && (
+            <span
+              className={`size-4 rounded-[5px] ${
+                visits.has(d) ? 'bg-sage' : d > today ? 'bg-surface-2 opacity-60' : 'border border-ink-3/40'
+              } ${d === today ? 'ring-2 ring-petrol ring-offset-1 ring-offset-surface' : ''}`}
+            />
+          )}
+        </span>
+      ))}
+    </>
   );
 }
 

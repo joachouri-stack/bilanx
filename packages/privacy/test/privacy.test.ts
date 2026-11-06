@@ -82,6 +82,7 @@ describe.skipIf(!TEST_DB)('droits RGPD : export, consentements, suppression (Pos
     expect(names).toContain('profils/Jo/analyses.csv');
     expect(names).toContain('profils/Mamie-Rose/analyses.csv');
     expect(names).toContain('profils/Jo/activite-pas.csv');
+    expect(names).toContain('profils/Jo/salle-de-sport.csv');
     expect(names).toContain('profils/Jo/medicaments.csv');
     expect(names).toContain('profils/Jo/prises-medicaments.csv');
     expect(names).toContain('profils/Jo/partages.csv');
