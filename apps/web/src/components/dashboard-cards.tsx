@@ -703,10 +703,10 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
           const isToday = d.date === today;
           const future = d.date > today;
           return (
-            <li key={d.date} className={`flex flex-col items-center gap-1 ${future ? 'opacity-45' : ''}`}>
+            <li key={d.date} className="flex flex-col items-center gap-1">
               <span
                 aria-hidden
-                className={`grid size-9 place-items-center rounded-full ${d.done ? 'bg-sage text-on-accent' : 'border-2 border-line'} ${
+                className={`grid size-9 place-items-center rounded-full ${d.done ? 'bg-sage text-on-accent' : future ? 'border-2 border-line opacity-50' : 'border-2 border-line'} ${
                   isToday ? 'ring-2 ring-petrol ring-offset-2 ring-offset-surface' : ''
                 }`}
               >

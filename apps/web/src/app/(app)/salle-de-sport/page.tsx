@@ -193,7 +193,7 @@ function WeekRow({ week, set, todayIso, canWrite }: { week: GymMonthWeek; set: S
         const future = d > todayIso;
         const label = `${gymDayLong(d)}${isToday ? ' (aujourd’hui)' : ''}`;
         const cls = `flex min-h-12 w-full flex-col items-center justify-center rounded-lg text-[15px] leading-none tabular ${
-          done ? 'bg-sage font-semibold text-on-accent' : future ? 'text-ink-3 opacity-50' : 'text-ink'
+          done ? 'bg-sage font-semibold text-on-accent' : future ? 'text-ink-3' : 'text-ink'
         } ${isToday ? 'ring-2 ring-inset ring-petrol' : ''}`;
         const content = (
           <>
@@ -283,7 +283,7 @@ function YearView({
           return (
             <li key={key}>
               {future ? (
-                <div className="card block h-full p-4 opacity-50">{body}</div>
+                <div className="card block h-full p-4 text-ink-3 [&_p]:text-ink-3">{body}</div>
               ) : (
                 <Link
                   href={monthHref(year, i + 1)}
