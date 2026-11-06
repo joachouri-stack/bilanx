@@ -77,7 +77,7 @@ export default async function AppointmentsPage({ searchParams }: { searchParams:
           </Card>
         </div>
         {canWrite && (
-          <Card>
+          <Card id="nouveau-rendez-vous">
             <h2 className="mb-3 font-semibold">Nouveau rendez-vous</h2>
             <AppointmentForm initial={{ date: today, time: '09:00' }} showNotes={false} />
           </Card>

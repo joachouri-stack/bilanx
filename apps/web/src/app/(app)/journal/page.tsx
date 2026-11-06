@@ -205,7 +205,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
         </div>
 
         <div>
-          <Card className="xl:sticky xl:top-6">
+          <Card id="ajouter-journal" className="xl:sticky xl:top-6">
             <h2 className="mb-3 font-semibold">Ajouter au journal</h2>
             {isDemo ? (
               <p className="text-sm text-ink-3">Le profil de démonstration est en lecture seule.</p>

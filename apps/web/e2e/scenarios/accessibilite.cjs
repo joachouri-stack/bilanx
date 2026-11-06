@@ -22,7 +22,11 @@ for(const [vw,tag,scheme] of [[{width:1280,height:900},'bureau','light'],[{width
  for(const u of ['/tableau-de-bord','/analyses/ajouter','/traitements','/medicaments','/journal','/documents','/rendez-vous','/rapports','/famille','/parametres','/activite'])
   {await p.goto(B+u);await p.waitForLoadState('networkidle');await audit(p,`${tag} réel ${u}`,results)}
  // Profil de démonstration (données)
- if(tag.includes('mobile')){await p.locator('main summary').first().click()}else{await p.locator('aside summary').click()}
+ if(tag.includes('mobile')){
+  // Feuilles du bas (ajout rapide, menu) auditées ouvertes.
+  await p.goto(B+'/tableau-de-bord');await p.getByRole('button',{name:/^Ajouter :/}).click();await p.getByRole('dialog',{name:'Ajouter'}).waitFor();await audit(p,`${tag} feuille Ajouter`,results);await p.keyboard.press('Escape');
+  await p.getByRole('button',{name:'Menu'}).click();await p.getByRole('dialog',{name:'Menu'}).waitFor();await audit(p,`${tag} feuille Menu`,results);await p.keyboard.press('Escape');
+  await p.getByRole('button',{name:/^Changer de profil/}).click();await p.getByRole('dialog',{name:'Changer de profil'}).waitFor();await audit(p,`${tag} feuille Changer de profil`,results)}else{await p.locator('aside summary').click()}
  await p.getByRole('button',{name:/Claire/}).first().click();await p.getByText('Profil de démonstration —').waitFor();
  for(const u of ['/tableau-de-bord','/glycemie','/glycemie?periode=14','/glycemie?periode=90','/analyses','/analyses/hba1c','/analyses/ferritin','/traitements','/medicaments','/activite','/journal','/rendez-vous','/rapports'])
   {await p.goto(B+u);await p.waitForLoadState('networkidle');await audit(p,`${tag} démo ${u}`,results)}

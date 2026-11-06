@@ -1,43 +1,73 @@
+import type { IconName } from '@/components/icon';
+
 export type NavStatus = 'available' | 'planned';
+
+/** Rubriques du menu, dans l'ordre d'affichage (organigramme cible). */
+export const NAV_SECTIONS = ['Suivi', 'Traitements', 'Documents'] as const;
+export type NavSection = (typeof NAV_SECTIONS)[number];
 
 export interface NavItem {
   href: string;
+  /** Libellé du menu complet. */
   label: string;
+  /** Libellé court (barre d'onglets du téléphone). */
   short: string;
-  icon: string; // chemin SVG (24×24, trait)
+  icon: IconName;
   status: NavStatus;
   group: 'main' | 'account';
-  /** Rubrique du menu (regroupement visuel). */
-  section?: 'Suivi de santé' | 'Soins' | 'Documents';
+  /** Rubrique du menu : les éléments consécutifs d'une même rubrique sont regroupés sous son titre. */
+  section?: NavSection;
 }
 
-export const NAV_SECTIONS = ['Suivi de santé', 'Soins', 'Documents'] as const;
-
+/**
+ * Menu principal, dans l'ordre d'affichage :
+ * Accueil ; Suivi (Glycémie, Analyses, Activité, Journal) ; Traitements (Médicaments, Insuline) ; Rendez-vous ;
+ * Documents (Documents, Ordonnances, Partager avec un soignant) ; puis le compte (Famille & profils, Paramètres).
+ * La route /assistant (prévue) existe toujours mais n'est plus dans le menu.
+ */
 export const NAV: NavItem[] = [
-  { href: '/tableau-de-bord', label: 'Tableau de bord', short: 'Accueil', icon: 'M3 12l9-8 9 8v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z', status: 'available', group: 'main' },
-  { href: '/glycemie', label: 'Glycémie', short: 'Glycémie', icon: 'M3 17l5-6 4 3 5-8 4 5', status: 'available', group: 'main', section: 'Suivi de santé' },
-  { href: '/analyses', label: 'Analyses & HbA1c', short: 'Analyses', icon: 'M9 3v6l-5 9a2 2 0 0 0 2 3h12a2 2 0 0 0 2-3l-5-9V3M8 3h8', status: 'available', group: 'main', section: 'Suivi de santé' },
-  { href: '/activite', label: 'Activité & Pas', short: 'Activité', icon: 'M13 4a2 2 0 1 0 0 .1M9 21l3-7 3 3v5M6 12l3-4 4 1 3 3', status: 'available', group: 'main', section: 'Suivi de santé' },
-  { href: '/journal', label: 'Journal & Repas', short: 'Journal', icon: 'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5', status: 'available', group: 'main', section: 'Suivi de santé' },
-  { href: '/medicaments', label: 'Médicaments', short: 'Médicaments', icon: 'M10.5 20.5a5 5 0 0 1-7-7l7-7a5 5 0 0 1 7 7zM7 10l7 7', status: 'available', group: 'main', section: 'Soins' },
-  { href: '/traitements', label: 'Insuline & Traitements', short: 'Insuline', icon: 'M18 2l4 4M17 7l-9 9-4 1 1-4 9-9z', status: 'available', group: 'main', section: 'Soins' },
-  { href: '/rendez-vous', label: 'Rendez-vous', short: 'RDV', icon: 'M4 6h16v14H4zM4 10h16M9 3v4M15 3v4', status: 'available', group: 'main', section: 'Soins' },
-  { href: '/ordonnances', label: 'Ordonnances', short: 'Ordonnances', icon: 'M7 3h10v18H7zM10 8h4M12 6v4M10 14h4M10 17h4', status: 'available', group: 'main', section: 'Documents' },
-  { href: '/documents', label: 'Tous mes documents', short: 'Documents', icon: 'M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3M4 12h16', status: 'available', group: 'main', section: 'Documents' },
-  { href: '/rapports', label: 'Rapports PDF', short: 'Rapports', icon: 'M6 2h9l5 5v15H6zM14 2v6h6', status: 'available', group: 'main', section: 'Documents' },
-  { href: '/assistant', label: 'Assistant IA', short: 'Assistant', icon: 'M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z', status: 'planned', group: 'main' },
-  { href: '/famille', label: 'Famille & Profils', short: 'Famille', icon: 'M9 11a4 4 0 1 0 0-.1M2 21c0-4 3-6 7-6s7 2 7 6M17 11a3 3 0 1 0 0-.1M22 20c0-3-2-5-5-5', status: 'available', group: 'account' },
-  { href: '/parametres', label: 'Paramètres', short: 'Paramètres', icon: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2v3M12 19v3M2 12h3M19 12h3', status: 'available', group: 'account' },
+  { href: '/tableau-de-bord', label: 'Accueil', short: 'Accueil', icon: 'home', status: 'available', group: 'main' },
+  { href: '/glycemie', label: 'Glycémie', short: 'Glycémie', icon: 'drop', status: 'available', group: 'main', section: 'Suivi' },
+  { href: '/analyses', label: 'Analyses', short: 'Analyses', icon: 'flask', status: 'available', group: 'main', section: 'Suivi' },
+  { href: '/activite', label: 'Activité', short: 'Activité', icon: 'steps', status: 'available', group: 'main', section: 'Suivi' },
+  { href: '/journal', label: 'Journal', short: 'Journal', icon: 'journal', status: 'available', group: 'main', section: 'Suivi' },
+  { href: '/medicaments', label: 'Médicaments', short: 'Médicaments', icon: 'pill', status: 'available', group: 'main', section: 'Traitements' },
+  { href: '/traitements', label: 'Insuline', short: 'Insuline', icon: 'syringe', status: 'available', group: 'main', section: 'Traitements' },
+  { href: '/rendez-vous', label: 'Rendez-vous', short: 'RDV', icon: 'calendar', status: 'available', group: 'main' },
+  { href: '/documents', label: 'Documents', short: 'Documents', icon: 'folder', status: 'available', group: 'main', section: 'Documents' },
+  { href: '/ordonnances', label: 'Ordonnances', short: 'Ordonnances', icon: 'prescription', status: 'available', group: 'main', section: 'Documents' },
+  { href: '/rapports', label: 'Partager avec un soignant', short: 'Partager', icon: 'share', status: 'available', group: 'main', section: 'Documents' },
+  { href: '/famille', label: 'Famille & profils', short: 'Famille', icon: 'family', status: 'available', group: 'account' },
+  { href: '/parametres', label: 'Paramètres', short: 'Paramètres', icon: 'settings', status: 'available', group: 'account' },
 ];
 
-/** Ajouts rapides (bouton ＋ du téléphone, tableau de bord). */
-export const QUICK_ADD: { href: string; label: string; icon: string; base: string }[] = [
-  { href: '/glycemie#ajouter-glycemie', label: 'Glycémie', icon: '🩸', base: '/glycemie' },
-  { href: '/analyses/ajouter?analyse=hba1c', label: 'HbA1c', icon: '🧪', base: '/analyses' },
-  { href: '/activite#saisir-pas', label: 'Pas du jour', icon: '👟', base: '/activite' },
-  { href: '/documents?cat=ordonnances#ajouter', label: 'Ordonnance', icon: '💊', base: '/documents' },
-  { href: '/documents?cat=analyses#ajouter', label: 'Bilan / analyses', icon: '📄', base: '/documents' },
-  { href: '/documents?cat=imagerie#ajouter', label: 'IRM, scanner, radio', icon: '🩻', base: '/documents' },
+/** Onglets de la barre du bas du téléphone (le bouton ＋ et « Menu » s'intercalent : Accueil · Glycémie · ＋ · Documents · Menu). */
+export const MOBILE_TABS = ['/tableau-de-bord', '/glycemie', '/documents'] as const;
+
+export interface QuickAddItem {
+  href: string;
+  label: string;
+  /**
+   * Émoji historique, encore affiché par les pastilles du tableau de bord.
+   * @deprecated utiliser `svg` avec `<Icon name={q.svg} />`.
+   */
+  icon: string;
+  /** Icône SVG (components/icon.tsx). */
+  svg: IconName;
+  /** Rubrique d'appartenance : l'ajout est masqué si cette rubrique est interdite pour le profil affiché. */
+  base: string;
+}
+
+/** Ajouts rapides (feuille « Ajouter » du bouton ＋ sur téléphone, pastilles du tableau de bord). */
+export const QUICK_ADD: QuickAddItem[] = [
+  { href: '/glycemie#ajouter-glycemie', label: 'Glycémie', icon: '🩸', svg: 'drop', base: '/glycemie' },
+  { href: '/analyses/ajouter?analyse=hba1c', label: 'HbA1c', icon: '🧪', svg: 'flask', base: '/analyses' },
+  { href: '/activite#saisir-pas', label: 'Pas du jour', icon: '👟', svg: 'steps', base: '/activite' },
+  { href: '/journal#ajouter-journal', label: 'Repas ou événement', icon: '🍽️', svg: 'meal', base: '/journal' },
+  { href: '/medicaments#prises', label: 'Prise de médicament', icon: '💊', svg: 'pill', base: '/medicaments' },
+  { href: '/traitements#injection', label: 'Injection d’insuline', icon: '💉', svg: 'syringe', base: '/traitements' },
+  { href: '/rendez-vous#nouveau-rendez-vous', label: 'Rendez-vous', icon: '📅', svg: 'calendar', base: '/rendez-vous' },
+  { href: '/documents#ajouter', label: 'Document ou photo', icon: '📄', svg: 'camera', base: '/documents' },
 ];
 
 /** Ce que chaque module « prévu » nécessitera — affiché honnêtement sur sa page. */

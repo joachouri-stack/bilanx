@@ -24,9 +24,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0F5562',
+  // Couleur de la barre d'état / de l'onglet : celle de l'entête (jeton --surface, clair et sombre).
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#162226' },
+  ],
+  colorScheme: 'light dark',
   width: 'device-width',
   initialScale: 1,
+  // iPhone : le contenu s'étend sous l'encoche et la barre d'accueil ; les marges env(safe-area-inset-*) le protègent.
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

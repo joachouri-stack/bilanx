@@ -1,6 +1,17 @@
+/**
+ * Système de design partagé de BILANX (composants serveur, sans état).
+ *
+ * Règles communes :
+ * - cibles tactiles d'au moins 44 px (min-h-11) ; boutons principaux 48 px (min-h-12) ;
+ * - couleurs uniquement par jetons (globals.css) : clair et sombre sont gérés automatiquement ;
+ * - jamais la couleur seule pour porter une information (toujours un libellé).
+ *
+ * Composants clients associés : `Sheet` (components/sheet.tsx), `DayNav` (components/day-nav.tsx),
+ * `Icon` (components/icon.tsx).
+ */
 import Link from 'next/link';
 
-type Tone = 'glucose' | 'sage' | 'amber' | 'red' | 'petrol' | 'neutral';
+export type Tone = 'glucose' | 'sage' | 'amber' | 'red' | 'petrol' | 'neutral';
 
 const TONES: Record<Tone, string> = {
   glucose: 'bg-glucose-2 text-glucose',
@@ -11,22 +22,41 @@ const TONES: Record<Tone, string> = {
   neutral: 'bg-surface-2 text-ink-2',
 };
 
+/** Pastille de statut ou de catégorie (« Dans la cible », « Démo »…). */
 export function Chip({ tone = 'neutral', children }: { tone?: Tone; children: React.ReactNode }) {
   return <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${TONES[tone]}`}>{children}</span>;
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: React.ReactNode; actions?: React.ReactNode }) {
+/**
+ * En-tête de page : titre (h1, Fraunces), sous-titre court, actions.
+ * Sur téléphone, les actions passent sous le titre (et peuvent être masquées avec `actionsMobile={false}`,
+ * par exemple quand la page propose déjà la même action ailleurs).
+ */
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+  actionsMobile = true,
+}: {
+  title: string;
+  /** Une ligne courte, en ink-2. */
+  subtitle?: React.ReactNode;
+  actions?: React.ReactNode;
+  /** `false` : actions masquées sous 640 px (`hidden sm:flex`). Par défaut `true`. */
+  actionsMobile?: boolean;
+}) {
   return (
-    <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 className="font-display text-[28px] font-semibold leading-tight">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-ink-3">{subtitle}</p>}
+    <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
+      <div className="min-w-0">
+        <h1 className="font-display text-[26px] font-semibold leading-tight sm:text-[32px]">{title}</h1>
+        {subtitle && <p className="mt-1 text-ink-2">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <div className={`${actionsMobile ? 'flex' : 'hidden sm:flex'} flex-wrap items-center gap-2`}>{actions}</div>}
     </header>
   );
 }
 
+/** Carte : `<section>` (avec `id` éventuel pour une ancre) ou lien entier si `href` est fourni. */
 export function Card({
   children,
   href,
@@ -50,12 +80,111 @@ export function Card({
   );
 }
 
+/** Étiquette de carte (pastille + texte libre). Préférer `CardHeader` pour les nouvelles cartes. */
 export function CardLabel({ tone, tag, children }: { tone: Tone; tag: string; children?: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-[12.5px] font-medium text-ink-3">
       <Chip tone={tone}>{tag}</Chip>
       {children}
     </div>
+  );
+}
+
+/**
+ * En-tête de carte : titre (17 px, h2 par défaut), pastille facultative, action à droite (lien « Voir tout »…).
+ * @example <CardHeader title="Glycémie" tag="Capteur" tagTone="glucose" action={<Link href="/glycemie">Détails</Link>} />
+ */
+export function CardHeader({
+  title,
+  tag,
+  tagTone = 'neutral',
+  action,
+  as: H = 'h2',
+}: {
+  title: React.ReactNode;
+  tag?: React.ReactNode;
+  tagTone?: Tone;
+  action?: React.ReactNode;
+  /** Niveau de titre : `h2` (défaut) ou `h3` dans une section déjà titrée. */
+  as?: 'h2' | 'h3';
+}) {
+  return (
+    <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+        <H className="text-[17px] font-semibold leading-6">{title}</H>
+        {tag && <Chip tone={tagTone}>{tag}</Chip>}
+      </div>
+      {action && <div className="shrink-0 whitespace-nowrap text-sm">{action}</div>}
+    </div>
+  );
+}
+
+/**
+ * Chiffre clé : libellé, valeur en grand, unité, précision.
+ * @example <Stat label="Temps dans la cible" value="72" unit="%" hint="14 derniers jours" />
+ */
+export function Stat({
+  label,
+  value,
+  unit,
+  hint,
+  size = 'lg',
+}: {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  unit?: React.ReactNode;
+  hint?: React.ReactNode;
+  /** `lg` : text-4xl (chiffre principal d'une carte) ; `md` : text-2xl (grille de chiffres). */
+  size?: 'lg' | 'md';
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-sm text-ink-3">{label}</p>
+      <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1">
+        <span className={`tabular font-semibold leading-tight ${size === 'lg' ? 'text-4xl' : 'text-2xl'}`}>{value}</span>
+        {unit && <span className="text-base text-ink-3">{unit}</span>}
+      </p>
+      {hint && <Meta className="mt-1">{hint}</Meta>}
+    </div>
+  );
+}
+
+/** État vide : ce qui manque et, si possible, l'action pour le remplir. Jamais de donnée inventée. */
+export function EmptyState({ title, description, action }: { title: React.ReactNode; description?: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-dashed border-line p-6 text-center">
+      <p className="font-medium">{title}</p>
+      {description && <p className="mx-auto mt-1 max-w-prose text-sm text-ink-3">{description}</p>}
+      {action && <div className="mt-4 flex flex-wrap justify-center gap-2">{action}</div>}
+    </div>
+  );
+}
+
+/**
+ * Sélecteur à segments (périodes, vues) fait de liens : pleine largeur sur téléphone, compact au-delà de 640 px.
+ * Le segment courant porte `aria-current="page"` ; son texte est exactement `label`.
+ * @example <Segmented label="Période" items={[{ href: '?periode=7', label: '7 j', current: true }, …]} />
+ */
+export function Segmented({ items, label }: { items: { href: string; label: string; current: boolean }[]; label: string }) {
+  return (
+    <nav
+      aria-label={label}
+      className="grid w-full gap-1 rounded-xl bg-surface-2 p-1 sm:inline-flex sm:w-auto"
+      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}
+    >
+      {items.map((it) => (
+        <Link
+          key={it.href}
+          href={it.href}
+          aria-current={it.current ? 'page' : undefined}
+          className={`flex min-h-11 items-center justify-center whitespace-nowrap rounded-lg px-3 text-sm font-medium transition-colors ${
+            it.current ? 'bg-surface text-ink shadow-sm' : 'text-ink-2 hover:bg-surface hover:text-ink'
+          }`}
+        >
+          {it.label}
+        </Link>
+      ))}
+    </nav>
   );
 }
 
@@ -71,18 +200,78 @@ export function ScrollRegion({ label, className = '', children }: { label: strin
   );
 }
 
+/** Texte secondaire (source, date, précision), 13 px. */
 export function Meta({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <p className={`text-xs text-ink-3 ${className}`}>{children}</p>;
+  return <p className={`text-[13px] leading-5 text-ink-3 ${className}`}>{children}</p>;
 }
 
-export function ButtonLink({ href, children, primary = false }: { href: string; children: React.ReactNode; primary?: boolean }) {
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
+export type ButtonSize = 'md' | 'lg';
+
+const VARIANTS: Record<ButtonVariant, string> = {
+  primary: 'min-h-12 rounded-xl bg-petrol px-5 font-semibold text-on-accent hover:opacity-90',
+  secondary: 'min-h-12 rounded-xl border border-line bg-surface px-5 font-medium text-ink hover:bg-surface-2',
+  ghost: 'min-h-11 rounded-lg px-3 font-medium text-petrol hover:bg-petrol-2',
+  danger: 'min-h-12 rounded-xl border border-line bg-surface px-5 font-medium text-red hover:bg-red-2',
+};
+
+/**
+ * Classes d'un bouton BILANX, pour un élément qui ne peut pas utiliser `Button` ou `ButtonLink`
+ * (bouton de formulaire client, `<summary>`…).
+ */
+export function buttonClass({ variant = 'secondary', size = 'md', className = '' }: { variant?: ButtonVariant; size?: ButtonSize; className?: string } = {}): string {
+  return [
+    'inline-flex select-none items-center justify-center gap-2 whitespace-nowrap transition active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50',
+    VARIANTS[variant],
+    size === 'lg' ? 'min-h-14 px-6 text-[17px]' : '',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * Bouton (`<button>`, `type="button"` par défaut). Accepte tous les attributs d'un bouton HTML
+ * (`type="submit"`, `formAction`, `disabled`, `aria-*`, `onClick` dans un composant client…).
+ * @example <Button variant="primary" type="submit">Enregistrer</Button>
+ */
+export function Button({
+  variant = 'secondary',
+  size = 'md',
+  className = '',
+  type = 'button',
+  ...rest
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize }) {
+  return <button type={type} className={buttonClass({ variant, size, className })} {...rest} />;
+}
+
+/**
+ * Lien présenté comme un bouton (mêmes variantes que `Button`).
+ * `primary` est conservé pour compatibilité (équivaut à `variant="primary"`).
+ * @example <ButtonLink href="/analyses/ajouter" variant="primary">Ajouter un résultat</ButtonLink>
+ */
+export function ButtonLink({
+  href,
+  children,
+  primary = false,
+  variant,
+  size = 'md',
+  className = '',
+  ...rest
+}: {
+  href: string;
+  children: React.ReactNode;
+  /** @deprecated utiliser `variant="primary"`. */
+  primary?: boolean;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  className?: string;
+  'aria-label'?: string;
+  'aria-current'?: React.AriaAttributes['aria-current'];
+  prefetch?: boolean;
+}) {
   return (
-    <Link
-      href={href}
-      className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3.5 font-medium ${
-        primary ? 'border-petrol bg-petrol text-on-accent' : 'border-line bg-surface text-ink hover:bg-surface-2'
-      }`}
-    >
+    <Link href={href} className={buttonClass({ variant: variant ?? (primary ? 'primary' : 'secondary'), size, className })} {...rest}>
       {children}
     </Link>
   );
@@ -91,11 +280,11 @@ export function ButtonLink({ href, children, primary = false }: { href: string; 
 /** Barre de répartition des temps glycémiques (couleur + libellé, jamais la couleur seule). */
 export function RangeBar({ veryLow, low, inRange, high, veryHigh }: Record<'veryLow' | 'low' | 'inRange' | 'high' | 'veryHigh', number>) {
   const parts = [
-    { v: veryLow, c: 'bg-[#9E2A1C]' },
+    { v: veryLow, c: 'bg-red-strong' },
     { v: low, c: 'bg-red' },
     { v: inRange, c: 'bg-sage' },
     { v: high, c: 'bg-amber' },
-    { v: veryHigh, c: 'bg-[#B5552F]' },
+    { v: veryHigh, c: 'bg-orange' },
   ];
   return (
     <div className="my-2 flex h-3 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`Très bas ${pct(veryLow)}, bas ${pct(low)}, dans la cible ${pct(inRange)}, élevé ${pct(high)}, très élevé ${pct(veryHigh)}`}>
@@ -106,4 +295,5 @@ export function RangeBar({ veryLow, low, inRange, high, veryHigh }: Record<'very
   );
 }
 
+/** Pourcentage arrondi, avec l'espace français : `pct(71.6)` → « 72 % ». */
 export const pct = (v: number) => `${Math.round(v)} %`;

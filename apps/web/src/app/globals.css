@@ -18,9 +18,15 @@
   --amber-2: #fbefe2;
   --red: #b83e2b;
   --red-2: #f9e5e1;
+  /* Très bas (hypoglycémie sévère) et très élevé : barres de répartition, jamais seuls (toujours un libellé). */
+  --red-strong: #9e2a1c;
+  --orange: #b5552f;
   --violet: #7a5bb5;
   /* Texte sur fond d'accent (boutons pleins) : contraste AA garanti dans les deux thèmes. */
   --on-accent: #ffffff;
+  /* Cartes : bordure et ombre (la bordure reste visible en mode sombre, où l'ombre ne se voit pas). */
+  --card-border: var(--line);
+  --shadow-card: 0 1px 2px rgb(20 40 45 / 0.04), 0 6px 24px rgb(20 40 45 / 0.06);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
@@ -41,8 +47,12 @@
     --amber-2: #3a2a18;
     --red: #e8705c;
     --red-2: #3d1e19;
+    --red-strong: #c94a36;
+    --orange: #f08a5d;
     --violet: #a78bdb;
     --on-accent: #0f1719;
+    --card-border: #33484e;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
   }
 }
 
@@ -64,11 +74,18 @@
   --color-amber-2: var(--amber-2);
   --color-red: var(--red);
   --color-red-2: var(--red-2);
+  --color-red-strong: var(--red-strong);
+  --color-orange: var(--orange);
   --color-violet: var(--violet);
   --color-on-accent: var(--on-accent);
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, serif;
   --radius-card: 18px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -79,9 +96,55 @@ body {
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-card);
-  box-shadow: 0 1px 2px rgb(20 40 45 / 0.04), 0 6px 24px rgb(20 40 45 / 0.06);
+  box-shadow: var(--shadow-card);
+}
+
+@layer base {
+  /* iOS zoome sur tout champ dont le texte fait moins de 16 px : on l'évite partout. */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+  /* Toucher : pas de surbrillance grise, pas de délai de double-tape. */
+  a,
+  button,
+  summary,
+  label,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+}
+
+/* Hors couche (prioritaire sur les utilitaires) : téléphone et tablette. */
+@media (max-width: 1023.98px) {
+  /* Champs volontairement petits (text-sm, text-xs) : 16 px quand même, sinon iOS zoome. */
+  :is(input, select, textarea):is(.text-sm, .text-xs) {
+    font-size: 16px;
+  }
+  /* Ancres (#ajouter…) : ne pas finir cachées sous l'entête collante. */
+  [id] {
+    scroll-margin-top: calc(72px + env(safe-area-inset-top));
+  }
+}
+
+/* Feuille du bas (components/sheet.tsx) : entrée en glissant, sauf si l'utilisateur limite les animations. */
+@media (prefers-reduced-motion: no-preference) {
+  .sheet-in {
+    animation: sheet-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .sheet-backdrop-in {
+    animation: backdrop-in 0.2s ease;
+  }
+  @keyframes sheet-in {
+    from { transform: translateY(100%); }
+  }
+  @keyframes backdrop-in {
+    from { opacity: 0; }
+  }
 }
 
 .tabular {
