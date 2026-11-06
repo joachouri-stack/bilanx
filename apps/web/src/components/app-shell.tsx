@@ -59,19 +59,11 @@ export function AppShell({
       >
         Aller au contenu
       </a>
-      <p role="note" className="border-b border-line bg-amber-2 px-4 py-1.5 text-center text-[13px] text-ink">
-        {active.isDemo ? (
-          <>
-            ⚠️ Profil de démonstration — <strong>toutes les données affichées sont fictives</strong>.
-          </>
-        ) : (
-          <>
-            ⚠️ Prototype en développement : <strong>n’enregistrez pas encore de vraies données de santé</strong> (hébergement certifié HDS
-            non encore en place).
-          </>
-        )}{' '}
-        BILANX ne remplace pas l’avis d’un professionnel de santé. En cas d’urgence : 15 ou 112.
-      </p>
+      {active.isDemo && (
+        <p role="note" className="border-b border-line bg-amber-2 px-4 py-1.5 text-center text-[13px] text-ink">
+          ⚠️ Profil de démonstration — <strong>toutes les données affichées sont fictives</strong>.
+        </p>
+      )}
       <div className="lg:grid lg:grid-cols-[264px_1fr]">
         <aside className="sticky top-0 hidden h-dvh overflow-y-auto border-r border-line bg-surface px-3.5 py-5 lg:block">
           <Link href="/tableau-de-bord" className="block px-2.5 font-display text-2xl tracking-wide text-petrol">
@@ -83,6 +75,9 @@ export function AppShell({
           <nav aria-label="Navigation principale" className="mt-4">
             <NavGroups main={main} account={account} isActive={isActive} />
           </nav>
+          <p className="mt-6 px-3 text-[11px] leading-snug text-ink-3">
+            Prototype : hébergement certifié HDS pas encore en place. BILANX ne remplace pas l’avis d’un professionnel de santé. Urgence : 15 ou 112.
+          </p>
         </aside>
         <main id="contenu" tabIndex={-1} className="mx-auto w-full max-w-[1240px] px-4 pb-28 pt-5 outline-none sm:px-8 lg:pb-16 lg:pt-7">
           <div className="mb-4 lg:hidden">
@@ -137,6 +132,9 @@ export function AppShell({
         <div id="menu-complet" role="dialog" aria-label="Menu" className="fixed inset-x-0 bottom-0 top-10 z-25 overflow-y-auto rounded-t-3xl border-t border-line bg-surface px-4 pb-28 pt-5 shadow-2xl lg:hidden">
           <AccountBox user={user} />
           <NavGroups main={main} account={account} isActive={isActive} onNavigate={() => setSheet(null)} />
+        <p className="mt-6 px-3 text-[11px] leading-snug text-ink-3">
+            Prototype : hébergement certifié HDS pas encore en place. BILANX ne remplace pas l’avis d’un professionnel de santé. Urgence : 15 ou 112.
+          </p>
         </div>
       )}
     </div>
