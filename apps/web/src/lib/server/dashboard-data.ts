@@ -185,11 +185,12 @@ export interface DashboardDocs {
   total: number;
 }
 
-/** Carte « Poids » : dernière pesée, évolution sur 7 et 30 jours, pesées des 3 derniers mois. */
+/** Carte « Poids » : dernière pesée, évolution sur 7 jours, 30 jours et 6 mois, pesées des ~6 derniers mois. */
 export interface WeightSummary {
   last: { day: string; kg: number } | null;
   change7: number | null;
   change30: number | null;
+  change180: number | null;
   entries: { day: string; kg: number }[];
   todayIso: string;
 }
@@ -378,7 +379,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     showDocs && real ? documents().list(ctx.user, real.profileId) : Promise.resolve(null),
     showGlucose ? hasAnyGlucose(ctx) : Promise.resolve(false),
     showActivity ? gymHistory(ctx, today, now) : Promise.resolve(null),
-    showActivity ? weightRange(ctx, addDays(today, -90), today, today) : Promise.resolve(null),
+    showActivity ? weightRange(ctx, addDays(today, -200), today, today) : Promise.resolve(null),
   ]);
 
   const meter = meterSummary(cap, now, today);
@@ -491,6 +492,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
         last: lastW,
         change7: lastW ? (((w) => (w ? Math.round((lastW.kg - w.kg) * 10) / 10 : null))(weightAround(weights, lastW, 7))) : null,
         change30: lastW ? (((w) => (w ? Math.round((lastW.kg - w.kg) * 10) / 10 : null))(weightAround(weights, lastW, 30))) : null,
+        change180: lastW ? (((w) => (w ? Math.round((lastW.kg - w.kg) * 10) / 10 : null))(weightAround(weights, lastW, 180))) : null,
         entries: weights,
         todayIso: formatLocalDate(today),
       }
