@@ -105,10 +105,40 @@ export function AnalysesChart({ points, refLow, refHigh, unit }: { points: Analy
                 {fmtM.format(t)}
               </text>
             ))}
-            <path d={points.map((p, i) => `${i ? 'L' : 'M'}${x(p.t)},${y(p.v)}`).join('')} fill="none" stroke="var(--petrol)" strokeWidth={2.5} strokeLinejoin="round" />
-            {points.map((p) => (
+            <defs>
+              <linearGradient id="analyse-ligne" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#22d3ee" />
+                <stop offset="100%" stopColor="var(--petrol)" />
+              </linearGradient>
+              <linearGradient id="analyse-aire" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.28} />
+                <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            {points.length > 1 && (
+              <path
+                d={`${points.map((p, i) => `${i ? 'L' : 'M'}${x(p.t)},${y(p.v)}`).join('')}L${x(points.at(-1)!.t)},${y(yMin)}L${x(points[0]!.t)},${y(yMin)}Z`}
+                fill="url(#analyse-aire)"
+              />
+            )}
+            <path
+              d={points.map((p, i) => `${i ? 'L' : 'M'}${x(p.t)},${y(p.v)}`).join('')}
+              fill="none"
+              stroke="url(#analyse-ligne)"
+              strokeWidth={3}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+            {points.map((p, i) => (
               <g key={p.t}>
-                <circle cx={x(p.t)} cy={y(p.v)} r={5.5} fill="var(--surface)" stroke="var(--petrol)" strokeWidth={2.5} />
+                <circle
+                  cx={x(p.t)}
+                  cy={y(p.v)}
+                  r={i === points.length - 1 ? 7 : 5}
+                  fill={i === points.length - 1 ? 'var(--petrol)' : 'var(--surface)'}
+                  stroke={i === points.length - 1 ? 'var(--surface)' : 'var(--petrol)'}
+                  strokeWidth={i === points.length - 1 ? 3 : 2.5}
+                />
                 <text x={Math.min(Math.max(x(p.t), L + 14), L + plotW - 14)} y={y(p.v) - 11} textAnchor="middle" fontSize={13} fontWeight={600} fill="var(--ink)" className="tabular">
                   {p.label}
                 </text>
@@ -119,10 +149,6 @@ export function AnalysesChart({ points, refLow, refHigh, unit }: { points: Analy
         {width === 0 && <div style={{ height: 220 }} aria-hidden />}
       </div>
       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink-2">
-        <li className="flex items-center gap-1.5">
-          <span className="inline-block size-3 rounded-full border-2 border-petrol bg-surface" aria-hidden />
-          Votre résultat ({unit})
-        </li>
         {hasRef && (
           <li className="flex items-center gap-1.5">
             <span className="inline-block h-3 w-4 rounded-sm bg-sage-2 ring-1 ring-sage" aria-hidden />

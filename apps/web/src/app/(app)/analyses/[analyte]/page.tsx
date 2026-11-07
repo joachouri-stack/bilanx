@@ -7,7 +7,7 @@ import { appContext, moduleAllowed } from '@/lib/server/context';
 import { labResults, type LabRow } from '@/lib/server/data';
 import { ModuleForbidden } from '@/components/module-forbidden';
 import { CapsuleGauge } from '@/components/capsule-gauge';
-import { Button, ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, PageHeader, buttonClass } from '@/components/ui';
+import { Button, ButtonLink, Card, EmptyState, Meta, PageHeader, buttonClass } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import { AnalysesChart } from '@/components/analyses-chart';
 import { ReferenceChip } from '@/components/analyses-gauge';
@@ -32,7 +32,7 @@ export default async function AnalytePage({
   if (!analyte) notFound();
   const canWrite = ctx.active.kind === 'real' && moduleAllowed(ctx.active, 'lab', 'write');
   const addButton = canWrite ? (
-    <ButtonLink href={`/analyses/ajouter?analyse=${code}`} variant="primary" className="w-full sm:w-auto">
+    <ButtonLink href={`/analyses/ajouter?analyse=${code}`} variant="primary">
       <Icon name="plus" className="size-5" />
       Ajouter un résultat
     </ButtonLink>
@@ -67,6 +67,10 @@ export default async function AnalytePage({
   const series = chartSeries(results, analyte);
   const ref = (low: number | null, high: number | null) =>
     low != null && high != null ? `${formatNumberFr(low)} – ${formatNumberFr(high)}` : high != null ? `< ${formatNumberFr(high)}` : low != null ? `> ${formatNumberFr(low)}` : 'non notées';
+  // Repères de l'historique (même unité que le dernier résultat).
+  const sameUnit = results.filter((r) => r.unit === latest.unit);
+  const minR = sameUnit.reduce((m, r) => (r.value < m.value ? r : m), latest);
+  const maxR = sameUnit.reduce((m, r) => (r.value > m.value ? r : m), latest);
   const sourceLabel = (s: LabRow['source']) => (s === 'demo' ? 'Bilan sanguin (démo)' : s === 'document' ? 'Bilan sanguin' : 'Saisie manuelle');
 
   return (
@@ -86,45 +90,81 @@ export default async function AnalytePage({
           {banner}
         </p>
       )}
-      <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <Card accent="petrol">
-          <CardHeader title="Dernier résultat" icon="flask" iconTone="petrol" tag="Laboratoire" tagTone="petrol" />
-          <div className="flex items-center justify-between gap-4">
+      <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:items-start">
+        {/* Carte résumé : dernier résultat en grand, tendance colorée, repères de l'historique. */}
+        <section
+          aria-label="Dernier résultat"
+          className="relative overflow-hidden rounded-[var(--radius-card,18px)] border border-line bg-surface p-5 shadow-[var(--shadow-card)] sm:p-6"
+        >
+          <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-[radial-gradient(closest-side,rgba(34,211,238,0.2),transparent)]" />
+          <div className="relative flex items-center gap-3">
+            <span className="grid size-10 place-items-center rounded-xl bg-petrol-2 text-petrol" aria-hidden>
+              <Icon name="flask" className="size-5" />
+            </span>
+            <p className="flex-1 font-semibold">Dernier résultat</p>
+            <p className="text-sm text-ink-3">{fmt.format(latest.sampledAt)}</p>
+          </div>
+          <div className="relative mt-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="flex items-baseline gap-1.5">
-                <strong className="tabular text-5xl font-semibold tracking-tight">
+                <strong className="tabular text-[56px] font-bold leading-none tracking-tight">
                   {latest.comparator ? `${latest.comparator} ` : ''}
                   {formatNumberFr(latest.value)}
                 </strong>
-                <span className="text-lg text-ink-3">{latest.unit}</span>
+                <span className="text-xl text-ink-3">{latest.unit}</span>
               </p>
-              {isHbA1c && <p className="mt-1 text-ink-2">soit {Math.round(hba1cPercentToMmolMol(latest.value))} mmol/mol</p>}
+              {isHbA1c && <p className="mt-2 text-ink-2">soit {Math.round(hba1cPercentToMmolMol(latest.value))} mmol/mol</p>}
             </div>
             {hasRef && <CapsuleGauge value={latest.value} refLow={latest.refLow ?? null} refHigh={latest.refHigh ?? null} label={analyte.nameFr} />}
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="relative mt-4 flex flex-wrap gap-2">
             {ev.previous && ev.delta !== null && (
-              <Chip tone="neutral">
-                {ev.delta > 0 ? '↑ +' : ev.delta < 0 ? '↓ −' : '= '}
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold ${
+                  // HbA1c : baisse = vert, hausse = rouge, stable = orange ; autres analyses : neutre.
+                  isHbA1c ? (ev.delta < 0 ? 'bg-sage-2 text-go' : ev.delta > 0 ? 'bg-red-2 text-red' : 'bg-amber-2 text-amber') : 'bg-surface-2 text-ink-2'
+                }`}
+              >
+                {ev.delta > 0 ? '↑ +' : ev.delta < 0 ? '↓ −' : '→ '}
                 {formatNumberFr(Math.abs(ev.delta))}{' '}
-                {/* Écart d'un pourcentage (HbA1c) : en points, pour ne pas suggérer une variation relative. */}
                 {(ev.converted ? analyte.canonicalUnit : latest.unit) === '%'
-                  ? Math.abs(ev.delta) >= 2 ? 'points' : 'point'
-                  : ev.converted ? analyte.canonicalUnit : latest.unit}{' '}
-                depuis le {fmtShort.format(ev.previous.sampledAt)}
-              </Chip>
+                  ? Math.abs(ev.delta) >= 2
+                    ? 'points'
+                    : 'point'
+                  : ev.converted
+                    ? analyte.canonicalUnit
+                    : latest.unit}
+                <span className="font-normal"> depuis le {fmtShort.format(ev.previous.sampledAt)}</span>
+              </span>
             )}
             {hasRef && <ReferenceChip value={latest.value} refLow={latest.refLow} refHigh={latest.refHigh} />}
           </div>
-          <Meta className="mt-3">
-            {fmt.format(latest.sampledAt)}
-            {latest.laboratory ? ` · ${latest.laboratory}` : ''}
-            {hasRef ? ` · référence ${ref(latest.refLow, latest.refHigh)} ${latest.unit}` : ''}
-          </Meta>
-        </Card>
+          <ul className="relative mt-4 divide-y divide-line">
+            {[
+              ev.previous ? { dot: 'bg-indigo', label: 'Précédent', value: `${formatNumberFr(ev.previous.value)} ${ev.previous.unit}` } : null,
+              results.length > 1 ? { dot: 'bg-go', label: 'Plus bas', value: `${formatNumberFr(minR.value)} ${minR.unit}` } : null,
+              results.length > 1 ? { dot: 'bg-amber', label: 'Plus haut', value: `${formatNumberFr(maxR.value)} ${maxR.unit}` } : null,
+              { dot: 'bg-petrol', label: 'Résultats', value: String(results.length) },
+            ]
+              .filter((r): r is { dot: string; label: string; value: string } => r !== null)
+              .map((r) => (
+                <li key={r.label} className="flex items-center gap-3 py-2.5">
+                  <span className={`size-2.5 shrink-0 rounded-full ${r.dot}`} aria-hidden />
+                  <span className="flex-1 text-[15px] text-ink-2">{r.label}</span>
+                  <span className="tabular text-[15px] font-semibold">{r.value}</span>
+                </li>
+              ))}
+          </ul>
+          {(latest.laboratory || hasRef) && (
+            <Meta className="relative mt-2">
+              {[latest.laboratory, hasRef ? `référence ${ref(latest.refLow, latest.refHigh)} ${latest.unit}` : null].filter(Boolean).join(' · ')}
+            </Meta>
+          )}
+        </section>
+
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
-            <CardHeader title="Évolution" icon="chart" iconTone="petrol" />
+            <h2 className="mb-2 font-semibold">Évolution</h2>
             {series.converted && <p className="mb-2 text-sm text-ink-2">Résultats rendus dans des unités différentes : tous affichés ici en {series.unit}.</p>}
             <AnalysesChart
               points={series.rows.map((r) => ({ t: r.sampledAt.getTime(), v: r.value, label: formatNumberFr(r.value) }))}
@@ -134,49 +174,62 @@ export default async function AnalytePage({
             />
           </Card>
           <Card>
-            <CardHeader title="Tous les résultats" icon="journal" iconTone="neutral" />
+            <h2 className="mb-1 font-semibold">Historique</h2>
             <ul className="divide-y divide-line">
-              {[...results].reverse().map((r) => (
-                <li
-                  key={r.id ?? r.sampledAt.toISOString()}
-                  data-resultat
-                  className="relative flex items-center gap-3 py-2.5 has-[details[open]]:pb-[4.75rem]"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block">{fmt.format(r.sampledAt)}</span>
-                    {/* Provenance toujours indiquée (saisie ou bilan), en petit. */}
-                    <span className="block truncate text-[13px] text-ink-3">
-                      <span>{sourceLabel(r.source)}</span>
-                      {[r.refLow != null || r.refHigh != null ? `réf. ${ref(r.refLow, r.refHigh)}` : null, r.note].filter(Boolean).map((t) => ` · ${t}`)}
+              {[...results].reverse().map((r, i, arr) => {
+                const older = arr[i + 1];
+                const d = older && older.unit === r.unit ? Math.round((r.value - older.value) * 100) / 100 : null;
+                return (
+                  <li
+                    key={r.id ?? r.sampledAt.toISOString()}
+                    data-resultat
+                    className="relative flex items-center gap-3 py-3 has-[details[open]]:pb-[4.75rem]"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium">{fmt.format(r.sampledAt)}</span>
+                      {/* Provenance toujours indiquée (saisie ou bilan), en petit. */}
+                      <span className="block truncate text-[13px] text-ink-3">
+                        <span>{sourceLabel(r.source)}</span>
+                        {[r.refLow != null || r.refHigh != null ? `réf. ${ref(r.refLow, r.refHigh)}` : null, r.note].filter(Boolean).map((t) => ` · ${t}`)}
+                      </span>
                     </span>
-                  </span>
-                  <span className="tabular text-right">
-                    <strong className="text-lg">
-                      {r.comparator ? `${r.comparator} ` : ''}
-                      {formatNumberFr(r.value)}
-                    </strong>{' '}
-                    <span className="text-ink-3">{r.unit}</span>
-                    {isHbA1c && <span className="block text-[13px] text-ink-3">{Math.round(hba1cPercentToMmolMol(r.value))} mmol/mol</span>}
-                  </span>
-                  {canWrite && r.id && (
-                    // Seule la petite croix ouvre la confirmation ; le panneau s'affiche sous la ligne.
-                    <details className="shrink-0">
-                      <summary className="grid size-11 cursor-pointer list-none place-items-center rounded-lg text-ink-3 hover:bg-red-2 hover:text-red [&::-webkit-details-marker]:hidden" title="Supprimer">
-                        <Icon name="close" className="size-5" />
-                        <span className="sr-only">Supprimer le résultat du {fmt.format(r.sampledAt)}</span>
-                      </summary>
-                      <form action={deleteLabResultAction} className="absolute inset-x-0 bottom-2 flex items-center justify-between gap-2 rounded-xl border border-red bg-red-2 p-2.5 pl-3">
-                        <input type="hidden" name="resultId" value={r.id} />
-                        <input type="hidden" name="analyteCode" value={code} />
-                        <span className="text-sm text-ink">Effacer ce résultat ?</span>
-                        <Button type="submit" variant="danger">
-                          Confirmer la suppression
-                        </Button>
-                      </form>
-                    </details>
-                  )}
-                </li>
-              ))}
+                    {d !== null && d !== 0 && (
+                      <span
+                        className={`tabular shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold ${
+                          isHbA1c ? (d < 0 ? 'bg-sage-2 text-go' : 'bg-red-2 text-red') : 'bg-surface-2 text-ink-2'
+                        }`}
+                      >
+                        {d < 0 ? '↓' : '↑'} {formatNumberFr(Math.abs(d))}
+                      </span>
+                    )}
+                    <span className="tabular text-right">
+                      <strong className="text-lg">
+                        {r.comparator ? `${r.comparator} ` : ''}
+                        {formatNumberFr(r.value)}
+                      </strong>{' '}
+                      <span className="text-ink-3">{r.unit}</span>
+                      {isHbA1c && <span className="block text-[13px] text-ink-3">{Math.round(hba1cPercentToMmolMol(r.value))} mmol/mol</span>}
+                    </span>
+                    {canWrite && r.id && (
+                      // Seule la petite croix ouvre la confirmation ; le panneau s'affiche sous la ligne.
+                      <details className="shrink-0">
+                        <summary className="grid size-11 cursor-pointer list-none place-items-center rounded-lg text-ink-3 hover:bg-red-2 hover:text-red [&::-webkit-details-marker]:hidden" title="Supprimer">
+                          <Icon name="close" className="size-5" />
+                          <span className="sr-only">Supprimer le résultat du {fmt.format(r.sampledAt)}</span>
+                        </summary>
+                        <form action={deleteLabResultAction} className="absolute inset-x-0 bottom-2 flex items-center justify-between gap-2 rounded-xl border border-red bg-red-2 p-2.5 pl-3">
+                          <input type="hidden" name="resultId" value={r.id} />
+                          <input type="hidden" name="analyteCode" value={code} />
+                          <span className="text-sm text-ink">Effacer ce résultat ?</span>
+                          <Button type="submit" variant="danger">
+                            Confirmer la suppression
+                          </Button>
+                        </form>
+                      </details>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </Card>
         </div>
