@@ -1096,9 +1096,25 @@ const SHORTCUT_TONES: Record<DocShortcut['tone'], string> = {
  */
 export function DocumentsCard({ docs }: { docs: DashboardDocs }) {
   return (
-    <Card accent="rose">
-      <CardHeader title="Documents" icon="folder" iconTone="rose" />
-      <ul className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+    // Toute la carte (en dehors des dossiers) mène à tous les documents.
+    <Card accent="rose" className="relative transition-transform hover:-translate-y-0.5">
+      <Link
+        href="/documents"
+        aria-label="Ouvrir la page Documents"
+        tabIndex={-1}
+        className="absolute inset-0 z-0 rounded-[var(--radius-card)] focus-visible:outline-2 focus-visible:outline-petrol"
+      />
+      <CardHeader
+        title="Documents"
+        icon="folder"
+        iconTone="rose"
+        action={
+          <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
+            Tous <span aria-hidden>›</span>
+          </span>
+        }
+      />
+      <ul className="relative z-10 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {DOC_SHORTCUTS.map((s) => {
           const n = docs.counts[s.key] ?? 0;
           return (
@@ -1127,7 +1143,7 @@ export function DocumentsCard({ docs }: { docs: DashboardDocs }) {
           );
         })}
       </ul>
-      <div className="mt-2 flex justify-center">
+      <div className="relative z-10 mt-2 flex justify-center">
         <ButtonLink href="/documents" variant="ghost">
           Tous les documents
         </ButtonLink>
