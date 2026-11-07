@@ -69,7 +69,7 @@ export function WeightCard({ weight, canWrite, isDemo }: { weight: WeightSummary
             <div>
               <p className="text-sm text-ink-2">Dernière pesée</p>
               <p className="tabular mt-1 leading-none">
-                <span className="text-5xl font-bold tracking-tight text-indigo">{kg(last.kg)}</span>
+                <span className="text-4xl font-bold tracking-tight text-indigo">{kg(last.kg)}</span>
                 <span className="ml-1.5 text-ink-3">kg</span>
               </p>
               <p className="mt-1.5 text-sm text-ink-2">{dayLabel(last.day, todayIso)}</p>

@@ -26,7 +26,7 @@ import { GYM_INITIALS, GYM_WEEKDAYS_SHORT, gymDayLong, gymMonthName, gymPlural, 
 import { GLUCOSE_TARGETS, KEY_MOMENTS, frTime } from '@/lib/server/dashboard-data';
 import type { LabRow } from '@/lib/server/data';
 import type { IconName } from '@/components/icon';
-import { ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
+import { ButtonLink, Card, CardHeader, Chip, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import { DashboardSparkline } from '@/components/dashboard-sparkline';
 
@@ -80,6 +80,21 @@ function Trend({ delta, format, unit, period = 'les 7 jours d’avant' }: { delt
 }
 
 const DAY_MS = 86_400_000;
+/** État vide d'une carte : une phrase et un petit bouton, sans grand encadré. */
+function CompactEmpty({ text, action }: { text: string; action?: { href: string; label: string } }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-ink-2">{text}</p>
+      {action && (
+        <ButtonLink href={action.href} variant="secondary">
+          <Icon name="plus" className="size-5" />
+          {action.label}
+        </ButtonLink>
+      )}
+    </div>
+  );
+}
+
 const sectionTitle = 'flex items-center gap-2 text-sm font-semibold text-ink-2';
 
 /* ------------------------------------------------------------------ Premiers pas */
@@ -151,26 +166,15 @@ export function GlucoseCard({
   );
   if (!hasData)
     return (
-      <Card>
+      <Card accent="glucose">
         {header}
-        <EmptyState
-          title="Aucune glycémie enregistrée"
-          description="Notez la valeur de votre lecteur, ou importez les mesures de votre capteur."
-          action={canWrite ? <ButtonLink href="/glycemie#ajouter-glycemie" variant="primary">Ajouter une glycémie</ButtonLink> : undefined}
-        />
+        <CompactEmpty text="Aucune glycémie pour l’instant." action={canWrite ? { href: '/glycemie#ajouter-glycemie', label: 'Ajouter' } : undefined} />
       </Card>
     );
   return (
     // Toute la carte mène à l'historique de la glycémie (lecteur : vue 7 jours).
     <Card href={meter && !sensor ? '/glycemie?periode=7' : '/glycemie'} accent="glucose">
       {header}
-      {!sensor && !meter && (
-        <EmptyState
-          title="Aucune glycémie enregistrée"
-          description="Notez la valeur de votre lecteur, ou importez les mesures de votre capteur."
-          action={canWrite ? <ButtonLink href="/glycemie#ajouter-glycemie" variant="primary">Ajouter une glycémie</ButtonLink> : undefined}
-        />
-      )}
       <div className="space-y-4">
         {sensor && <SensorBlock sensor={sensor} unit={unit} isDemo={isDemo} />}
 
@@ -288,10 +292,17 @@ function KeyMoments({ days, unit }: { days: KeyMomentDay[]; unit: GlucoseUnit })
                 return (
                   <div key={key} className={`${keys.length > 1 ? 'flex-1' : ''} rounded-lg px-1 py-1.5 text-center ${lvl ? LEVEL_CELL[lvl.tone] : 'bg-surface'}`}>
                     <p className="text-[11px] leading-tight text-ink-2">{key === 'fasting' ? 'À jeun' : k.label}</p>
-                    <p className={`tabular text-xl font-bold leading-tight ${lvl ? lvl.text : 'text-ink-3'}`}>{v.mgdl !== null ? g(v.mgdl) : '—'}</p>
-                    <p className="text-[11px] leading-tight text-ink-3">
-                      {v.at ? `${frTime(v.at)}${v.source === 'meter' ? ' · doigt' : ''}` : v.upcoming ? 'à venir' : 'aucune'}
-                    </p>
+                    {v.mgdl !== null ? (
+                      <>
+                        <p className={`tabular text-xl font-bold leading-tight ${lvl!.text}`}>{g(v.mgdl)}</p>
+                        <p className="text-[11px] leading-tight text-ink-3">
+                          {frTime(v.at!)}
+                          {v.source === 'meter' ? ' · doigt' : ''}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="py-1.5 text-[12px] leading-tight text-ink-3">{v.upcoming ? 'à venir' : 'aucune mesure'}</p>
+                    )}
                   </div>
                 );
               })}
@@ -354,7 +365,7 @@ function SensorBlock({ sensor, unit, isDemo }: { sensor: SensorSummary; unit: Gl
         <div>
           <p className="text-sm text-ink-2">Dernière mesure du capteur</p>
           <p className="tabular mt-1 leading-none">
-            <span className={`text-5xl font-bold tracking-tight ${lvl.text}`}>{g(sensor.last.mgdl)}</span>
+            <span className={`text-4xl font-bold tracking-tight ${lvl.text}`}>{g(sensor.last.mgdl)}</span>
             <span className="ml-1.5 text-ink-3">{unit}</span>
           </p>
           <p className="mt-1.5 text-sm text-ink-2">{agoLabel(sensor.last.at, nowMs, today)}</p>
@@ -370,9 +381,11 @@ function SensorBlock({ sensor, unit, isDemo }: { sensor: SensorSummary; unit: Gl
             <strong className="tabular">{pct(t.pctInRange)}</strong> <span className="text-ink-2">du temps dans la cible aujourd’hui</span>
           </p>
           <RangeBar veryLow={t.pctVeryLow} low={t.pctLow} inRange={t.pctInRange} high={t.pctHigh} veryHigh={t.pctVeryHigh} />
-          <Meta>
-            En dessous {pct(t.pctVeryLow + t.pctLow)} · dans la cible {pct(t.pctInRange)} · au-dessus {pct(t.pctHigh + t.pctVeryHigh)}
-          </Meta>
+          <p className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[13px] text-ink-3">
+            <span className="whitespace-nowrap">En dessous {pct(t.pctVeryLow + t.pctLow)}</span>
+            <span className="whitespace-nowrap">Dans la cible {pct(t.pctInRange)}</span>
+            <span className="whitespace-nowrap">Au-dessus {pct(t.pctHigh + t.pctVeryHigh)}</span>
+          </p>
           {t.coveragePct < 50 && <Meta className="mt-1">Capteur actif {pct(t.coveragePct)} de la journée : chiffres partiels.</Meta>}
         </div>
       )}
@@ -457,6 +470,7 @@ const HERO_TONE: Record<string, { bar: string; chip: string }> = {
   flask: { bar: 'var(--petrol)', chip: 'bg-petrol-2 text-petrol' },
   drop: { bar: 'var(--glucose)', chip: 'bg-glucose-2 text-glucose' },
   calendar: { bar: 'var(--violet)', chip: 'bg-violet-2 text-violet' },
+  scale: { bar: 'var(--indigo)', chip: 'bg-indigo-2 text-indigo' },
 };
 
 /** Bandeau coloré en haut du tableau de bord : salutation, date et 3 chiffres clés au plus (cartes pleines, bien contrastées). */
@@ -469,7 +483,7 @@ export function DashboardHero({ title, subtitle, items }: { title: string; subti
       <h1 className="font-display text-[28px] font-semibold leading-tight sm:text-[34px]">{title}</h1>
       <p className="mt-1 text-white/90 first-letter:uppercase">{subtitle}</p>
       {items.length > 0 && (
-        <ul className={`mt-4 grid gap-2 sm:gap-3 ${items.length === 3 ? 'grid-cols-3' : items.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <ul className={`mt-4 grid gap-2 sm:gap-3 ${items.length >= 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-3'}`}>
           {items.map((it) => {
             const tone = HERO_TONE[it.icon] ?? HERO_TONE.flask!;
             return (
@@ -517,13 +531,9 @@ export function Hba1cCard({ points, unit, canWrite }: { points: Hba1cPoint[]; un
   const previous = points.at(-2);
   if (!latest)
     return (
-      <Card>
-        <CardHeader title="HbA1c" tag="Laboratoire" tagTone="petrol" icon="flask" iconTone="petrol" />
-        <EmptyState
-          title="Aucune HbA1c enregistrée"
-          description="L’HbA1c se mesure par une prise de sang au laboratoire."
-          action={canWrite ? <ButtonLink href="/analyses/ajouter?analyse=hba1c" variant="primary">Ajouter une HbA1c</ButtonLink> : undefined}
-        />
+      <Card accent="petrol">
+        <CardHeader title="HbA1c" icon="flask" iconTone="petrol" />
+        <CompactEmpty text="Aucun résultat de prise de sang." action={canWrite ? { href: '/analyses/ajouter?analyse=hba1c', label: 'Ajouter' } : undefined} />
       </Card>
     );
   const f = formatHba1c(latest.percent, unit);
@@ -563,8 +573,6 @@ export function Hba1cCard({ points, unit, canWrite }: { points: Hba1cPoint[]; un
         title="HbA1c"
         icon="flask"
         iconTone="petrol"
-        tag="Laboratoire"
-        tagTone="petrol"
         action={
           <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
             Historique <span aria-hidden>›</span>
@@ -1095,19 +1103,25 @@ export function DocumentsCard({ docs }: { docs: DashboardDocs }) {
           const n = docs.counts[s.key] ?? 0;
           return (
             <li key={s.key} className="min-w-0">
-              {/* Ordre de lecture : libellé puis nombre (« Ordonnances 3 documents ») ; à l'écran, le nombre est en haut à droite. */}
+              {/* Ligne compacte : icône, libellé, nombre (seulement s'il y a des documents ; « Aucun » reste lu par les lecteurs d'écran). */}
               <Link
                 href={s.href}
-                className="grid h-full min-h-14 grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-2 rounded-xl border border-line p-3 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-petrol"
+                className="flex h-full min-h-14 items-center gap-2 rounded-xl border border-line px-2 py-2 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-petrol"
               >
-                <span className={`col-start-1 row-start-1 grid size-10 place-items-center rounded-lg ${SHORTCUT_TONES[s.tone]}`} aria-hidden>
+                <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${SHORTCUT_TONES[s.tone]}`} aria-hidden>
                   <DocIcon name={s.icon} className="size-5" />
                 </span>
-                <span className="col-span-2 row-start-2 truncate whitespace-nowrap break-normal font-semibold leading-5">{s.label}</span>
-                <span data-count className={`col-start-2 row-start-1 justify-self-end text-[13px] ${n ? 'tabular font-semibold text-ink-2' : 'text-ink-3'}`}>
-                  {n || 'Aucun'}
-                  {n > 0 && <span className="sr-only">{n > 1 ? ' documents' : ' document'}</span>}
-                </span>
+                <span className="min-w-0 flex-1 text-[14px] font-semibold leading-tight [overflow-wrap:anywhere] [hyphens:auto]" lang="fr">{s.label}</span>
+                {n > 0 ? (
+                  <span data-count className="tabular shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-[13px] font-semibold text-ink-2">
+                    {n}
+                    <span className="sr-only">{n > 1 ? ' documents' : ' document'}</span>
+                  </span>
+                ) : (
+                  <span data-count className="sr-only">
+                    Aucun
+                  </span>
+                )}
               </Link>
             </li>
           );

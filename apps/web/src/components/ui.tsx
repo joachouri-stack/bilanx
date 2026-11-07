@@ -184,7 +184,7 @@ export function Stat({
     <div className="min-w-0">
       <p className="text-sm text-ink-3">{label}</p>
       <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1">
-        <span className={`tabular font-semibold leading-tight ${size === 'lg' ? 'text-4xl' : 'text-2xl'}`}>{value}</span>
+        <span className={`tabular leading-tight ${size === 'lg' ? 'text-4xl font-bold tracking-tight' : 'text-2xl font-semibold'}`}>{value}</span>
         {unit && <span className="text-base text-ink-3">{unit}</span>}
       </p>
       {hint && <Meta className="mt-1">{hint}</Meta>}

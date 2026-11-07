@@ -1,11 +1,11 @@
+import Link from 'next/link';
 import type { Metadata } from 'next';
 import { formatGlucose, formatHba1c, localDateOf } from '@bilanx/domain';
 import { DEMO_PROFILE, DEMO_TIMEZONE } from '@/lib/demo-data';
 import { appContext, displayUnits, moduleAllowed, NAV_MODULES } from '@/lib/server/context';
 import { dashboardData } from '@/lib/server/dashboard-data';
-import { QUICK_ADD } from '@/lib/navigation';
+import { QUICK_ADD, type QuickAddItem } from '@/lib/navigation';
 import { WeightCard } from '@/components/weight-card';
-import { ButtonLink } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import {
   DashboardHero,
@@ -23,6 +23,15 @@ import {
 
 export const metadata: Metadata = { title: 'Tableau de bord' };
 export const dynamic = 'force-dynamic';
+
+const QUICK_TONE: Record<QuickAddItem['tone'], string> = {
+  glucose: 'bg-glucose-2 text-glucose',
+  petrol: 'bg-petrol-2 text-petrol',
+  sage: 'bg-sage-2 text-sage',
+  violet: 'bg-violet-2 text-violet',
+  rose: 'bg-rose-2 text-rose',
+  indigo: 'bg-indigo-2 text-indigo',
+};
 
 export default async function DashboardPage() {
   const ctx = await appContext();
@@ -92,6 +101,20 @@ export default async function DashboardPage() {
     });
   }
 
+  // Moins de 3 chiffres : le poids complète le bandeau.
+  const w = data.weight;
+  if (heroItems.length < 3 && w?.last) {
+    const c = w.change30;
+    heroItems.push({
+      icon: 'scale',
+      label: 'Poids',
+      value: w.last.kg.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
+      unit: 'kg',
+      sub: c === null ? 'dernière pesée' : `${c < 0 ? '↓' : c > 0 ? '↑' : '='} ${Math.abs(c).toLocaleString('fr-FR', { minimumFractionDigits: 1 })} kg · 1 mois`,
+      href: '/poids',
+    });
+  }
+
   return (
     <div className="fade-in">
       <DashboardHero
@@ -106,12 +129,19 @@ export default async function DashboardPage() {
       />
 
       {quick.length > 0 && (
+        // Ordinateur : ajouts rapides en pastilles légères, aux couleurs des cartes (sur téléphone : bouton ＋).
         <nav aria-label="Ajouter rapidement" className="mb-5 hidden flex-wrap gap-2 sm:flex">
           {quick.map((q) => (
-            <ButtonLink key={q.href} href={q.href}>
-              <Icon name={q.svg} className="size-5 text-ink-3" />
+            <Link
+              key={q.href}
+              href={q.href}
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-surface py-1.5 pl-1.5 pr-3.5 text-sm font-medium transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-petrol"
+            >
+              <span className={`grid size-7 place-items-center rounded-full ${QUICK_TONE[q.tone]}`} aria-hidden>
+                <Icon name={q.svg} className="size-4" />
+              </span>
               {q.label}
-            </ButtonLink>
+            </Link>
           ))}
         </nav>
       )}
