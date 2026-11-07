@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * <details> dont l'état ouvert/fermé appartient à l'utilisateur : un nouveau rendu serveur (après un enregistrement)
@@ -20,6 +20,19 @@ export function Disclosure({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(initialOpen);
+  // Lien vers l'ancre (#id), ex. « Ajouter une glycémie » depuis le bouton ＋ : on ouvre et on fait défiler.
+  useEffect(() => {
+    if (!id) return;
+    const check = () => {
+      if (window.location.hash === `#${id}`) {
+        setOpen(true);
+        window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: 'start' }), 50);
+      }
+    };
+    check();
+    window.addEventListener('hashchange', check);
+    return () => window.removeEventListener('hashchange', check);
+  }, [id]);
   return (
     <details id={id} className={className} open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
       {summary}

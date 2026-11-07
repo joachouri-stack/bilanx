@@ -19,8 +19,11 @@ import { GlucosePeriod } from './periode';
 import { ModuleForbidden } from '@/components/module-forbidden';
 import { LibreLink } from '@/components/libre-link';
 import { libreLink } from '@/lib/server/auth';
-import { Button, ButtonLink, Card, CardHeader, Chip, EmptyState, Meta, PageHeader, RangeBar, Segmented, Stat, buttonClass, pct } from '@/components/ui';
+import { Button, Card, Chip, Meta, PageHeader, RangeBar, Segmented, buttonClass, pct } from '@/components/ui';
 import { DayNav } from '@/components/day-nav';
+import { Disclosure } from '@/components/disclosure';
+import { ProgressRing } from '@/components/progress-ring';
+import { Icon } from '@/components/icon';
 import { dayHref } from '@/lib/day-href';
 import { GlucoseDayChart } from '@/components/glucose-day-chart';
 import { GlucoseEntryForm } from '@/components/glucose-forms';
@@ -100,19 +103,37 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
   );
 
   // Carte du capteur Libre : affichée dans toutes les vues (jour et périodes).
+  const libreOk = !!libre && libre.status === 'active' && !libre.lastError;
+  const panel = 'group scroll-mt-20 rounded-[var(--radius-card,18px)] border border-line bg-surface shadow-[var(--shadow-card)]';
+  const panelSummary = 'flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 [&::-webkit-details-marker]:hidden';
   const libreCard = canWrite && (
-    <Card id="capteur-libre" className="scroll-mt-20">
-      <CardHeader title="Capteur FreeStyle Libre" icon="drop" iconTone="glucose" />
-      <LibreLink
-        status={
-          libre && {
-            ...libre,
-            lastSyncAt: libre.lastSyncAt?.toISOString() ?? null,
-            lastReadingAt: libre.lastReadingAt?.toISOString() ?? null,
+    <Disclosure
+      id="capteur-libre"
+      className={panel}
+      initialOpen={!libre}
+      summary={
+        <summary className={panelSummary}>
+          <span className="grid size-9 place-items-center rounded-full bg-glucose-2 text-glucose" aria-hidden>
+            <Icon name="drop" className="size-5" />
+          </span>
+          <h2 className="flex-1 font-semibold">Capteur FreeStyle Libre</h2>
+          <Chip tone={libreOk ? 'sage' : libre ? 'red' : 'neutral'}>{libreOk ? 'relié' : libre ? 'en panne' : 'non relié'}</Chip>
+          <Icon name="chevronDown" className="size-5 text-ink-3 transition-transform group-open:rotate-180" />
+        </summary>
+      }
+    >
+      <div className="border-t border-line px-4 pb-4 pt-4">
+        <LibreLink
+          status={
+            libre && {
+              ...libre,
+              lastSyncAt: libre.lastSyncAt?.toISOString() ?? null,
+              lastReadingAt: libre.lastReadingAt?.toISOString() ?? null,
+            }
           }
-        }
-      />
-    </Card>
+        />
+      </div>
+    </Disclosure>
   );
 
   if (periode) {
@@ -149,140 +170,215 @@ export default async function GlucosePage({ searchParams }: { searchParams: Prom
   const formFirst = canWrite && !sensorRecently;
   const dayIso = formatLocalDate(day);
 
-  const addCard = canWrite && (
-    <Card id="ajouter-glycemie" className={`scroll-mt-20 ${formFirst ? 'max-md:order-first' : ''}`}>
-      <CardHeader title="Ajouter une glycémie" tag="◆ Lecteur (doigt)" />
-      {sp.ajoute && (
-        <p role="status" className="mb-3 rounded-xl bg-sage-2 px-4 py-3 text-sm">
-          Glycémie enregistrée : {sp.ajoute.slice(0, 40)}.
+  // Anneau : part du temps dans la cible ; couleur selon le résultat (≥ 70 % : vert, ≥ 50 % : orange, sinon rouge).
+  const tir = stats ? stats.pctInRange : null;
+  const ringColors: [string, string] = tir === null ? ['#94a3b8', '#94a3b8'] : tir >= 70 ? ['#34d399', '#22d3ee'] : tir >= 50 ? ['#fbbf24', '#f59e0b'] : ['#fb923c', '#f87171'];
+  const lastSensor = data.sensor.at(-1) ?? null;
+  const level = (v: number) => (v >= TARGETS.low && v <= TARGETS.high ? 'text-go' : v >= TARGETS.veryLow && v <= TARGETS.veryHigh ? 'text-amber' : 'text-red');
+  const rows = stats
+    ? [
+        { dot: 'bg-glucose', label: 'Dernière mesure', value: lastSensor ? `${g(lastSensor.mgdl)} · ${hm(lastSensor.at)}` : '—', cls: lastSensor ? level(lastSensor.mgdl) : '' },
+        { dot: 'bg-indigo', label: 'Moyenne', value: `${g(stats.mean)} ${unit}`, cls: stats.mean !== null ? level(stats.mean) : '' },
+        { dot: 'bg-amber', label: 'Min – max', value: `${g(stats.min)} – ${g(stats.max)}`, cls: '' },
+        { dot: 'bg-violet', label: 'Variations', value: stats.cv === null ? '—' : pct(stats.cv), cls: '' },
+      ]
+    : [];
+
+  const hero = (
+    <section
+      aria-label="Résumé de la journée"
+      className="relative overflow-hidden rounded-[var(--radius-card,18px)] border border-line bg-surface p-4 shadow-[var(--shadow-card)] sm:p-6"
+    >
+      <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 size-72 -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(96,165,250,0.18),transparent)]" />
+      <div className="relative">
+        <DayNav
+          basePath="/glycemie"
+          param="jour"
+          extraQuery={unitQuery || undefined}
+          value={dayIso}
+          min={formatLocalDate(first)}
+          max={formatLocalDate(today)}
+          prevHref={compareLocalDates(day, first) > 0 ? dayHref('/glycemie', 'jour', formatLocalDate(addDays(day, -1)), unitQuery || undefined) : undefined}
+          nextHref={!isToday ? dayHref('/glycemie', 'jour', formatLocalDate(addDays(day, 1)), unitQuery || undefined) : undefined}
+          todayHref={withUnit('')}
+        />
+      </div>
+      {stats ? (
+        <>
+          <div className="relative mt-4 flex flex-col items-center gap-5 sm:flex-row sm:gap-8">
+            <ProgressRing value={(tir ?? 0) / 100} size={176} stroke={16} colors={ringColors}>
+              <div>
+                <p className="tabular text-[38px] font-bold leading-none tracking-tight">{pct(tir ?? 0)}</p>
+                <p className="mt-1 text-[13px] text-ink-3">dans la cible</p>
+                <p className="mt-2 inline-block rounded-full bg-surface-2 px-2 py-0.5 text-[12px] font-semibold text-ink-2">
+                  {g(TARGETS.low)}–{g(TARGETS.high)}
+                </p>
+              </div>
+            </ProgressRing>
+            <ul className="w-full flex-1 divide-y divide-line">
+              {rows.map((r) => (
+                <li key={r.label} className="flex items-center gap-3 py-2.5">
+                  <span className={`size-2.5 shrink-0 rounded-full ${r.dot}`} aria-hidden />
+                  <span className="flex-1 text-[15px] text-ink-2">{r.label}</span>
+                  <span className={`tabular text-[15px] font-semibold ${r.cls}`}>{r.value}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="relative mt-4">
+            <RangeBar veryLow={stats.pctVeryLow} low={stats.pctLow} inRange={stats.pctInRange} high={stats.pctHigh} veryHigh={stats.pctVeryHigh} />
+            <p className="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-[13px] text-ink-2">
+              <span className="flex items-center gap-1.5 whitespace-nowrap">
+                <span className="size-2 rounded-full bg-red" aria-hidden />
+                Bas {pct(stats.pctVeryLow + stats.pctLow)}
+              </span>
+              <span className="flex items-center gap-1.5 whitespace-nowrap">
+                <span className="size-2 rounded-full bg-sage" aria-hidden />
+                Cible {pct(stats.pctInRange)}
+              </span>
+              <span className="flex items-center gap-1.5 whitespace-nowrap">
+                <span className="size-2 rounded-full bg-amber" aria-hidden />
+                Haut {pct(stats.pctHigh + stats.pctVeryHigh)}
+              </span>
+            </p>
+            {stats.coveragePct < 70 && <Meta className="mt-1">Capteur actif {pct(stats.coveragePct)} de la journée : chiffres partiels.</Meta>}
+          </div>
+        </>
+      ) : (
+        <p className="relative mt-4 text-center text-ink-2">
+          {data.capillary.length ? 'Pas de mesure du capteur ce jour-là : seules vos mesures au doigt sont affichées.' : 'Aucune mesure ce jour-là.'}
         </p>
       )}
-      <p className="mb-3 text-sm text-ink-2">La valeur affichée par votre lecteur, au bout du doigt.</p>
-      <GlucoseEntryForm unit={unit} today={formatLocalDate(today)} defaultDate={dayIso} defaultTime={isToday ? nowTime : '12:00'} />
+      {isDemo && <Meta className="relative mt-2">Données de démonstration fictives.</Meta>}
+    </section>
+  );
+
+  const chart = (data.sensor.length > 0 || data.capillary.length > 0) && (
+    <Card>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-semibold">Courbe du jour</h2>
+        <span className="flex items-center gap-3 text-[13px] text-ink-2">
+          <span className="flex items-center gap-1.5">
+            <span className="h-1 w-4 rounded-full bg-[linear-gradient(90deg,#34d399,#fbbf24,#f87171)]" aria-hidden />
+            Capteur
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden>◆</span> Doigt
+          </span>
+        </span>
+      </div>
+      <GlucoseDayChart
+        dayStart={start.getTime()}
+        dayEnd={end.getTime()}
+        timeZone={DEMO_TIMEZONE}
+        unit={unit}
+        sensor={data.sensor.map((s) => ({ t: s.at.getTime(), v: s.mgdl }))}
+        capillary={data.capillary.map((s) => ({ t: s.at.getTime(), v: s.mgdl }))}
+        events={data.events.map((e) => ({ t: e.at.getTime(), kind: e.kind, label: e.label, detail: e.detail }))}
+        targetLow={TARGETS.low}
+        targetHigh={TARGETS.high}
+        veryLow={TARGETS.veryLow}
+      />
     </Card>
+  );
+
+  const meterCard = meter.length > 0 && (
+    <Card>
+      <h2 className="mb-1 flex items-center gap-2 font-semibold">
+        <span aria-hidden>◆</span> Mesures au doigt
+      </h2>
+      <ul className="divide-y divide-line">
+        {[...meter].reverse().map((m) => (
+          <li key={m.at.toISOString()} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
+            <span className="min-w-0">
+              <span className="tabular text-ink-2">{hm(m.at)}</span> ·{' '}
+              <span className={`tabular font-semibold ${level(m.mgdl)}`}>
+                {formatGlucose(m.mgdl, unit)} {unit}
+              </span>
+              {m.context && <span className="text-sm text-ink-2"> · {GLUCOSE_CONTEXTS[m.context as GlucoseContext]}</span>}
+            </span>
+            {canWrite && (
+              <details className="shrink-0 text-right">
+                <summary className={buttonClass({ variant: 'ghost', className: 'cursor-pointer list-none text-sm text-red' })}>
+                  Supprimer<span className="sr-only"> la glycémie de {hm(m.at)}</span>
+                </summary>
+                <form action={removeGlucoseAction} className="mt-1">
+                  <input type="hidden" name="at" value={m.at.toISOString()} />
+                  <Button type="submit" variant="danger" className="min-h-11 px-4 text-sm">
+                    Confirmer la suppression
+                  </Button>
+                </form>
+              </details>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+
+  const addCard = canWrite && (
+    <Disclosure
+      id="ajouter-glycemie"
+      className={panel}
+      initialOpen={formFirst || !!sp.ajoute}
+      summary={
+        <summary className={panelSummary}>
+          <span className="grid size-9 place-items-center rounded-full bg-sage-2 text-go" aria-hidden>
+            <Icon name="plus" className="size-5" />
+          </span>
+          <h2 className="flex-1 font-semibold">Ajouter une glycémie</h2>
+          <span className="text-sm text-ink-3">doigt</span>
+          <Icon name="chevronDown" className="size-5 text-ink-3 transition-transform group-open:rotate-180" />
+        </summary>
+      }
+    >
+      <div className="border-t border-line px-4 pb-4 pt-4">
+        {sp.ajoute && (
+          <p role="status" className="mb-3 rounded-xl bg-sage-2 px-4 py-3 text-sm">
+            Glycémie enregistrée : {sp.ajoute.slice(0, 40)}.
+          </p>
+        )}
+        <GlucoseEntryForm unit={unit} today={formatLocalDate(today)} defaultDate={dayIso} defaultTime={isToday ? nowTime : '12:00'} />
+      </div>
+    </Disclosure>
+  );
+
+  const settings = (
+    <details className={panel}>
+      <summary className={panelSummary}>
+        <span className="grid size-9 place-items-center rounded-full bg-indigo-2 text-indigo" aria-hidden>
+          <Icon name="settings" className="size-5" />
+        </span>
+        <h2 className="flex-1 font-semibold">Réglages</h2>
+        <span className="text-sm text-ink-3">cible, unité</span>
+        <Icon name="chevronDown" className="size-5 text-ink-3 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="border-t border-line px-4 pb-4 pt-4">
+        <p className="text-sm text-ink-2">Plage cible</p>
+        <p className="tabular text-2xl font-semibold">
+          {g(TARGETS.low)} – {g(TARGETS.high)} <span className="text-base font-normal text-ink-3">{unit}</span>
+        </p>
+        <Meta className="mt-1">Valeurs habituelles du consensus international. Votre équipe soignante peut vous en indiquer d’autres.</Meta>
+        <div className="mt-3 border-t border-line pt-2">{unitChoice(`jour=${dayIso}`)}</div>
+      </div>
+    </details>
   );
 
   return (
     <div className="fade-in">
-      <PageHeader title="Glycémie" subtitle="Capteur et lecteur (doigt). L’HbA1c de laboratoire est dans Analyses." actions={periodNav} />
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="md:col-span-2">
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-            <DayNav
-              basePath="/glycemie"
-              param="jour"
-              extraQuery={unitQuery || undefined}
-              value={dayIso}
-              min={formatLocalDate(first)}
-              max={formatLocalDate(today)}
-              prevHref={compareLocalDates(day, first) > 0 ? dayHref('/glycemie', 'jour', formatLocalDate(addDays(day, -1)), unitQuery || undefined) : undefined}
-              nextHref={!isToday ? dayHref('/glycemie', 'jour', formatLocalDate(addDays(day, 1)), unitQuery || undefined) : undefined}
-              todayHref={withUnit('')}
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <Chip tone="glucose">● Capteur</Chip>
-              <Chip tone="neutral">◆ Lecteur (doigt)</Chip>
-            </div>
-          </div>
-          {canWrite && !formFirst && (
-            <ButtonLink href="#ajouter-glycemie" variant="secondary" className="mt-3 w-full sm:hidden">
-              Ajouter une glycémie
-            </ButtonLink>
-          )}
-
-          <div className="mt-4">
-            {data.sensor.length || data.capillary.length ? (
-              <GlucoseDayChart
-                dayStart={start.getTime()}
-                dayEnd={end.getTime()}
-                timeZone={DEMO_TIMEZONE}
-                unit={unit}
-                sensor={data.sensor.map((s) => ({ t: s.at.getTime(), v: s.mgdl }))}
-                capillary={data.capillary.map((s) => ({ t: s.at.getTime(), v: s.mgdl }))}
-                events={data.events.map((e) => ({ t: e.at.getTime(), kind: e.kind, label: e.label, detail: e.detail }))}
-                targetLow={TARGETS.low}
-                targetHigh={TARGETS.high}
-                veryLow={TARGETS.veryLow}
-              />
-            ) : (
-              <EmptyState
-                title="Aucune mesure ce jour-là."
-                description={
-                  isDemo ? undefined : libre ? 'Le capteur est relié : les mesures arrivent toutes les 5 minutes environ.' : 'Ajoutez la glycémie de votre lecteur, ou reliez votre capteur FreeStyle Libre ci-dessous.'
-                }
-              />
-            )}
-          </div>
-          {isDemo && <Meta className="mt-2">Données de démonstration fictives.</Meta>}
-        </Card>
-
-        {(canWrite || meter.length > 0) && (
-          <Card>
-            <CardHeader title="Lecteur (doigt) : mesures du jour" />
-            {meter.length === 0 ? (
-              <p className="text-sm text-ink-2">Aucune glycémie du lecteur ce jour-là.</p>
-            ) : (
-              <ul className="divide-y divide-line">
-                {[...meter].reverse().map((m) => (
-                  <li key={m.at.toISOString()} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2">
-                    <span className="min-w-0">
-                      <span className="tabular text-ink-2">{hm(m.at)}</span> ·{' '}
-                      <span className="tabular font-semibold">
-                        {formatGlucose(m.mgdl, unit)} {unit}
-                      </span>
-                      {m.context && <span className="text-sm text-ink-2"> · {GLUCOSE_CONTEXTS[m.context as GlucoseContext]}</span>}
-                    </span>
-                    {canWrite && (
-                      <details className="shrink-0 text-right">
-                        <summary className={buttonClass({ variant: 'ghost', className: 'cursor-pointer list-none text-sm text-red' })}>
-                          Supprimer<span className="sr-only"> la glycémie de {hm(m.at)}</span>
-                        </summary>
-                        <form action={removeGlucoseAction} className="mt-1">
-                          <input type="hidden" name="at" value={m.at.toISOString()} />
-                          <Button type="submit" variant="danger" className="min-h-11 px-4 text-sm">
-                            Confirmer la suppression
-                          </Button>
-                        </form>
-                      </details>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Meta className="mt-2">Points ◆ sur la courbe. Ces mesures ne comptent pas dans les statistiques du capteur.</Meta>
-          </Card>
-        )}
-
-        {stats && (
-          <Card>
-            <CardHeader title={`Statistiques de la journée${isToday ? ' (jusqu’à maintenant)' : ''}`} tag="● Capteur" tagTone="glucose" />
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-              <Stat size="md" label="Moyenne" value={g(stats.mean)} unit={unit} />
-              <Stat size="md" label="Min / max" value={`${g(stats.min)} / ${g(stats.max)}`} />
-              <Stat size="md" label="Variations" value={stats.cv === null ? '—' : pct(stats.cv)} />
-              <Stat size="md" label="Capteur actif" value={pct(stats.coveragePct)} hint={`${stats.count} mesure${stats.count > 1 ? 's' : ''}`} />
-            </div>
-            <RangeBar veryLow={stats.pctVeryLow} low={stats.pctLow} inRange={stats.pctInRange} high={stats.pctHigh} veryHigh={stats.pctVeryHigh} />
-            <Meta>
-              Très bas {pct(stats.pctVeryLow)} · bas {pct(stats.pctLow)} · dans la cible {pct(stats.pctInRange)} · élevé {pct(stats.pctHigh)} · très élevé{' '}
-              {pct(stats.pctVeryHigh)}
-            </Meta>
-          </Card>
-        )}
-
-        {addCard}
-
-        {libreCard}
-
-        <Card>
-          <CardHeader title="Plage cible" />
-          <p className="tabular text-2xl font-semibold">
-            {g(TARGETS.low)} – {g(TARGETS.high)} <span className="text-base font-normal text-ink-3">{unit}</span>
-          </p>
-          <Meta className="mt-1">Valeurs habituelles du consensus international. Votre équipe soignante peut vous en indiquer d’autres.</Meta>
-          <div className="mt-3 border-t border-line pt-2">{unitChoice(`jour=${dayIso}`)}</div>
-        </Card>
+      <PageHeader title="Glycémie" actions={periodNav} />
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start">
+        <div className="flex min-w-0 flex-col gap-4">
+          {formFirst && addCard}
+          {hero}
+          {chart}
+          {meterCard}
+        </div>
+        <div className="flex min-w-0 flex-col gap-4">
+          {!formFirst && addCard}
+          {libreCard}
+          {settings}
+        </div>
       </div>
     </div>
   );

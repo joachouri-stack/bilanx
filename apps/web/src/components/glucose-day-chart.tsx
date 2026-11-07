@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { formatGlucose, glucoseAxisTicks, splitIntoSegments, type GlucoseUnit } from '@bilanx/domain';
 import { ICONS, type IconName } from './icon';
-import { Button, Meta } from './ui';
+import { Button } from './ui';
 
 export interface ChartPoint {
   t: number; // ms UTC
@@ -55,7 +55,7 @@ export function GlucoseDayChart(p: Props) {
   const ref = useRef<SVGSVGElement>(null);
   const clipId = `plot-${useId().replace(/:/g, '')}`;
   const [width, setWidth] = useState(800);
-  const [coarse, setCoarse] = useState(false);
+  const [, setCoarse] = useState(false);
   const span = p.dayEnd - p.dayStart;
   const [view, setView] = useState<[number, number]>([p.dayStart, p.dayEnd]);
   const [hover, setHover] = useState<{ x: number; y: number; title: string; sub: string; px: number | null; py: number | null } | null>(null);
@@ -80,11 +80,15 @@ export function GlucoseDayChart(p: Props) {
     return () => mq.removeEventListener('change', on);
   }, []);
 
-  const H = width < 500 ? 260 : 400;
-  const plotW = Math.max(100, width - PAD.l - PAD.r);
-  const plotH = H - PAD.t - PAD.b;
-  const x = useCallback((t: number) => PAD.l + ((t - view[0]) / (view[1] - view[0])) * plotW, [view, plotW]);
-  const y = (mgdl: number) => PAD.t + plotH - (Math.min(mgdl, Y_MAX) / Y_MAX) * plotH;
+  // Pistes Journal / Insuline seulement s'il y a des événements ; échelle élargie aux valeurs mesurées (rien n'est coupé).
+  const hasEvents = p.events.length > 0;
+  const pad = { ...PAD, b: hasEvents ? PAD.b : 30 };
+  const yMax = Math.min(500, Math.max(Y_MAX, Math.ceil((Math.max(0, ...p.sensor.map((s) => s.v), ...p.capillary.map((c) => c.v)) + 15) / 50) * 50));
+  const H = (width < 500 ? 260 : 400) - (hasEvents ? 0 : PAD.b - 30);
+  const plotW = Math.max(100, width - pad.l - pad.r);
+  const plotH = H - pad.t - pad.b;
+  const x = useCallback((t: number) => pad.l + ((t - view[0]) / (view[1] - view[0])) * plotW, [view, plotW]);
+  const y = (mgdl: number) => pad.t + plotH - (Math.min(mgdl, yMax) / yMax) * plotH;
   const fmtTime = useMemo(() => new Intl.DateTimeFormat('fr-FR', { timeZone: p.timeZone, hour: '2-digit', minute: '2-digit' }), [p.timeZone]);
   /** « 6 h », « 10 h 30 » (typographie française). */
   const hm = (t: number) => {
@@ -104,7 +108,7 @@ export function GlucoseDayChart(p: Props) {
   };
   const tAtClientX = (clientX: number) => {
     const r = ref.current!.getBoundingClientRect();
-    return view[0] + ((clientX - r.left - PAD.l) / plotW) * (view[1] - view[0]);
+    return view[0] + ((clientX - r.left - pad.l) / plotW) * (view[1] - view[0]);
   };
 
   // Molette : listener non passif pour zoomer sans faire défiler la page.
@@ -119,7 +123,7 @@ export function GlucoseDayChart(p: Props) {
     return () => el.removeEventListener('wheel', onWheel);
   });
 
-  const eventY = PAD.t + plotH + 40;
+  const eventY = pad.t + plotH + 40;
   const insulinY = eventY + 30;
 
   /** Valeur (ou événement) la plus proche du pointeur. */
@@ -127,7 +131,7 @@ export function GlucoseDayChart(p: Props) {
     const r = ref.current!.getBoundingClientRect();
     const lx = clientX - r.left;
     const ly = clientY - r.top;
-    if (ly > PAD.t + plotH + 24) {
+    if (ly > pad.t + plotH + 24) {
       // Pistes Journal / Insuline : l'événement le plus proche (à 18 px près).
       const ev = p.events
         .filter((e) => e.t >= view[0] && e.t <= view[1])
@@ -193,7 +197,7 @@ export function GlucoseDayChart(p: Props) {
 
   // Graduations verticales : au moins 14 px entre deux libellés (on garde les plus hautes, dont 70).
   const yAxis: { mgdl: number; label: string }[] = [];
-  for (const t of glucoseAxisTicks(p.unit).slice().reverse()) {
+  for (const t of [...(yMax > Y_MAX ? [{ mgdl: yMax, label: formatGlucose(yMax, p.unit) }] : []), ...glucoseAxisTicks(p.unit).slice().reverse()]) {
     const prev = yAxis.at(-1);
     if (!prev || y(t.mgdl) - y(prev.mgdl) >= 14) yAxis.push(t);
   }
@@ -232,23 +236,42 @@ export function GlucoseDayChart(p: Props) {
         >
           <defs>
             <clipPath id={clipId}>
-              <rect x={PAD.l} y={0} width={plotW} height={H} />
+              <rect x={pad.l} y={0} width={plotW} height={H} />
             </clipPath>
+            {/* Couleur de la courbe selon la zone : rouge > 250, orange 181–250, vert 70–180, orange 54–69, rouge < 54. */}
+            <linearGradient id={`${clipId}-zone`} gradientUnits="userSpaceOnUse" x1={0} x2={0} y1={y(yMax)} y2={y(0)}>
+              {(
+                [
+                  [yMax, '#f87171'],
+                  [250, '#f87171'],
+                  [250, '#fbbf24'],
+                  [p.targetHigh, '#fbbf24'],
+                  [p.targetHigh, '#34d399'],
+                  [p.targetLow, '#34d399'],
+                  [p.targetLow, '#fbbf24'],
+                  [p.veryLow, '#fbbf24'],
+                  [p.veryLow, '#f87171'],
+                  [0, '#f87171'],
+                ] as const
+              ).map(([v, c], i) => (
+                <stop key={i} offset={Math.max(0, Math.min(1, (y(Math.min(v, yMax)) - y(yMax)) / (y(0) - y(yMax))))} stopColor={c} />
+              ))}
+            </linearGradient>
           </defs>
-          <rect x={PAD.l} y={y(p.targetHigh)} width={plotW} height={y(p.targetLow) - y(p.targetHigh)} fill="var(--sage-2)" />
+          <rect x={pad.l} y={y(p.targetHigh)} width={plotW} height={y(p.targetLow) - y(p.targetHigh)} fill="var(--sage-2)" />
           {[p.targetLow, p.targetHigh].map((v) => (
-            <line key={v} x1={PAD.l} x2={PAD.l + plotW} y1={y(v)} y2={y(v)} stroke="var(--sage)" strokeDasharray="4 4" />
+            <line key={v} x1={pad.l} x2={pad.l + plotW} y1={y(v)} y2={y(v)} stroke="var(--sage)" strokeDasharray="4 4" />
           ))}
-          <line x1={PAD.l} x2={PAD.l + plotW} y1={y(p.veryLow)} y2={y(p.veryLow)} stroke="var(--red)" strokeDasharray="2 4" strokeOpacity={0.6} />
+          <line x1={pad.l} x2={pad.l + plotW} y1={y(p.veryLow)} y2={y(p.veryLow)} stroke="var(--red)" strokeDasharray="2 4" strokeOpacity={0.6} />
           {yAxis.map((t) => (
-            <text key={t.mgdl} x={PAD.l - 8} y={y(t.mgdl) + 4} textAnchor="end" fontSize={12} fill="var(--ink-3)">
+            <text key={t.mgdl} x={pad.l - 8} y={y(t.mgdl) + 4} textAnchor="end" fontSize={12} fill="var(--ink-3)">
               {t.label}
             </text>
           ))}
           {ticks.map((t) => (
             <g key={t}>
-              <line x1={x(t)} x2={x(t)} y1={PAD.t} y2={PAD.t + plotH} stroke="var(--line)" />
-              <text x={x(t)} y={PAD.t + plotH + 17} textAnchor="middle" fontSize={12} fill="var(--ink-3)">
+              <line x1={x(t)} x2={x(t)} y1={pad.t} y2={pad.t + plotH} stroke="var(--line)" />
+              <text x={x(t)} y={pad.t + plotH + 17} textAnchor="middle" fontSize={12} fill="var(--ink-3)">
                 {hm(t)}
               </text>
             </g>
@@ -259,29 +282,31 @@ export function GlucoseDayChart(p: Props) {
                 key={i}
                 d={seg.map((s, j) => `${j ? 'L' : 'M'}${x(s.at.getTime()).toFixed(1)},${y(s.v).toFixed(1)}`).join('')}
                 fill="none"
-                stroke="var(--glucose)"
-                strokeWidth={2.2}
+                stroke={`url(#${clipId}-zone)`}
+                strokeWidth={2.8}
                 strokeLinejoin="round"
+                strokeLinecap="round"
               />
             ))}
-            {viewH < 8 && p.sensor.filter((s) => inView(s.t)).map((s) => <circle key={s.t} cx={x(s.t)} cy={y(s.v)} r={2.4} fill="var(--glucose)" />)}
+            {viewH < 8 && p.sensor.filter((s) => inView(s.t)).map((s) => <circle key={s.t} cx={x(s.t)} cy={y(s.v)} r={2.4} fill={`url(#${clipId}-zone)`} />)}
             {p.capillary.map((c) => (
               <rect key={c.t} x={x(c.t) - 6} y={y(c.v) - 6} width={12} height={12} transform={`rotate(45 ${x(c.t)} ${y(c.v)})`} fill="var(--surface)" stroke="var(--ink-2)" strokeWidth={2}>
                 <title>{`${hm(c.t)} · ${disp(c.v)} ${p.unit} — lecteur (doigt)`}</title>
               </rect>
             ))}
           </g>
-          {(
-            [
-              [eventY, 'Journal'],
-              [insulinY, 'Insuline'],
-            ] as const
+          {(hasEvents
+            ? ([
+                [eventY, 'Journal'],
+                [insulinY, 'Insuline'],
+              ] as const)
+            : []
           ).map(([yy, l]) => (
             <g key={l}>
-              <text x={PAD.l - 8} y={yy + 4} textAnchor="end" fontSize={12} fill="var(--ink-3)">
+              <text x={pad.l - 8} y={yy + 4} textAnchor="end" fontSize={12} fill="var(--ink-3)">
                 {l}
               </text>
-              <line x1={PAD.l} x2={PAD.l + plotW} y1={yy} y2={yy} stroke="var(--line)" />
+              <line x1={pad.l} x2={pad.l + plotW} y1={yy} y2={yy} stroke="var(--line)" />
             </g>
           ))}
           {p.events.filter((e) => inView(e.t)).map((e) => {
@@ -300,7 +325,7 @@ export function GlucoseDayChart(p: Props) {
           })}
           {hover && hover.px !== null && hover.py !== null && (
             <g pointerEvents="none">
-              <line x1={hover.px} x2={hover.px} y1={PAD.t} y2={PAD.t + plotH} stroke="var(--ink-3)" opacity={0.6} />
+              <line x1={hover.px} x2={hover.px} y1={pad.t} y2={pad.t + plotH} stroke="var(--ink-3)" opacity={0.6} />
               <circle cx={hover.px} cy={hover.py} r={5} fill="var(--glucose)" stroke="var(--surface)" strokeWidth={2} />
             </g>
           )}
@@ -315,11 +340,6 @@ export function GlucoseDayChart(p: Props) {
           </div>
         )}
       </div>
-      <Meta className="mt-2">
-        {coarse
-          ? 'Pincez pour zoomer, appuyez sur la courbe pour voir la valeur.'
-          : 'Molette ou ＋/－ pour zoomer, glissez pour vous déplacer, double-clic pour revoir la journée entière. Survolez la courbe pour voir la valeur.'}
-      </Meta>
     </div>
   );
 }
