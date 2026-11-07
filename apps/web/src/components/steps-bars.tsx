@@ -118,10 +118,9 @@ export function StepsBars({
                     width={w}
                     height={y(0) - y(b.value)}
                     rx={Math.min(6, w / 3)}
-                    fill={isCurrent ? 'var(--petrol-2)' : reached ? 'var(--sage)' : 'var(--petrol)'}
+                    fill={!anyGoal || reached ? 'var(--go)' : 'var(--amber)'}
                     stroke={isCurrent ? 'var(--petrol)' : undefined}
                     strokeDasharray={isCurrent ? '4 3' : undefined}
-                    opacity={isCurrent || reached ? 1 : 0.7}
                   />
                 )}
                 {showValues && b.value !== null && (
@@ -151,12 +150,12 @@ export function StepsBars({
       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink-2">
         {anyGoal && anyReached && (
           <li className="flex items-center gap-1.5">
-            <span className="size-3 rounded-sm bg-sage" aria-hidden /> Objectif atteint
+            <span className="size-3 rounded-sm bg-go" aria-hidden /> Objectif atteint
           </li>
         )}
         {anyBelow && (
           <li className="flex items-center gap-1.5">
-            <span className="size-3 rounded-sm bg-petrol opacity-70" aria-hidden /> {anyGoal ? 'Sous l’objectif' : 'Pas'}
+            <span className={`size-3 rounded-sm ${anyGoal ? 'bg-amber' : 'bg-go'}`} aria-hidden /> {anyGoal ? 'Sous l’objectif' : 'Pas'}
           </li>
         )}
         {showCurrent && (
