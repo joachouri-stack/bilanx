@@ -325,49 +325,51 @@ export default async function ActivityPage({
   const delta = avg !== null && avgBefore !== null ? avg - avgBefore : null;
   const weekDays = view === "semaine" ? stepsSeries(daily, from, to) : [];
 
-  const navArrow =
-    "grid size-11 shrink-0 place-items-center rounded-full bg-white/15 text-white transition hover:bg-white/25";
+  const navArrow = 'grid size-10 shrink-0 place-items-center rounded-full text-ink-2 transition hover:bg-surface-2 active:scale-95';
+  const reached = ringPct >= 1;
+  const rows =
+    view === 'jour'
+      ? [
+          { dot: 'bg-go', label: 'Objectif', value: `${formatNumberFr(goal)} pas` },
+          { dot: 'bg-amber', label: 'Reste', value: dayTotal === null ? '—' : dayTotal >= goal ? 'Atteint ✓' : `${formatNumberFr(goal - dayTotal)} pas` },
+          { dot: 'bg-indigo', label: 'Moyenne semaine', value: avg === null ? '—' : `${formatNumberFr(avg)} pas` },
+        ]
+      : [
+          { dot: 'bg-go', label: 'Objectif atteint', value: stats.daysWithData ? `${stats.goalReachedDays} / ${stats.daysWithData} jours` : '—' },
+          { dot: 'bg-indigo', label: 'Total', value: stats.daysWithData ? `${formatNumberFr(stats.total)} pas` : '—' },
+          { dot: 'bg-amber', label: 'Meilleur jour', value: stats.best ? `${formatNumberFr(stats.best.steps!)} pas` : '—' },
+        ];
   const hero = (
     <section
       aria-label="Résumé de la période"
-      className="overflow-hidden rounded-[var(--radius-card,18px)] bg-[linear-gradient(140deg,#0e4a33_0%,#17704b_50%,#2a8a6e_100%)] p-4 text-white shadow-[var(--shadow-card)] sm:p-6"
+      className="relative overflow-hidden rounded-[var(--radius-card,18px)] border border-line bg-surface p-4 shadow-[var(--shadow-card)] sm:p-6"
     >
-      {view === "jour" ? (
-        <div className="rounded-2xl bg-white/95 p-1 text-ink dark:bg-surface">
-          <DayNav
-            basePath="/activite"
-            param="date"
-            extraQuery="vue=jour"
-            value={formatLocalDate(day)}
-            max={todayIso}
-            prevHref={href("jour", prev)}
-            nextHref={hasNext ? href("jour", next) : undefined}
-            todayHref="/activite?vue=jour"
-            label="Choisir le jour"
-          />
-        </div>
+      {/* Halo discret derrière l'anneau (pas d'aplat de couleur). */}
+      <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 size-72 -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,rgba(52,211,153,0.18),transparent)]" />
+
+      {view === 'jour' ? (
+        <DayNav
+          basePath="/activite"
+          param="date"
+          extraQuery="vue=jour"
+          value={formatLocalDate(day)}
+          max={todayIso}
+          prevHref={href('jour', prev)}
+          nextHref={hasNext ? href('jour', next) : undefined}
+          todayHref="/activite?vue=jour"
+          label="Choisir le jour"
+        />
       ) : (
-        <nav aria-label="Période" className="flex items-center gap-2">
-          <Link
-            href={href(view, prev)}
-            className={navArrow}
-            aria-label="Période précédente"
-          >
+        <nav aria-label="Période" className="relative flex items-center gap-2">
+          <Link href={href(view, prev)} className={navArrow} aria-label="Période précédente">
             <Icon name="chevronLeft" className="size-5" />
           </Link>
-          <h2
-            className="min-w-0 flex-1 text-center text-lg font-semibold first-letter:uppercase"
-            aria-live="polite"
-          >
+          <h2 className="min-w-0 flex-1 text-center font-semibold first-letter:uppercase" aria-live="polite">
             <span aria-hidden>{shortPeriod}</span>
             <span className="sr-only">{periodLabel}</span>
           </h2>
           {hasNext ? (
-            <Link
-              href={href(view, next)}
-              className={navArrow}
-              aria-label="Période suivante"
-            >
+            <Link href={href(view, next)} className={navArrow} aria-label="Période suivante">
               <Icon name="chevronRight" className="size-5" />
             </Link>
           ) : (
@@ -378,155 +380,40 @@ export default async function ActivityPage({
         </nav>
       )}
 
-      <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:gap-8">
-        <ProgressRing
-          value={ringPct}
-          size={168}
-          stroke={14}
-          color={ringPct >= 1 ? "#7ef0ad" : "#ffd08a"}
-        >
+      <div className="relative mt-4 flex flex-col items-center gap-5 sm:flex-row sm:gap-8">
+        <ProgressRing value={ringPct} size={176} stroke={16} colors={reached ? ['#34d399', '#22d3ee'] : ['#fbbf24', '#fb7185']}>
           <div>
-            <p className="tabular text-[34px] font-bold leading-none">
-              {ringValue === null ? "—" : formatNumberFr(ringValue)}
-            </p>
-            <p className="mt-1 text-[13px] text-white/85">
-              {view === "jour" ? "pas" : "pas / jour"}
-            </p>
-            <p className="mt-1.5 text-[12px] font-semibold text-white">
-              {ringValue === null
-                ? "aucune donnée"
-                : `${Math.round(ringPct * 100)} % de l’objectif`}
-            </p>
+            <p className="tabular text-[38px] font-bold leading-none tracking-tight">{ringValue === null ? '—' : formatNumberFr(ringValue)}</p>
+            <p className="mt-1 text-[13px] text-ink-3">{view === 'jour' ? 'pas' : 'pas / jour'}</p>
+            {ringValue !== null && (
+              <p className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold ${reached ? 'bg-sage-2 text-go' : 'bg-amber-2 text-amber'}`}>
+                {Math.round(ringPct * 100)} %
+              </p>
+            )}
           </div>
         </ProgressRing>
 
-        <ul className="grid w-full flex-1 grid-cols-3 gap-2 sm:gap-3">
-          {(view === "jour"
-            ? [
-                {
-                  icon: "check" as const,
-                  tone: "bg-sage-2 text-go",
-                  label: "Objectif",
-                  value: formatNumberFr(goal),
-                },
-                {
-                  icon: "chart" as const,
-                  tone: "bg-indigo-2 text-indigo",
-                  label: "Moy. semaine",
-                  value: avg === null ? "—" : formatNumberFr(avg),
-                },
-                {
-                  icon: "steps" as const,
-                  tone: "bg-amber-2 text-amber",
-                  label: "Reste",
-                  value:
-                    dayTotal === null
-                      ? "—"
-                      : dayTotal >= goal
-                        ? "Atteint"
-                        : formatNumberFr(goal - dayTotal),
-                },
-              ]
-            : [
-                {
-                  icon: "check" as const,
-                  tone: "bg-sage-2 text-go",
-                  label: "Objectif atteint",
-                  value: stats.daysWithData
-                    ? `${stats.goalReachedDays}/${stats.daysWithData}`
-                    : "—",
-                },
-                {
-                  icon: "chart" as const,
-                  tone: "bg-indigo-2 text-indigo",
-                  label: "Total",
-                  value: stats.daysWithData ? formatNumberFr(stats.total) : "—",
-                },
-                {
-                  icon: "sparkle" as const,
-                  tone: "bg-amber-2 text-amber",
-                  label: "Meilleur jour",
-                  value: stats.best ? formatNumberFr(stats.best.steps!) : "—",
-                },
-              ]
-          ).map((t) => (
-            <li
-              key={t.label}
-              className="flex flex-col items-center rounded-2xl bg-surface px-1.5 py-3 text-center text-ink shadow-[0_6px_16px_rgba(0,0,0,0.18)]"
-            >
-              <span
-                className={`grid size-8 place-items-center rounded-full ${t.tone}`}
-                aria-hidden
-              >
-                <Icon name={t.icon} className="size-4" />
-              </span>
-              <span className="tabular mt-1.5 text-[17px] font-bold leading-tight">
-                {t.value}
-              </span>
-              <span className="mt-0.5 text-[11.5px] leading-tight text-ink-2">
-                {t.label}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {weekDays.length > 0 && (
-        <ol
-          className="mt-5 grid grid-cols-7 gap-1"
-          aria-label="Objectif jour par jour"
-        >
-          {weekDays.map((d) => {
-            const wd =
-              WEEKDAYS[(new Date(`${d.date}T12:00:00Z`).getUTCDay() + 6) % 7]!;
-            const future = d.date > todayIso;
-            const pctDay = d.steps === null ? 0 : d.steps / goal;
-            return (
-              <li
-                key={d.date}
-                className={`flex flex-col items-center gap-1 ${future ? "opacity-40" : ""}`}
-              >
-                <ProgressRing
-                  value={pctDay}
-                  size={40}
-                  stroke={5}
-                  color={pctDay >= 1 ? "#7ef0ad" : "#ffd08a"}
-                >
-                  {pctDay >= 1 ? (
-                    <Icon name="check" className="size-4" strokeWidth={3} />
-                  ) : null}
-                </ProgressRing>
-                <span
-                  className={`text-[12px] ${d.date === todayIso ? "font-bold" : "text-white/80"}`}
-                >
-                  {d.date === todayIso ? "auj." : wd.replace(".", "")}
-                </span>
-                <span className="sr-only">
-                  {dd(d.date)} :{" "}
-                  {d.steps === null
-                    ? "aucune donnée"
-                    : `${formatNumberFr(d.steps)} pas${pctDay >= 1 ? ", objectif atteint" : ""}`}
-                </span>
+        <div className="w-full flex-1">
+          <ul className="divide-y divide-line">
+            {rows.map((r) => (
+              <li key={r.label} className="flex items-center gap-3 py-2.5">
+                <span className={`size-2.5 shrink-0 rounded-full ${r.dot}`} aria-hidden />
+                <span className="flex-1 text-[15px] text-ink-2">{r.label}</span>
+                <span className="tabular text-[15px] font-semibold">{r.value}</span>
               </li>
-            );
-          })}
-        </ol>
-      )}
-
-      {delta !== null && (
-        <p className="mt-4 flex justify-center">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-semibold ${delta >= 0 ? "bg-sage-2 text-go" : "bg-amber-2 text-amber"}`}
-          >
-            {delta >= 0 ? "↑" : "↓"} {formatNumberFr(Math.abs(delta))} pas/jour
-            vs {PREV_LABEL[view].replace(/^(la|le|l’) /, "")}
-          </span>
-        </p>
-      )}
+            ))}
+          </ul>
+          {delta !== null && (
+            <p className={`mt-3 flex items-center gap-1.5 text-[13px] font-medium ${delta >= 0 ? 'text-go' : 'text-amber'}`}>
+              <span aria-hidden>{delta >= 0 ? '↗' : '↘'}</span>
+              {delta >= 0 ? '+' : '−'}
+              {formatNumberFr(Math.abs(delta))} pas/jour vs {PREV_LABEL[view].replace(/^(la|le|l’) /, '')}
+            </p>
+          )}
+        </div>
+      </div>
       <p className="sr-only">
-        {avgTitle} :{" "}
-        {avg === null ? "aucune donnée" : `${formatNumberFr(avg)} pas par jour`}
-        , {comparison}.
+        {avgTitle} : {avg === null ? 'aucune donnée' : `${formatNumberFr(avg)} pas par jour`}, {comparison}.
       </p>
     </section>
   );

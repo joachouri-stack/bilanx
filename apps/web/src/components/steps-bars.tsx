@@ -95,6 +95,16 @@ export function StepsBars({
     <div>
       <div ref={ref} className="w-full touch-pan-y">
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="block max-w-full" role="img" aria-label="Nombre de pas">
+          <defs>
+            <linearGradient id="pas-ok" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#34d399" />
+              <stop offset="100%" stopColor="#0f9f6e" />
+            </linearGradient>
+            <linearGradient id="pas-bas" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fbbf24" />
+              <stop offset="100%" stopColor="#f08a3c" />
+            </linearGradient>
+          </defs>
           {ticks.map((t) => (
             <g key={t}>
               <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="var(--line)" />
@@ -118,7 +128,7 @@ export function StepsBars({
                     width={w}
                     height={y(0) - y(b.value)}
                     rx={Math.min(6, w / 3)}
-                    fill={!anyGoal || reached ? 'var(--go)' : 'var(--amber)'}
+                    fill={!anyGoal || reached ? 'url(#pas-ok)' : 'url(#pas-bas)'}
                     stroke={isCurrent ? 'var(--petrol)' : undefined}
                     strokeDasharray={isCurrent ? '4 3' : undefined}
                   />
@@ -150,12 +160,12 @@ export function StepsBars({
       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink-2">
         {anyGoal && anyReached && (
           <li className="flex items-center gap-1.5">
-            <span className="size-3 rounded-sm bg-go" aria-hidden /> Objectif atteint
+            <span className="size-3 rounded-sm bg-[linear-gradient(#34d399,#0f9f6e)]" aria-hidden /> Objectif atteint
           </li>
         )}
         {anyBelow && (
           <li className="flex items-center gap-1.5">
-            <span className={`size-3 rounded-sm ${anyGoal ? 'bg-amber' : 'bg-go'}`} aria-hidden /> {anyGoal ? 'Sous l’objectif' : 'Pas'}
+            <span className={`size-3 rounded-sm ${anyGoal ? 'bg-[linear-gradient(#fbbf24,#f08a3c)]' : 'bg-[linear-gradient(#34d399,#0f9f6e)]'}`} aria-hidden /> {anyGoal ? 'Sous l’objectif' : 'Pas'}
           </li>
         )}
         {showCurrent && (
