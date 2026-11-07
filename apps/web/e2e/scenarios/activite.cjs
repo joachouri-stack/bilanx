@@ -55,10 +55,11 @@ await step('envoi automatique (Raccourci iPhone) : clé, envoi des pas, doublon 
  await A.goto(B+'/activite');await A.getByText('Raccourci iPhone (Apple Santé)').waitFor();await A.getByText('automatique',{exact:true}).waitFor();
  await A.locator('#envoi-automatique').getByRole('button',{name:/Révoquer la clé/}).click();await A.locator('#envoi-automatique').getByRole('button',{name:/Créer ma clé d’envoi/}).waitFor();
  r=await send({pas:1});if(r.status!==401)throw Error('clé révoquée acceptée : '+r.status)});
-await step('poids : saisie sur le tableau de bord (sans changer de page), historique, évolution, refus, suppression',async()=>{
+await step('poids : carte du tableau de bord sans saisie, toute la carte mène à la page ; saisie, évolution, refus, suppression',async()=>{
  await A.goto(B+'/tableau-de-bord');const card=A.locator('.card',{has:A.getByRole('heading',{name:'Poids',exact:true})});await card.getByText('Aucune pesée pour l’instant.').waitFor();
- await card.getByLabel('Poids du jour').fill('74,2');await card.getByRole('button',{name:'Enregistrer'}).click();await card.getByText('Poids enregistré : 74,2 kg.').waitFor();
- if(!/tableau-de-bord/.test(A.url()))throw Error('redirigé vers '+A.url());await card.getByText('74,2',{exact:true}).first().waitFor();
+ if(await card.locator('input').count())throw Error('champ de saisie sur la carte');await card.getByRole('heading',{name:'Poids',exact:true}).click();await A.waitForURL(/\/poids$/);
+ {const f=A.locator('#ajouter-poids form');await f.getByLabel('Poids (kg)').fill('74,2');await f.getByRole('button',{name:'Enregistrer le poids'}).click();await f.getByText('Poids enregistré : 74,2 kg.').waitFor()}
+ await A.goto(B+'/tableau-de-bord');await card.getByText('74,2',{exact:true}).first().waitFor();
  await A.goto(B+'/poids');const f=A.locator('#ajouter-poids form');await f.getByLabel('Poids (kg)').fill('75');await f.getByLabel('Date').fill(iso(-8));await f.getByRole('button',{name:'Enregistrer le poids'}).click();await f.getByText('Poids enregistré : 75 kg.').waitFor();
  await A.goto(B+'/poids');if(await A.locator('main li',{hasText:' kg'}).count()!==2)throw Error('2 pesées attendues');await A.getByText('↓ 0,8 kg').first().waitFor();
  await f.getByLabel('Poids (kg)').fill('12');await f.getByRole('button',{name:'Enregistrer le poids'}).click();await f.getByText('Poids entre 20 et 350 kg.').waitFor();

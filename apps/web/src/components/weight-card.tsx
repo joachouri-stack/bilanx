@@ -1,11 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { useActionState } from 'react';
-import { addWeightAction, type FormState } from '@/lib/server/actions';
 import type { WeightSummary } from '@/lib/server/dashboard-data';
 import { DashboardSparkline } from './dashboard-sparkline';
-import { Icon } from './icon';
 import { Card, CardHeader, Meta } from './ui';
 
 const kg = (v: number) => v.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -32,12 +28,10 @@ function Change({ label, delta }: { label: string; delta: number | null }) {
 
 /**
  * Carte « Poids » du tableau de bord : dernière pesée, évolution sur 1 et 6 mois, moyenne de chaque mois sur 6 mois,
- * et saisie du poids du jour directement sur la carte (sans changer de page). Toute la carte mène à l'historique.
+ * Toute la carte mène à la page Poids (historique, statistiques et saisie).
  */
 export function WeightCard({ weight, canWrite, isDemo }: { weight: WeightSummary; canWrite: boolean; isDemo: boolean }) {
-  const [state, action] = useActionState(addWeightAction, {} as FormState);
   const { last, entries, todayIso } = weight;
-  const weighedToday = last?.day === todayIso;
   // Un point par mois sur les 6 derniers mois (moyenne des pesées du mois), comme l'HbA1c.
   const today = new Date(`${todayIso}T12:00:00Z`);
   const months = [5, 4, 3, 2, 1, 0].map((i) => {
@@ -56,8 +50,8 @@ export function WeightCard({ weight, canWrite, isDemo }: { weight: WeightSummary
   const max = monthly.length ? Math.max(...monthly.map((m) => m.kg)) : 0;
 
   return (
-    <Card accent="indigo" className="relative transition-transform hover:-translate-y-0.5">
-      <Link href="/poids" aria-label="Historique du poids" className="absolute inset-0 z-0 rounded-[var(--radius-card)] focus-visible:outline-2 focus-visible:outline-petrol" />
+    // Toute la carte mène à la page Poids (historique, statistiques, saisie).
+    <Card href="/poids" accent="indigo">
       <CardHeader
         title="Poids"
         icon="scale"
@@ -107,46 +101,9 @@ export function WeightCard({ weight, canWrite, isDemo }: { weight: WeightSummary
           )}
         </>
       ) : (
-        <p className="text-ink-2">Aucune pesée pour l’instant.</p>
+        <p className="text-ink-2">Aucune pesée pour l’instant.{canWrite ? ' Touchez la carte pour noter votre poids.' : ''}</p>
       )}
 
-      {canWrite && (
-        <form action={action} id="ajouter-poids" className="relative z-10 mt-4 flex items-end gap-2 border-t border-line pt-4">
-          <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm font-medium">
-            {weighedToday ? 'Corriger le poids du jour' : 'Poids du jour'}
-            <span className="relative">
-              <input
-                key={state.attempt}
-                name="kg"
-                inputMode="decimal"
-                autoComplete="off"
-                required
-                placeholder={last ? kg(last.kg) : '72,5'}
-                defaultValue={state.ok ? '' : state.values?.kg}
-                className="min-h-12 w-full rounded-xl border border-line bg-surface px-3 pr-10 text-base"
-                aria-describedby="poids-unite"
-              />
-              <span id="poids-unite" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-ink-3">
-                kg
-              </span>
-            </span>
-          </label>
-          <button type="submit" className="inline-flex min-h-12 shrink-0 items-center gap-1.5 rounded-xl bg-indigo px-4 font-semibold text-on-accent">
-            <Icon name="check" className="size-5" strokeWidth={2.4} />
-            Enregistrer
-          </button>
-        </form>
-      )}
-      {state.errors?.form && (
-        <p role="alert" className="relative z-10 mt-2 text-sm text-red">
-          {state.errors.form}
-        </p>
-      )}
-      {state.ok && (
-        <p role="status" className="relative z-10 mt-2 text-sm font-medium text-sage">
-          {state.message}
-        </p>
-      )}
       {isDemo && <Meta className="mt-2">Démonstration : données fictives.</Meta>}
     </Card>
   );
