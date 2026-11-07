@@ -22,8 +22,17 @@ export async function weightRange(ctx: AppContext, from: LocalDate, to: LocalDat
   return weight().listWeights(ctx.user, ctx.active.access.profileId, formatLocalDate(from), formatLocalDate(to));
 }
 
-/** Valeur de référence pour une évolution : dernière pesée au plus tard `days` jours avant la plus récente. */
+/**
+ * Valeur de référence pour une évolution « sur N jours » : la pesée la plus récente faite au moins N jours avant la dernière,
+ * mais pas beaucoup plus tôt (au plus N × 1,5 jours, 3 jours de marge minimum). Sinon null : on n'affiche pas
+ * « 7 jours » en comparant avec une pesée vieille de 5 mois.
+ */
 export function weightAround(entries: WeightEntry[], last: WeightEntry, days: number): WeightEntry | null {
-  const limit = new Date(`${last.day}T12:00:00Z`).getTime() - days * 86_400_000;
-  return [...entries].reverse().find((e) => new Date(`${e.day}T12:00:00Z`).getTime() <= limit) ?? null;
+  const lastT = new Date(`${last.day}T12:00:00Z`).getTime();
+  const limit = lastT - days * 86_400_000;
+  const oldest = lastT - Math.max(days * 1.5, days + 3) * 86_400_000;
+  return [...entries].reverse().find((e) => {
+    const t = new Date(`${e.day}T12:00:00Z`).getTime();
+    return t <= limit && t >= oldest;
+  }) ?? null;
 }

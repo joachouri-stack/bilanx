@@ -33,7 +33,25 @@ function niceTicks(min: number, max: number, count: number): number[] {
  * Évolution d'une analyse : points aux seules dates réelles de prélèvement, bande des valeurs de référence
  * du dernier laboratoire. Dessiné à la largeur réelle (ResizeObserver) ; textes ≥ 12 px ; défilement vertical libre.
  */
-export function AnalysesChart({ points, refLow, refHigh, unit }: { points: AnalysesChartPoint[]; refLow: number | null; refHigh: number | null; unit: string }) {
+export function AnalysesChart({
+  points,
+  refLow,
+  refHigh,
+  unit,
+  colors = ['#22d3ee', 'var(--petrol)'],
+  labels = 'all',
+  emptyText = 'Ajoutez un résultat précédent pour voir l’évolution.',
+}: {
+  points: AnalysesChartPoint[];
+  refLow: number | null;
+  refHigh: number | null;
+  unit: string;
+  /** Début et fin du dégradé (la fin colore aussi les points). */
+  colors?: [string, string];
+  /** Valeurs écrites au-dessus des points : toutes, ou la dernière seulement (séries denses). */
+  labels?: 'all' | 'last';
+  emptyText?: string;
+}) {
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   useEffect(() => {
@@ -48,7 +66,7 @@ export function AnalysesChart({ points, refLow, refHigh, unit }: { points: Analy
 
   if (points.length < 2) {
     return (
-      <p className="rounded-xl border border-dashed border-line p-5 text-center text-ink-2">Ajoutez un résultat précédent pour voir l’évolution.</p>
+      <p className="rounded-xl border border-dashed border-line p-5 text-center text-ink-2">{emptyText}</p>
     );
   }
 
@@ -107,12 +125,12 @@ export function AnalysesChart({ points, refLow, refHigh, unit }: { points: Analy
             ))}
             <defs>
               <linearGradient id="analyse-ligne" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#22d3ee" />
-                <stop offset="100%" stopColor="var(--petrol)" />
+                <stop offset="0%" stopColor={colors[0]} />
+                <stop offset="100%" stopColor={colors[1]} />
               </linearGradient>
               <linearGradient id="analyse-aire" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.28} />
-                <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
+                <stop offset="0%" stopColor={colors[0]} stopOpacity={0.28} />
+                <stop offset="100%" stopColor={colors[0]} stopOpacity={0} />
               </linearGradient>
             </defs>
             {points.length > 1 && (
@@ -134,14 +152,16 @@ export function AnalysesChart({ points, refLow, refHigh, unit }: { points: Analy
                 <circle
                   cx={x(p.t)}
                   cy={y(p.v)}
-                  r={i === points.length - 1 ? 7 : 5}
-                  fill={i === points.length - 1 ? 'var(--petrol)' : 'var(--surface)'}
-                  stroke={i === points.length - 1 ? 'var(--surface)' : 'var(--petrol)'}
+                  r={i === points.length - 1 ? 7 : labels === 'last' ? 3 : 5}
+                  fill={i === points.length - 1 ? colors[1] : 'var(--surface)'}
+                  stroke={i === points.length - 1 ? 'var(--surface)' : colors[1]}
                   strokeWidth={i === points.length - 1 ? 3 : 2.5}
                 />
-                <text x={Math.min(Math.max(x(p.t), L + 14), L + plotW - 14)} y={y(p.v) - 11} textAnchor="middle" fontSize={13} fontWeight={600} fill="var(--ink)" className="tabular">
-                  {p.label}
-                </text>
+                {(labels === 'all' || i === points.length - 1) && (
+                  <text x={Math.min(Math.max(x(p.t), L + 14), L + plotW - 14)} y={y(p.v) - 11} textAnchor="middle" fontSize={13} fontWeight={600} fill="var(--ink)" className="tabular">
+                    {p.label}
+                  </text>
+                )}
               </g>
             ))}
           </svg>
