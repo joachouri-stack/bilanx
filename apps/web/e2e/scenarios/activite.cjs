@@ -55,6 +55,16 @@ await step('envoi automatique (Raccourci iPhone) : clé, envoi des pas, doublon 
  await A.goto(B+'/activite');await A.getByText('Raccourci iPhone (Apple Santé)').waitFor();await A.getByText('automatique',{exact:true}).waitFor();
  await A.locator('#envoi-automatique').getByRole('button',{name:/Révoquer la clé/}).click();await A.locator('#envoi-automatique').getByRole('button',{name:/Créer ma clé d’envoi/}).waitFor();
  r=await send({pas:1});if(r.status!==401)throw Error('clé révoquée acceptée : '+r.status)});
+await step('poids : saisie sur le tableau de bord (sans changer de page), historique, évolution, refus, suppression',async()=>{
+ await A.goto(B+'/tableau-de-bord');const card=A.locator('.card',{has:A.getByRole('heading',{name:'Poids',exact:true})});await card.getByText('Aucune pesée pour l’instant.').waitFor();
+ await card.getByLabel('Poids du jour').fill('74,2');await card.getByRole('button',{name:'Enregistrer'}).click();await card.getByText('Poids enregistré : 74,2 kg.').waitFor();
+ if(!/tableau-de-bord/.test(A.url()))throw Error('redirigé vers '+A.url());await card.getByText('74,2',{exact:true}).waitFor();
+ await A.goto(B+'/poids');const f=A.locator('#ajouter-poids form');await f.getByLabel('Poids (kg)').fill('75');await f.getByLabel('Date').fill(iso(-8));await f.getByRole('button',{name:'Enregistrer le poids'}).click();await f.getByText('Poids enregistré : 75 kg.').waitFor();
+ await A.goto(B+'/poids');if(await A.locator('main li',{hasText:' kg'}).count()!==2)throw Error('2 pesées attendues');await A.getByText('↓ 0,8 kg').first().waitFor();
+ await f.getByLabel('Poids (kg)').fill('12');await f.getByRole('button',{name:'Enregistrer le poids'}).click();await f.getByText('Poids entre 20 et 350 kg.').waitFor();
+ await A.locator('summary[aria-label^="Supprimer la pesée"]').first().click();await A.getByRole('button',{name:'Confirmer la suppression'}).first().click();await A.waitForLoadState('networkidle');
+ await A.goto(B+'/poids');if(await A.locator('main li',{hasText:' kg'}).count()!==1)throw Error('suppression');
+ if(psql(`select count(*) from weight_entry`)==='0')throw Error('rien en base')});
 await step('démonstration : pas fictifs',async()=>{await A.locator('aside summary').click();await A.locator('aside').getByRole('button',{name:/Claire/}).click();await A.getByText('Profil de démonstration —').waitFor();await A.goto(B+'/activite');await A.getByText('Démonstration (données fictives)').waitFor()});
 const m=await b.newPage({viewport:{width:390,height:844},isMobile:true});await m.context().addCookies(await A.context().cookies());await m.goto(B+'/activite?vue=mois');console.log('mobile scrollWidth',await m.evaluate(()=>document.documentElement.scrollWidth));
 await b.close()})();

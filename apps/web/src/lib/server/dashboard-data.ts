@@ -34,6 +34,7 @@ import { insulinDoses, insulinProducts } from './insulin-data';
 import { stepsDaily, stepsGoal } from './activity-data';
 import { medicationDay, medicationList } from './medication-data';
 import { gymHistory } from './gym-data';
+import { weightAround, weightRange } from './weight-data';
 
 const DAY = 86_400_000;
 /** Mêmes seuils que la page Glycémie (vue sur plusieurs jours). */
@@ -184,6 +185,15 @@ export interface DashboardDocs {
   total: number;
 }
 
+/** Carte « Poids » : dernière pesée, évolution sur 7 et 30 jours, pesées des 3 derniers mois. */
+export interface WeightSummary {
+  last: { day: string; kg: number } | null;
+  change7: number | null;
+  change30: number | null;
+  entries: { day: string; kg: number }[];
+  todayIso: string;
+}
+
 export interface DashboardData {
   isDemo: boolean;
   now: Date;
@@ -200,6 +210,7 @@ export interface DashboardData {
   appointments: AppointmentsSummary | null;
   steps: StepsSummary | null;
   gym: GymSummary | null;
+  weight: WeightSummary | null;
   docs: DashboardDocs | null;
   firstSteps: FirstStep[];
 }
@@ -353,7 +364,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
   const showAppointments = moduleAllowed(ctx.active, 'appointments');
   const showDocs = !!real && moduleAllowed(ctx.active, 'documents');
 
-  const [cap, sensor, labs, medsNow, medsToday, products, doses, steps, goal, appts, docs, anyGlucose, gymDays] = await Promise.all([
+  const [cap, sensor, labs, medsNow, medsToday, products, doses, steps, goal, appts, docs, anyGlucose, gymDays, weights] = await Promise.all([
     showGlucose ? capillaryReadings(ctx, today, now) : Promise.resolve([] as Reading[]),
     showGlucose ? sensorSummary(ctx, today, now) : Promise.resolve(null),
     showLab ? labResults(ctx) : Promise.resolve([] as LabRow[]),
@@ -367,6 +378,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     showDocs && real ? documents().list(ctx.user, real.profileId) : Promise.resolve(null),
     showGlucose ? hasAnyGlucose(ctx) : Promise.resolve(false),
     showActivity ? gymHistory(ctx, today, now) : Promise.resolve(null),
+    showActivity ? weightRange(ctx, addDays(today, -90), today, today) : Promise.resolve(null),
   ]);
 
   const meter = meterSummary(cap, now, today);
@@ -473,6 +485,16 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
       firstSteps.push({ key: 'appointment', label: 'Ajouter un rendez-vous', href: '/rendez-vous#nouveau-rendez-vous', done: appts.upcoming.length + appts.past.length > 0 });
   }
 
+  const lastW = weights?.at(-1) ?? null;
+  const weightSummary: WeightSummary | null = weights
+    ? {
+        last: lastW,
+        change7: lastW ? (((w) => (w ? Math.round((lastW.kg - w.kg) * 10) / 10 : null))(weightAround(weights, lastW, 7))) : null,
+        change30: lastW ? (((w) => (w ? Math.round((lastW.kg - w.kg) * 10) / 10 : null))(weightAround(weights, lastW, 30))) : null,
+        entries: weights,
+        todayIso: formatLocalDate(today),
+      }
+    : null;
   return {
     isDemo,
     now,
@@ -488,6 +510,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     appointments: appointmentsSummary,
     steps: stepsSummary,
     gym: gymSummary,
+    weight: weightSummary,
     docs: docs ? { counts: Object.fromEntries(DOC_SHORTCUTS.map((s) => [s.key, docs.filter(s.match).length])), total: docs.length } : null,
     firstSteps: firstSteps.some((s) => !s.done) ? firstSteps : [],
   };

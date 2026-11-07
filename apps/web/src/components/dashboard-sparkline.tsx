@@ -20,6 +20,7 @@ export function DashboardSparkline({
   ticks,
   bandLabels,
   lastDot,
+  maxGapMs,
 }: {
   /** Abscisse (ms ou rang) et valeur. */
   points: { t: number; v: number }[];
@@ -43,6 +44,8 @@ export function DashboardSparkline({
   bandLabels?: [string, string];
   /** Couleur du point final (dernière mesure), mise en évidence. */
   lastDot?: string;
+  /** Écart au-delà duquel la courbe est coupée (par défaut 45 min, adapté au capteur ; Infinity pour relier des pesées). */
+  maxGapMs?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
@@ -65,7 +68,7 @@ export function DashboardSparkline({
   const x = (t: number) => padX + (t1 === t0 ? (w - padX - padR) / 2 : ((t - t0) / (t1 - t0)) * (w - padX - padR));
   const y = (v: number) => top + (1 - (Math.min(max, Math.max(min, v)) - min) / (max - min)) * (H - top - bottom);
   // Une interruption de plus de 45 min coupe la courbe (rien n'est complété).
-  const gap = dots ? Infinity : 45 * 60_000;
+  const gap = maxGapMs ?? (dots ? Infinity : 45 * 60_000);
   const d = points.map((p, i) => `${i && p.t - points[i - 1]!.t <= gap ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
 
   return (

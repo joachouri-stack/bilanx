@@ -253,6 +253,7 @@ const LEVEL_CELL: Record<Tone, string> = {
   petrol: '',
   violet: '',
   rose: '',
+  indigo: '',
   neutral: '',
 };
 

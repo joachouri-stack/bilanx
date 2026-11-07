@@ -26,6 +26,8 @@
   --violet-2: #f0ebf9;
   --rose: #a8366f;
   --rose-2: #fbe9f1;
+  --indigo: #4552b8;
+  --indigo-2: #eceefb;
   /* Texte sur fond d'accent (boutons pleins) : contraste AA garanti dans les deux thèmes. */
   --on-accent: #ffffff;
   /* Cartes : bordure et ombre (la bordure reste visible en mode sombre, où l'ombre ne se voit pas). */
@@ -58,6 +60,8 @@
     --violet-2: #2a2340;
     --rose: #e98bb7;
     --rose-2: #3a1f2d;
+    --indigo: #9aa4f2;
+    --indigo-2: #232845;
     --on-accent: #0f1719;
     --card-border: #33484e;
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3);
@@ -89,6 +93,8 @@
   --color-violet-2: var(--violet-2);
   --color-rose: var(--rose);
   --color-rose-2: var(--rose-2);
+  --color-indigo: var(--indigo);
+  --color-indigo-2: var(--indigo-2);
   --color-on-accent: var(--on-accent);
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-display: var(--font-fraunces), Georgia, serif;

@@ -14,6 +14,7 @@ const CHIP: Record<QuickAddItem['tone'] | 'amber' | 'neutral', string> = {
   sage: 'bg-sage-2 text-sage',
   violet: 'bg-violet-2 text-violet',
   rose: 'bg-rose-2 text-rose',
+  indigo: 'bg-indigo-2 text-indigo',
   amber: 'bg-amber-2 text-amber',
   neutral: 'bg-surface text-ink-2',
 };

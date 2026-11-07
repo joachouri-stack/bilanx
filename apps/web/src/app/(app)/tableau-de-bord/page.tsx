@@ -4,6 +4,7 @@ import { DEMO_PROFILE, DEMO_TIMEZONE } from '@/lib/demo-data';
 import { appContext, displayUnits, moduleAllowed, NAV_MODULES } from '@/lib/server/context';
 import { dashboardData } from '@/lib/server/dashboard-data';
 import { QUICK_ADD } from '@/lib/navigation';
+import { WeightCard } from '@/components/weight-card';
 import { ButtonLink } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import {
@@ -131,6 +132,7 @@ export default async function DashboardPage() {
           <GlucoseCard sensor={data.sensor} meter={data.meter} unit={UNIT} today={data.today} isDemo={isDemo} canWrite={canWrite('glucose')} />
         )}
         {data.showLab && <Hba1cCard points={data.hba1c} unit={A1C} canWrite={canWrite('lab')} />}
+        {data.weight && <WeightCard weight={data.weight} canWrite={canWrite('activity')} isDemo={isDemo} />}
         {data.today_ && <TodayCard data={data.today_} />}
         {data.appointments && <AppointmentCard data={data.appointments} now={now} />}
         {/* Seulement s'il y a un résultat à signaler (le message « tout va bien » est retiré). */}

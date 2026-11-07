@@ -7,6 +7,8 @@ import { createProfilesService, type ProfilesService } from '@bilanx/profiles';
 import {
   createActivityService,
   createGymService,
+  createWeightService,
+  type WeightService,
   createLibreLinkService,
   type LibreLinkService,
   type GymService,
@@ -35,7 +37,7 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService; bilanxApiTokens?: ApiTokenService; bilanxLibre?: LibreLinkService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService; bilanxApiTokens?: ApiTokenService; bilanxLibre?: LibreLinkService; bilanxWeight?: WeightService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createAppSql();
@@ -80,6 +82,11 @@ export function documents(): DocumentsService {
 export function glucose(): GlucoseService {
   globalForAuth.bilanxGlucose ??= createGlucoseService({ profiles: profiles() });
   return globalForAuth.bilanxGlucose;
+}
+
+export function weight(): WeightService {
+  globalForAuth.bilanxWeight ??= createWeightService({ profiles: profiles() });
+  return globalForAuth.bilanxWeight;
 }
 
 /** Capteur FreeStyle Libre via LibreLinkUp (compte suiveur dédié). */

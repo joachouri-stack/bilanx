@@ -17,6 +17,7 @@ import {
   activity,
   apiTokens,
   libreLink,
+  weight,
   gym,
   glucose,
   appointments,
@@ -1108,6 +1109,35 @@ export async function disconnectLibreAction(): Promise<void> {
     if (!(e instanceof ForbiddenError)) throw e;
   }
   revalidatePath('/glycemie');
+}
+
+/** Poids : enregistre la valeur d'un jour (aujourd'hui par défaut). Depuis le tableau de bord, la page reste affichée. */
+export async function addWeightAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Choisissez votre profil (le profil de démonstration est en lecture seule).' } };
+  const day = str(fd, 'day') || new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date());
+  try {
+    const r = await weight().setWeight(ctx.user, ctx.active.access.profileId, day, str(fd, 'kg'));
+    if (!r.ok) return { errors: { form: r.error }, values: { kg: str(fd, 'kg'), day } };
+    revalidatePath('/tableau-de-bord');
+    revalidatePath('/poids');
+    return { ok: true, message: `Poids enregistré : ${String(r.kg).replace('.', ',')} kg.`, attempt: String(Date.now()) };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { errors: { form: e.message } };
+    throw e;
+  }
+}
+
+export async function removeWeightAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return;
+  try {
+    await weight().removeWeight(ctx.user, ctx.active.access.profileId, str(fd, 'day'));
+  } catch (e) {
+    if (!(e instanceof ForbiddenError)) throw e;
+  }
+  revalidatePath('/tableau-de-bord');
+  revalidatePath('/poids');
 }
 
 /** Salle de sport : coche (present=1) ou décoche (present=0) un jour. Profil de démonstration : sans effet. */
