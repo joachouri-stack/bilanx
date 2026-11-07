@@ -275,26 +275,27 @@ function KeyMoments({ days, unit }: { days: KeyMomentDay[]; unit: GlucoseUnit })
     <div className="space-y-4">
       <div>
         <h3 className="mb-2 text-sm font-semibold text-ink-2">Moments clés aujourd’hui</h3>
-        <ul className="grid grid-cols-3 gap-2">
+        <ul className="grid grid-cols-4 gap-1.5">
           {(
             [
               ['Matin', ['fasting']],
               ['Midi', ['lunch', 'lunchAfter']],
+              ['Après-midi', ['afternoon']],
               ['Soir', ['dinner', 'dinnerAfter']],
             ] as [string, KeyMomentKey[]][]
           ).map(([title, keys]) => (
             <li key={title} className="flex flex-col gap-1.5 rounded-xl bg-surface-2 p-1.5">
-              <p className="pt-0.5 text-center text-[12px] font-semibold text-ink-2">{title}</p>
+              <p className="truncate pt-0.5 text-center text-[11.5px] font-semibold text-ink-2">{title}</p>
               {keys.map((key) => {
                 const k = KEY_MOMENTS.find((m) => m.key === key)!;
                 const v = todayRow.values[key];
                 const lvl = v.mgdl !== null ? glucoseLevel(v.mgdl) : null;
                 return (
                   <div key={key} className={`${keys.length > 1 ? 'flex-1' : ''} rounded-lg px-1 py-1.5 text-center ${lvl ? LEVEL_CELL[lvl.tone] : 'bg-surface'}`}>
-                    <p className="text-[11px] leading-tight text-ink-2">{key === 'fasting' ? 'À jeun' : k.label}</p>
+                    <p className="text-[11px] leading-tight text-ink-2">{key === 'fasting' ? 'À jeun' : key === 'afternoon' ? '17 h' : k.label}</p>
                     {v.mgdl !== null ? (
                       <>
-                        <p className={`tabular text-xl font-bold leading-tight ${lvl!.text}`}>{g(v.mgdl)}</p>
+                        <p className={`tabular text-lg font-bold leading-tight ${lvl!.text}`}>{g(v.mgdl)}</p>
                         <p className="text-[11px] leading-tight text-ink-3">
                           {frTime(v.at!)}
                           {v.source === 'meter' ? ' · doigt' : ''}

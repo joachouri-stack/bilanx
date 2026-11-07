@@ -74,7 +74,7 @@ export interface SensorSummary {
   moments: KeyMomentDay[];
 }
 
-export type KeyMomentKey = 'fasting' | 'lunch' | 'lunchAfter' | 'dinner' | 'dinnerAfter';
+export type KeyMomentKey = 'fasting' | 'lunch' | 'lunchAfter' | 'afternoon' | 'dinner' | 'dinnerAfter';
 
 /** Valeur retenue pour un moment clé : mesure au doigt notée pour ce moment, sinon capteur à l'heure habituelle. */
 export interface KeyMomentValue {
@@ -104,7 +104,7 @@ export interface KeyMomentDef {
 }
 
 /**
- * Moments clés : réveil à jeun, avant et 2 h après le déjeuner, avant et 2 h après le dîner.
+ * Moments clés : réveil à jeun, avant et 2 h après le déjeuner, l'après-midi (vers 17 h), avant et 2 h après le dîner.
  * Mesure au doigt notée pour ce moment en priorité ; sinon la valeur du capteur la plus proche de l'heure de référence.
  * Repas noté dans le journal : « avant » = dans l'heure qui précède, « +2 h » = entre 1 h 30 et 2 h 30 après.
  */
@@ -112,6 +112,7 @@ export const KEY_MOMENTS: KeyMomentDef[] = [
   { key: 'fasting', label: 'Réveil, à jeun', short: 'À jeun', from: 5 * 60, to: 10 * 60, ref: 7 * 60 + 30, context: 'fasting' },
   { key: 'lunch', label: 'Avant', short: 'Midi', from: 11 * 60, to: 13 * 60 + 30, ref: 12 * 60, context: 'before_meal', meal: { kind: 'lunch', phase: 'before' } },
   { key: 'lunchAfter', label: '+2 h', short: 'Midi +2 h', from: 13 * 60 + 30, to: 16 * 60, ref: 14 * 60, context: 'after_meal', meal: { kind: 'lunch', phase: 'after' } },
+  { key: 'afternoon', label: 'Vers 17 h', short: 'Après-midi', from: 16 * 60, to: 18 * 60, ref: 17 * 60, context: 'other' },
   { key: 'dinner', label: 'Avant', short: 'Soir', from: 18 * 60, to: 20 * 60 + 30, ref: 19 * 60 + 30, context: 'before_meal', meal: { kind: 'dinner', phase: 'before' } },
   { key: 'dinnerAfter', label: '+2 h', short: 'Soir +2 h', from: 20 * 60 + 30, to: 23 * 60 + 59, ref: 21 * 60 + 30, context: 'after_meal', meal: { kind: 'dinner', phase: 'after' } },
 ];
