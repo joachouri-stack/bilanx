@@ -110,7 +110,7 @@ export default async function DocumentsPage({
         {canWrite && (
           <DocumentsAdd
             today={today}
-            defaultKind={cat?.kind ?? ''}
+            defaultKind={cat?.kind ?? (folder ? 'other' : '')}
             defaultExamType={exam ?? undefined}
             defaultSpecialty={spec?.code}
             defaultFolder={folder?.code}

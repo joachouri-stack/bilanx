@@ -168,4 +168,16 @@ describe.skipIf(!TEST_DB)('documents et scanner de bilans (PostgreSQL, PDF et re
       profiles.withProfileData(jo, pid, 'documents', 'write', (tx) => tx`UPDATE document SET specialty = 'chirurgie' WHERE id = ${id}`),
     ).rejects.toThrow();
   });
+  it('attestation (aucune analyse) : jamais lue comme un bilan, en détection automatique comme dans le dossier', async () => {
+    const att = F('attestation-fictive.pdf');
+    const auto = await docs.upload(marc, (await profiles.listProfiles(marc.accountId))[0]!.profileId, [{ name: 'attestation.pdf', data: att }]);
+    expect(auto).toMatchObject({ ok: true, drafts: 0 });
+    const mpid = (await profiles.listProfiles(marc.accountId))[0]!.profileId;
+    const doc = await docs.get(marc, mpid, auto.ok ? auto.documentId : '');
+    expect(doc?.document.kind).not.toBe('lab_report');
+    expect(doc?.drafts ?? []).toHaveLength(0);
+    const inFolder = await docs.upload(marc, mpid, [{ name: 'attestation.pdf', data: att }], { folder: 'attestation' });
+    expect(inFolder).toMatchObject({ ok: true, status: 'stored', drafts: 0 });
+    expect((await docs.get(marc, mpid, inFolder.ok ? inFolder.documentId : ''))?.document).toMatchObject({ kind: 'other', folder: 'attestation' });
+  });
 });

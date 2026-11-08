@@ -168,7 +168,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     if (d?.specialty && !specialty) return { ok: false, error: 'Spécialité inconnue.' };
     const folder = d?.folder && (FOLDERS as readonly string[]).includes(d.folder) ? d.folder : null;
     if (d?.folder && !folder) return { ok: false, error: 'Dossier inconnu.' };
-    return { ok: true, kind, title, date, examType, specialty, folder };
+    // Dossier administratif (vitamines, mutuelle, attestation) sans catégorie choisie : rangé tel quel, jamais lu comme un bilan.
+    return { ok: true, kind: kind ?? (folder ? 'other' : null), title, date, examType, specialty, folder };
   }
 
   async function upload(actor: Actor, profileId: string, files: UploadFile[], details?: DocumentDetails): Promise<UploadResult> {
@@ -243,6 +244,10 @@ export function createDocumentsService(cfg: DocumentsConfig) {
       // Un vrai bilan contient plusieurs analyses ; un mot isolé (« bandelettes de glycémie ») ne suffit pas,
       // et un document qui se présente lui-même comme une ordonnance n'est jamais signalé.
       return extractPrescription(actor, profileId, documentId, text, recognized >= LAB_WARNING_MIN && !/\bordonnance\b/i.test(source) ? recognized : 0);
+
+    // Détection automatique : sans AUCUNE analyse reconnue, ce n'est pas un bilan (attestation, courrier…) :
+    // aucune ligne n'est proposée et le document n'est pas reclassé.
+    if (hint !== 'lab_report' && recognized === 0) report.drafts = [];
 
     return profiles.withProfileData(actor, profileId, 'documents', 'write', async (tx) => {
       const status = report.drafts.length ? 'to_review' : 'reviewed';
