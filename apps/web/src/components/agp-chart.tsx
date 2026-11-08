@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { glucoseAxisTicks, type AgpHour, type GlucoseUnit } from '@bilanx/domain';
+import { formatGlucose, glucoseAxisTicks, type AgpHour, type GlucoseUnit } from '@bilanx/domain';
 
 /**
  * Profil glycémique ambulatoire (AGP) : pour chaque heure de la journée, valeur habituelle (médiane) et
@@ -40,7 +40,9 @@ export function AgpChart({ agp, unit, targetLow, targetHigh }: { agp: AgpHour[];
   const missing = agp.filter((a) => a.p50 === null).length;
   // Pas de libellés qui se chevauchent : au moins 20 px entre deux graduations.
   const yTicks: { mgdl: number; label: string }[] = [];
-  for (const t of glucoseAxisTicks(unit).filter((t) => t.mgdl <= maxV).reverse()) {
+  // Graduation du haut de l'échelle (ex. 400) quand les valeurs dépassent les graduations habituelles.
+  const top = glucoseAxisTicks(unit).every((t) => t.mgdl < maxV) ? [{ mgdl: maxV, label: formatGlucose(maxV, unit) }] : [];
+  for (const t of [...top, ...glucoseAxisTicks(unit).filter((t) => t.mgdl <= maxV).reverse()]) {
     const prev = yTicks.at(-1);
     if (!prev || y(t.mgdl) - y(prev.mgdl) >= 20) yTicks.push(t);
   }
@@ -55,6 +57,27 @@ export function AgpChart({ agp, unit, targetLow, targetHigh }: { agp: AgpHour[];
         role="img"
         aria-label={`Profil glycémique ambulatoire sur 24 heures${missing ? `, ${missing} heure${missing > 1 ? 's' : ''} sans assez de mesures` : ''}`}
       >
+        <defs>
+          {/* Médiane colorée selon la zone : vert dans la cible, orange au-dessus de 180 ou sous 70, rouge au-delà de 250 / sous 54. */}
+          <linearGradient id="agp-zone" gradientUnits="userSpaceOnUse" x1={0} x2={0} y1={y(maxV)} y2={y(0)}>
+            {(
+              [
+                [maxV, '#f87171'],
+                [250, '#f87171'],
+                [250, '#fbbf24'],
+                [targetHigh, '#fbbf24'],
+                [targetHigh, '#34d399'],
+                [targetLow, '#34d399'],
+                [targetLow, '#fbbf24'],
+                [54, '#fbbf24'],
+                [54, '#f87171'],
+                [0, '#f87171'],
+              ] as const
+            ).map(([v, c], i) => (
+              <stop key={i} offset={Math.max(0, Math.min(1, (y(Math.min(v, maxV)) - y(maxV)) / (y(0) - y(maxV))))} stopColor={c} />
+            ))}
+          </linearGradient>
+        </defs>
         <rect x={PAD.l} y={y(targetHigh)} width={W - PAD.l - PAD.r} height={y(targetLow) - y(targetHigh)} fill="var(--sage-2)" />
         {yTicks.map((t) => (
           <g key={t.mgdl}>
@@ -71,24 +94,18 @@ export function AgpChart({ agp, unit, targetLow, targetHigh }: { agp: AgpHour[];
         ))}
         {segments.map((seg, i) => (
           <g key={i}>
-            <polygon points={band(seg, 'p5', 'p95')} fill="var(--glucose)" opacity={0.14} />
-            <polygon points={band(seg, 'p25', 'p75')} fill="var(--glucose)" opacity={0.3} />
-            <polyline points={seg.map((a) => `${x(a.hour + 0.5)},${y(a.p50!)}`).join(' ')} fill="none" stroke="var(--glucose)" strokeWidth={2.5} strokeLinejoin="round" />
+            <polygon points={band(seg, 'p5', 'p95')} fill="var(--glucose)" opacity={0.1} />
+            <polygon points={band(seg, 'p25', 'p75')} fill="var(--glucose)" opacity={0.22} />
+            <polyline points={seg.map((a) => `${x(a.hour + 0.5)},${y(a.p50!)}`).join(' ')} fill="none" stroke="url(#agp-zone)" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
           </g>
         ))}
       </svg>
-      <figcaption className="mt-2 grid grid-cols-1 gap-x-5 gap-y-1.5 text-sm text-ink-2 sm:flex sm:flex-wrap">
-        <span className="flex items-center gap-2">
-          <span className="h-0.5 w-5 shrink-0 bg-glucose" aria-hidden /> valeur habituelle (médiane)
+      <figcaption className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-ink-2">
+        <span className="flex items-center gap-1.5">
+          <span className="h-1 w-5 shrink-0 rounded-full bg-[linear-gradient(90deg,#34d399,#fbbf24,#f87171)]" aria-hidden /> valeur habituelle
         </span>
-        <span className="flex items-center gap-2">
-          <span className="size-3.5 shrink-0 rounded-sm bg-glucose opacity-40" aria-hidden /> la moitié des mesures
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="size-3.5 shrink-0 rounded-sm bg-glucose opacity-15" aria-hidden /> presque toutes les mesures (9 sur 10)
-        </span>
-        <span className="flex items-center gap-2">
-          <span className="size-3.5 shrink-0 rounded-sm bg-sage-2 ring-1 ring-line" aria-hidden /> plage cible
+        <span className="flex items-center gap-1.5">
+          <span className="size-3 shrink-0 rounded-sm bg-glucose opacity-30" aria-hidden /> écart habituel
         </span>
       </figcaption>
     </figure>
