@@ -48,6 +48,7 @@ await step('envoi automatique (Raccourci iPhone) : clé, envoi des pas, doublon 
  const send=(body)=>fetch(B+'/api/v1/pas',{method:'POST',headers:{'Content-Type':'application/json',Authorization:key},body:JSON.stringify(body)});
  let r=await send({pas:'7 321 pas'});let j=await r.json();if(!j.ok||j.pas!==7321||j.date!==iso(0))throw Error(JSON.stringify(j));
  r=await send({pas:8450.4});j=await r.json();if(j.pas!==8450)throw Error(JSON.stringify(j));
+ r=await send({pas:''});j=await r.json();if(!j.ok||j.pas!==8450)throw Error('champ vide : '+JSON.stringify(j));
  r=await send({pas:0});j=await r.json();if(!j.ok||j.pas!==8450||!j.info)throw Error('un envoi plus petit ne doit pas écraser : '+JSON.stringify(j));
  r=await send({pas:5000,date:iso(-1)});if(!(await r.json()).ok)throw Error('veille');
  r=await send({pas:5000,date:iso(2)});if(r.status!==400)throw Error('date future acceptée');

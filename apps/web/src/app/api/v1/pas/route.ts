@@ -35,7 +35,9 @@ export async function POST(request: Request) {
     return json({ ok: false, error: 'Corps JSON attendu : { "pas": 8450 }.' }, 400);
   }
   const rawSteps = body?.pas ?? body?.steps;
-  const steps = parseSteps(rawSteps);
+  // Champ présent mais vide : aucun pas encore enregistré aujourd'hui pour cette source (montre pas encore portée…) → 0.
+  // Sans risque : un envoi plus petit ne remplace jamais un total déjà enregistré.
+  const steps = typeof rawSteps === 'string' && rawSteps.trim() === '' ? 0 : parseSteps(rawSteps);
   // Ce qui a été reçu (tronqué) : aide à corriger le raccourci, renvoyé uniquement à l'expéditeur.
   const seen = `Reçu : « ${String(rawSteps ?? '(rien)').replace(/\s+/g, ' ').slice(0, 80)} ».`;
   if (steps === null)
