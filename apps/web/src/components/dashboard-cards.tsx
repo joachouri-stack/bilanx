@@ -801,6 +801,8 @@ function WeekBars({ week, goal }: { week: { date: string; steps: number | null }
  */
 export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: boolean; isDemo: boolean }) {
   const { week, days, month, today } = gym;
+  // Jours où une séance est encore possible cette semaine : aujourd'hui (s'il n'est pas coché) et les jours à venir.
+  const daysLeft = days.filter((d) => d.date > today || (d.date === today && !d.done)).length;
   const visits = new Set(gym.visits);
   return (
     <Card accent="sage" className="relative transition-transform hover:-translate-y-0.5">
@@ -828,10 +830,12 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
           <span className="ml-2 text-[15px] text-ink-2">séances</span>
         </p>
         <span
-          className={`mb-1 inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-semibold ${week.reached ? 'bg-sage-2 text-go' : 'bg-amber-2 text-amber'}`}
+          className={`mb-1 inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-semibold ${
+            week.reached ? 'bg-sage-2 text-go' : week.remaining > daysLeft ? 'bg-red-2 text-red' : 'bg-amber-2 text-amber'
+          }`}
         >
           {week.reached && <Icon name="check" className="size-3.5" strokeWidth={2.6} />}
-          {gymRemainingLabel(week)}
+          {gymRemainingLabel(week, daysLeft)}
         </span>
       </div>
       <div className="mt-3 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${week.goal}, minmax(0, 1fr))` }} aria-hidden>

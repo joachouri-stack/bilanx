@@ -16,7 +16,12 @@ export const gymMonthName = (year: number, month: number, withYear = true) =>
 export const gymPlural = (n: number, one: string, many = `${one}s`) => `${formatNumberFr(n)} ${n > 1 ? many : one}`;
 
 /** « Encore 2 séances » / « Objectif atteint ». */
-export const gymRemainingLabel = (w: GymWeekStatus) => (w.reached ? 'Objectif atteint' : `Encore ${gymPlural(w.remaining, 'séance')}`);
+/**
+ * Statut de la semaine. `daysLeft` : jours où une séance est encore possible (aujourd'hui s'il n'est pas coché, et jours à venir).
+ * Si les séances manquantes ne tiennent plus dans la semaine : « Objectif manqué » (et non « Encore 2 séances » un dimanche soir).
+ */
+export const gymRemainingLabel = (w: GymWeekStatus, daysLeft = 7) =>
+  w.reached ? 'Objectif atteint' : w.remaining > daysLeft ? 'Objectif manqué' : `Encore ${gymPlural(w.remaining, 'séance')}`;
 
 /** Phrase d'une semaine pour les lecteurs d'écran : « Semaine du 2 novembre : 2 séances sur 3, en cours ». */
 export function gymWeekSentence(w: GymWeekStatus): string {
