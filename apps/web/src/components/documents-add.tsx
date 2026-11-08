@@ -67,12 +67,10 @@ export function DocumentsAdd({
         {label}
       </Button>
       <Sheet open={open} onClose={close} title={label} id="feuille-ajout-document">
-        <p className="mb-4 text-sm text-ink-2">Prenez une photo de chaque page, ou choisissez un PDF ou une image.</p>
         <UploadForm today={today} defaultKind={defaultKind} defaultExamType={defaultExamType} defaultSpecialty={defaultSpecialty} defaultFolder={defaultFolder} />
       </Sheet>
       <Card id="ajouter" className="hidden scroll-mt-4 lg:block">
         <CardHeader title={label} />
-        <p className="-mt-1 mb-4 text-sm text-ink-2">Prenez une photo de chaque page, ou choisissez un PDF ou une image.</p>
         {!open && <UploadForm today={today} defaultKind={defaultKind} defaultExamType={defaultExamType} defaultSpecialty={defaultSpecialty} defaultFolder={defaultFolder} />}
       </Card>
     </div>
