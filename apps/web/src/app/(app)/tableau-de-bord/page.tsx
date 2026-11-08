@@ -70,8 +70,12 @@ export default async function DashboardPage() {
     }
     heroItems.push({ icon: 'flask', label: 'HbA1c', value: f.value, unit: f.unit, sub, subTone, href: '/analyses/hba1c' });
   }
-  // Glycémie : moyenne du capteur sur 7 jours s'il y en a un (référence, mesures continues) ; sinon celle du lecteur.
-  const gMean = data.sensor?.mean7 ?? data.meter?.mean7 ?? null;
+  // Glycémie : moyenne d'aujourd'hui (capteur, sinon mesures au doigt du jour) — elle bouge au fil de la journée ;
+  // à défaut, moyenne sur 7 jours.
+  const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: DEMO_TIMEZONE }).format(now);
+  const meterToday = data.meter?.week.find((d) => d.date === todayKey)?.readings ?? [];
+  const todayMean = data.sensor?.today.mean ?? (meterToday.length ? meterToday.reduce((a, r) => a + r.mgdl, 0) / meterToday.length : null);
+  const gMean = todayMean ?? data.sensor?.mean7 ?? data.meter?.mean7 ?? null;
   if (gMean != null) {
     // Vert : dans la plage 70–180 ; orange : entre les deux (54–69 ou 181–250) ; rouge : hors plage (< 54 ou > 250).
     const dot = gMean >= 70 && gMean <= 180 ? 'ok' : gMean >= 54 && gMean <= 250 ? 'mid' : 'out';
@@ -79,13 +83,13 @@ export default async function DashboardPage() {
       icon: 'drop',
       label: 'Glycémie',
       value: formatGlucose(gMean, UNIT),
-      sub: `${UNIT} · 7 j`,
+      sub: `${UNIT} · ${todayMean !== null ? 'auj.' : '7 j'}`,
       dot,
       dotLabel:
         dot === 'ok'
-          ? 'Moyenne dans la plage'
+          ? `Moyenne ${todayMean !== null ? 'du jour' : 'sur 7 jours'} dans la plage`
           : `Moyenne ${dot === 'mid' ? 'un peu ' : ''}${gMean > 180 ? 'au-dessus' : 'en dessous'} de la plage`,
-      href: '/glycemie?periode=7',
+      href: todayMean !== null ? '/glycemie' : '/glycemie?periode=7',
     });
   }
   const nextA = data.appointments?.upcoming[0];
