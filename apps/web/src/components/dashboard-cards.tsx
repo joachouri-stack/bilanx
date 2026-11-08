@@ -891,7 +891,9 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
               ? 'border-2 border-go bg-surface text-go shadow-sm'
               : future
                 ? 'border-2 border-dashed border-line opacity-60'
-                : `border-2 bg-surface ${isToday ? 'border-petrol text-petrol' : 'border-line text-ink-3'}`
+                : isToday
+                  ? 'border-2 border-petrol bg-surface text-petrol'
+                  : 'border-2 border-red/60 bg-red-2 text-red'
           }`;
           const label = `${gymDayLong(d.date)}${isToday ? ' (aujourd’hui)' : ''}`;
           return (
@@ -909,7 +911,8 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
                     aria-label={`${label} : ${d.done ? 'séance notée, appuyer pour la retirer' : 'appuyer pour noter une séance'}`}
                   >
                     {/* Fait : une croix verte ; sinon un « + » discret pour montrer qu'on peut cocher. */}
-                    {d.done ? <Icon name="close" className="size-6" strokeWidth={3} /> : <Icon name="plus" className="size-4 opacity-60" strokeWidth={2.2} />}
+                    {/* Fait : croix verte ; jour passé sans séance : croix rouge ; aujourd'hui : « + » pour cocher. */}
+                    {d.done || !isToday ? <Icon name="close" className="size-6" strokeWidth={3} /> : <Icon name="plus" className="size-4 opacity-60" strokeWidth={2.2} />}
                   </GymSubmit>
                 </form>
               ) : (
@@ -969,11 +972,11 @@ function GymMiniWeek({ days, bar, today, visits }: { days: (string | null)[]; ba
           {d && (
             <span
               className={`grid size-5 place-items-center rounded-[6px] ${
-                visits.has(d) ? 'border-2 border-go text-go' : d > today ? 'bg-surface-2 opacity-60' : 'border border-ink-3/40'
+                visits.has(d) ? 'border-2 border-go text-go' : d > today ? 'bg-surface-2 opacity-60' : d === today ? 'border border-ink-3/40' : 'bg-red-2 text-red'
               } ${d === today ? 'ring-2 ring-petrol ring-offset-1 ring-offset-surface' : ''}`}
             >
               {/* Séance faite : une croix dans la case, comme cochée à la main. */}
-              {visits.has(d) && <Icon name="close" className="size-3.5" strokeWidth={3.4} />}
+              {(visits.has(d) || d < today) && <Icon name="close" className="size-3.5" strokeWidth={3.4} />}
             </span>
           )}
         </span>
