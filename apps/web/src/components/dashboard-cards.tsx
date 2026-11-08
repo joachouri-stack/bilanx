@@ -29,7 +29,6 @@ import type { IconName } from '@/components/icon';
 import { ButtonLink, Card, CardHeader, Chip, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import { DashboardSparkline } from '@/components/dashboard-sparkline';
-import { ProgressRing } from '@/components/progress-ring';
 
 type HbA1cUnit = '%' | 'mmol/mol';
 
@@ -860,26 +859,33 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
         }
       />
 
-      {/* Semaine : anneau de progression vers l'objectif, statut, série. */}
-      <div className="flex items-center gap-4">
-        <ProgressRing value={week.count / week.goal} size={96} stroke={10} colors={week.reached ? ['#34d399', '#22d3ee'] : ['#fbbf24', '#fb7185']}>
-          <p className="tabular text-2xl font-bold leading-none">
-            {week.count}
-            <span className="text-base font-semibold text-ink-3">/{week.goal}</span>
-          </p>
-        </ProgressRing>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm text-ink-2">Cette semaine</p>
-          <p className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-semibold ${week.reached ? 'bg-sage-2 text-go' : 'bg-amber-2 text-amber'}`}>
-            {week.reached && <Icon name="check" className="size-3.5" strokeWidth={2.6} />}
-            {gymRemainingLabel(week)}
-          </p>
-          {gym.streak > 0 && <p className="mt-1.5 text-[13px] text-ink-2">🔥 {gymPlural(gym.streak, 'semaine')} d’affilée</p>}
-        </div>
+      {/* Semaine : chiffre, statut et jauge en 3 segments (un par séance attendue). */}
+      <div className="flex items-end justify-between gap-3">
+        <p className="leading-none">
+          <span className="tabular text-[44px] font-bold tracking-tight">{week.count}</span>
+          <span className="tabular text-xl font-semibold text-ink-3"> / {week.goal}</span>
+          <span className="ml-2 text-[15px] text-ink-2">séances</span>
+        </p>
+        <span
+          className={`mb-1 inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-semibold ${week.reached ? 'bg-sage-2 text-go' : 'bg-amber-2 text-amber'}`}
+        >
+          {week.reached && <Icon name="check" className="size-3.5" strokeWidth={2.6} />}
+          {gymRemainingLabel(week)}
+        </span>
       </div>
+      <div className="mt-3 grid gap-1.5" style={{ gridTemplateColumns: `repeat(${week.goal}, minmax(0, 1fr))` }} aria-hidden>
+        {Array.from({ length: week.goal }, (_, i) => (
+          <span key={i} className="h-2.5 overflow-hidden rounded-full bg-surface-2">
+            <span
+              className={`block h-full rounded-full bg-[linear-gradient(90deg,#34d399,#22d3ee)] shadow-[0_0_10px_rgba(52,211,153,0.5)] transition-all duration-700 ${i < week.count ? 'w-full' : 'w-0'}`}
+            />
+          </span>
+        ))}
+      </div>
+      {gym.streak > 0 && <p className="mt-2 text-[13px] text-ink-2">🔥 {gymPlural(gym.streak, 'semaine')} d’affilée avec l’objectif</p>}
 
       {/* Jours de la semaine : un appui coche ou décoche le jour directement (au-dessus du lien de la carte). */}
-      <ol className="relative z-10 mt-4 grid grid-cols-7 gap-1" aria-label="Séances de la semaine en cours">
+      <ol className="relative z-10 mt-5 grid grid-cols-7 gap-1" aria-label="Séances de la semaine en cours">
         {days.map((d, i) => {
           const isToday = d.date === today;
           const future = d.date > today;
@@ -888,16 +894,16 @@ export function GymCard({ gym, canWrite, isDemo }: { gym: GymSummary; canWrite: 
             d.done
               ? 'bg-[linear-gradient(135deg,#34d399,#10b981)] text-white shadow-[0_4px_12px_rgba(16,185,129,0.35)]'
               : future
-                ? 'bg-surface-2 text-ink-3 opacity-50'
+                ? 'text-ink-3 ring-1 ring-inset ring-line'
                 : isToday
-                  ? 'border-2 border-dashed border-petrol text-petrol'
-                  : 'bg-red-2 text-red'
+                  ? 'bg-petrol-2 text-petrol ring-2 ring-petrol'
+                  : 'text-red ring-1 ring-inset ring-red/35'
           }`;
           const label = `${gymDayLong(d.date)}${isToday ? ' (aujourd’hui)' : ''}`;
           const mark = d.done ? (
             <Icon name="close" className="size-5" strokeWidth={3} />
           ) : missed ? (
-            <Icon name="close" className="size-4" strokeWidth={2.6} />
+            <Icon name="close" className="size-3.5" strokeWidth={2.4} />
           ) : isToday ? (
             <Icon name="plus" className="size-5" strokeWidth={2.4} />
           ) : null;
@@ -945,24 +951,23 @@ function GymMonthStrip({ month }: { month: GymSummary['month'] }) {
   const name = gymMonthName(month.year, month.month, false);
   const weeks = month.weeks.filter((w) => !w.future);
   return (
-    <div className="mt-4 border-t border-line pt-3" role="img" aria-label={`${name} : ${gymPlural(month.visits, 'séance')}. ${month.weeks.map(gymWeekSentence).join('. ')}.`}>
-      <div className="flex items-baseline justify-between gap-3 text-sm" aria-hidden>
-        <span className="font-semibold first-letter:uppercase">{name}</span>
-        <span className="text-ink-2">{gymPlural(month.visits, 'séance')}</span>
-      </div>
-      <div className="mt-2 flex gap-1.5" aria-hidden>
-        {weeks.map((w, i) => (
+    <div
+      className="mt-4 flex items-center justify-between gap-3 border-t border-line pt-3 text-sm"
+      role="img"
+      aria-label={`${name} : ${gymPlural(month.visits, 'séance')}. ${month.weeks.map(gymWeekSentence).join('. ')}.`}
+    >
+      <span aria-hidden className="text-ink-2">
+        <span className="font-semibold text-ink">{name.charAt(0).toUpperCase() + name.slice(1)}</span> · {gymPlural(month.visits, 'séance')}
+      </span>
+      <span aria-hidden className="flex items-center gap-1.5">
+        {weeks.map((w) => (
           <span
             key={w.start}
-            className={`tabular flex flex-1 flex-col items-center rounded-xl py-1.5 text-[12px] font-semibold ${
-              w.reached ? 'bg-sage-2 text-go' : w.current ? 'bg-surface-2 text-ink-2 ring-1 ring-petrol' : 'bg-red-2 text-red'
-            }`}
-          >
-            <span className="text-[11px] font-semibold">S{i + 1}</span>
-            {w.count}/{w.goal}
-          </span>
+            title={`${w.count}/${w.goal}`}
+            className={`size-3 rounded-full ${w.reached ? 'bg-go' : w.current ? 'bg-surface-2 ring-2 ring-petrol' : 'bg-red/70'}`}
+          />
         ))}
-      </div>
+      </span>
     </div>
   );
 }
