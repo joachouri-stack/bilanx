@@ -122,7 +122,7 @@ export default async function DocumentsPage({
         <div className="flex min-w-0 flex-col gap-3 lg:order-1">
           <nav aria-label="Catégories de documents" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
             <ul className="flex snap-x gap-2 pb-1">
-              {subFilter && (
+              {subFilter && !exam && (
                 <li>
                   <Link href={exam ? `/documents?cat=imagerie&examen=${exam}` : folder ? `/documents?dossier=${folder.code}` : `/documents?specialite=${spec!.code}`} aria-current="page" className={chip(true)}>
                     <DocIcon name={subFilter.icon} className="size-[18px] shrink-0" />
@@ -139,8 +139,8 @@ export default async function DocumentsPage({
                 <li key={c.key}>
                   <Link
                     href={`/documents?cat=${c.key}`}
-                    aria-current={cat?.key === c.key && !subFilter ? 'page' : undefined}
-                    className={chip(cat?.key === c.key && !subFilter, c.key)}
+                    aria-current={cat?.key === c.key && (!subFilter || !!exam) ? 'page' : undefined}
+                    className={chip(cat?.key === c.key && (!subFilter || !!exam), c.key)}
                   >
                     <DocIcon name={c.svg} className="size-[18px] shrink-0" />
                     {c.label} <span className="tabular opacity-80">{count(c.kinds)}</span>
@@ -149,6 +149,32 @@ export default async function DocumentsPage({
               ))}
             </ul>
           </nav>
+
+          {/* Imagerie : un seul dossier, filtré par type d'examen (IRM, scanner, radio, échographie). */}
+          {cat?.key === 'imagerie' && (
+            <nav aria-label="Type d’examen" className="-mx-4 -mt-1 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+              <ul className="flex gap-2 pb-1">
+                {[['', 'Tous les examens'] as const, ...Object.entries(EXAM_LABELS)].map(([k, l]) => {
+                  const n = all.filter((d) => d.kind === 'imaging' && (!k || d.exam_type === k)).length;
+                  if (k && !n && exam !== k) return null;
+                  const current = (exam ?? '') === k;
+                  return (
+                    <li key={k || 'tous'}>
+                      <Link
+                        href={k ? `/documents?cat=imagerie&examen=${k}` : '/documents?cat=imagerie'}
+                        aria-current={current ? 'page' : undefined}
+                        className={`flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-sm font-medium transition-colors ${
+                          current ? 'bg-glucose-2 text-glucose ring-1 ring-glucose' : 'bg-surface-2 text-ink-2 hover:text-ink'
+                        }`}
+                      >
+                        {l} <span className="tabular opacity-80">{n}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          )}
 
           {list.length === 0 ? (
             <EmptyState

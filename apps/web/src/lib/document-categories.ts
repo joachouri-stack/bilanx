@@ -107,7 +107,6 @@ export interface DocShortcut {
 }
 
 const isKind = (key: string) => (d: DocLike) => categoryByKey(key)!.kinds.includes(d.kind);
-const isExam = (exam: string) => (d: DocLike) => d.kind === 'imaging' && d.exam_type === exam;
 const isSpecialty = (code: string) => (d: DocLike) => d.specialty === code;
 const isFolder = (code: string) => (d: DocLike) => d.folder === code;
 
@@ -115,15 +114,13 @@ export const DOC_SHORTCUTS: DocShortcut[] = [
   { key: 'ordonnances', label: 'Ordonnances', href: '/ordonnances', icon: 'prescription', tone: 'amber', match: isKind('ordonnances') },
   { key: 'analyses', label: 'Bilans sanguins', href: '/documents?cat=analyses', icon: 'flask', tone: 'petrol', match: isKind('analyses') },
   { key: 'comptes-rendus', label: 'Comptes rendus', href: '/documents?cat=comptes-rendus', icon: 'document', tone: 'sage', match: isKind('comptes-rendus') },
-  { key: 'irm', label: 'IRM', href: '/documents?cat=imagerie&examen=irm', icon: 'imaging', tone: 'glucose', match: isExam('irm') },
+  { key: 'imagerie', label: 'Imagerie', href: '/documents?cat=imagerie', icon: 'imaging', tone: 'glucose', match: isKind('imagerie') },
   { key: 'urologie', label: 'Urologue', href: '/documents?specialite=urologie', icon: 'kidney', tone: 'neutral', match: isSpecialty('urologie') },
   { key: 'ophtalmologie', label: 'Ophtalmo', href: '/documents?specialite=ophtalmologie', icon: 'eye', tone: 'neutral', match: isSpecialty('ophtalmologie') },
   { key: 'orl', label: 'ORL', href: '/documents?specialite=orl', icon: 'ear', tone: 'neutral', match: isSpecialty('orl') },
   { key: 'vitamines', label: 'Vitamines', href: '/documents?dossier=vitamines', icon: 'capsule', tone: 'sage', match: isFolder('vitamines') },
-  { key: 'radio', label: 'Radio', href: '/documents?cat=imagerie&examen=radio', icon: 'bone', tone: 'glucose', match: isExam('radio') },
   { key: 'mutuelle', label: 'Mutuelle', href: '/documents?dossier=mutuelle', icon: 'shield', tone: 'petrol', match: isFolder('mutuelle') },
   { key: 'attestation', label: 'Attestation', href: '/documents?dossier=attestation', icon: 'certificate', tone: 'neutral', match: isFolder('attestation') },
-  { key: 'scanner', label: 'Scanner', href: '/documents?cat=imagerie&examen=scanner', icon: 'scanner', tone: 'glucose', match: isExam('scanner') },
 ];
 
 export function categoryOf(kind: string): DocCategory {

@@ -1131,7 +1131,7 @@ export function DocumentsCard({ docs }: { docs: DashboardDocs }) {
                 <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${SHORTCUT_TONES[s.tone]}`} aria-hidden>
                   <DocIcon name={s.icon} className="size-5" />
                 </span>
-                <span className="min-w-0 flex-1 text-[14px] font-semibold leading-tight [overflow-wrap:anywhere] [hyphens:auto]" lang="fr">{s.label}</span>
+                <span className="min-w-0 flex-1 text-[14px] font-semibold leading-tight">{s.label}</span>
                 {n > 0 ? (
                   <span data-count className="tabular shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-[13px] font-semibold text-ink-2">
                     {n}
