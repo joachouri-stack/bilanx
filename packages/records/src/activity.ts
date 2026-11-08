@@ -189,7 +189,7 @@ export function createActivityService(cfg: ActivityConfig) {
       const [cur] = await P.withProfileData(actor, profileId, 'activity', 'read', (tx) =>
         tx<{ steps: number }[]>`SELECT steps FROM activity_daily WHERE profile_id = ${profileId} AND day = ${formatLocalDate(day)}::date`,
       );
-      if (cur && cur.steps >= steps) return { ok: true, steps: cur.steps, kept: true };
+      if (cur && cur.steps >= steps) return { ok: true, steps: cur.steps, kept: cur.steps > steps };
     }
     const r = await writeDay(actor, profileId, dayIso, steps, { type: 'ios_shortcut', label: 'Raccourci iPhone (Apple Santé)', status: 'active' });
     return r.ok ? { ok: true, steps, kept: false } : r;
