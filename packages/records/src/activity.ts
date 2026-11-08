@@ -181,8 +181,18 @@ export function createActivityService(cfg: ActivityConfig) {
    * Total d'un jour envoyé automatiquement par le Raccourci iPhone (lu dans Apple Santé, déjà dédoublonné iPhone/Montre).
    * Remplace la valeur de ce jour ; renvoyer le même jour plusieurs fois ne crée pas de doublon.
    */
-  async function syncDay(actor: Actor, profileId: string, dayIso: string, steps: number): Promise<{ ok: true } | { ok: false; error: string }> {
-    return writeDay(actor, profileId, dayIso, steps, { type: 'ios_shortcut', label: 'Raccourci iPhone (Apple Santé)', status: 'active' });
+  async function syncDay(actor: Actor, profileId: string, dayIso: string, steps: number): Promise<{ ok: true; steps: number; kept: boolean } | { ok: false; error: string }> {
+    // Le total d'un jour ne fait que monter : un envoi plus petit (iPhone verrouillé → Santé illisible → 0,
+    // ou envoi en cours de journée après un envoi plus complet) ne remplace jamais une valeur plus haute.
+    const day = parseLocalDate(dayIso);
+    if (day && Number.isInteger(steps)) {
+      const [cur] = await P.withProfileData(actor, profileId, 'activity', 'read', (tx) =>
+        tx<{ steps: number }[]>`SELECT steps FROM activity_daily WHERE profile_id = ${profileId} AND day = ${formatLocalDate(day)}::date`,
+      );
+      if (cur && cur.steps >= steps) return { ok: true, steps: cur.steps, kept: true };
+    }
+    const r = await writeDay(actor, profileId, dayIso, steps, { type: 'ios_shortcut', label: 'Raccourci iPhone (Apple Santé)', status: 'active' });
+    return r.ok ? { ok: true, steps, kept: false } : r;
   }
 
   async function writeDay(

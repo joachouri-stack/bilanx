@@ -46,9 +46,10 @@ export async function POST(request: Request) {
   try {
     const r = await activity().syncDay({ accountId: who.accountId, email: '' }, who.profileId, day, steps);
     if (!r.ok) return json({ ok: false, error: `${r.error} ${seen}` }, 400);
+    // Valeur conservée : celle déjà enregistrée si elle était plus haute.
+    return json({ ok: true, date: day, pas: r.steps, ...(r.kept ? { info: `Valeur déjà enregistrée plus haute (${r.steps} pas) : conservée.` } : {}) });
   } catch (e) {
     if (e instanceof ForbiddenError) return json({ ok: false, error: 'Ce compte n’a plus le droit de modifier l’activité de ce profil.' }, 403);
     throw e;
   }
-  return json({ ok: true, date: day, pas: steps });
 }

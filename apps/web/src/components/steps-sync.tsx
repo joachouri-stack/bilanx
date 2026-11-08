@@ -115,7 +115,8 @@ export function StepsSync({ endpoint, tokens }: { endpoint: string; tokens: Step
             Ouvrez l’app <strong>Raccourcis</strong>, onglet <strong>Automatisation</strong>, puis <strong>＋</strong> (ou <strong>Nouvelle automatisation</strong>).
           </li>
           <li>
-            Choisissez <strong>Heure de la journée</strong> : <strong>22:00</strong>, <strong>Quotidiennement</strong>, et cochez <strong>Exécuter immédiatement</strong>.
+            Choisissez <strong>App</strong>, sélectionnez une app que vous ouvrez souvent (Messages, WhatsApp…), cochez <strong>Est ouverte</strong> et{' '}
+            <strong>Exécuter immédiatement</strong>.
             Touchez <strong>Suivant</strong>, puis <strong>Nouveau raccourci vide</strong>. Si l’iPhone propose « Décrire un raccourci », touchez plutôt{' '}
             <strong>Modifier</strong> (en haut à droite).
           </li>
@@ -169,8 +170,9 @@ export function StepsSync({ endpoint, tokens }: { endpoint: string; tokens: Step
           </li>
         </ol>
         <p className="px-3 pb-4 text-[13px] text-ink-3">
-          Chaque envoi remplace le total du jour : l’envoyer plusieurs fois ne crée pas de doublon. Si l’iPhone est verrouillé à 22 h, iOS peut bloquer la lecture
-          de Santé : choisissez alors plutôt le déclencheur <strong>App</strong> › <strong>Est ouverte</strong> avec une app que vous ouvrez chaque soir.
+          L’envoyer plusieurs fois par jour ne crée pas de doublon, et un total plus petit (iPhone verrouillé, Santé illisible) ne remplace jamais un total plus
+          haut. iOS bloque la lecture de Santé quand l’iPhone est verrouillé : le déclencheur <strong>App › Est ouverte</strong> (une app que vous ouvrez souvent)
+          est le plus fiable.
         </p>
       </details>
     </div>
