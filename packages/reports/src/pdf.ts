@@ -5,7 +5,7 @@
  * aucune interprétation ni recommandation.
  */
 import PDFDocument from 'pdfkit';
-import { formatGlucose, formatNumberFr, GLUCOSE_CONTEXTS, hba1cPercentToMmolMol, referenceStatus, type GlucoseContext } from '@bilanx/domain';
+import { formatGlucose, formatLabResultFr, formatNumberFr, GLUCOSE_CONTEXTS, hba1cPercentToMmolMol, referenceStatus, type GlucoseContext } from '@bilanx/domain';
 import { SECTION_LABELS, type ReportData, type ReportLab, type Source } from './types';
 
 const C = {
@@ -324,7 +324,7 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
     h2(SECTION_LABELS.hba1c);
     if (!d.hba1c.length) missing('Aucune HbA1c de laboratoire enregistrée.');
     else {
-      const h = [...d.hba1c].sort((a, b) => a.sampledAt.getTime() - b.sampledAt.getTime());
+      const h = [...d.hba1c].filter((r): r is ReportLab & { value: number } => r.value !== null).sort((a, b) => a.sampledAt.getTime() - b.sampledAt.getTime());
       if (h.length >= 2) {
         ensure(130);
         const top = doc.y + 4;
@@ -372,18 +372,18 @@ export async function buildReportPdf(d: ReportData): Promise<Buffer> {
     if (!d.lab.length) missing('Aucun autre résultat d’analyse sur la période.');
     else {
       const rows = [...d.lab].sort((a, b) => b.sampledAt.getTime() - a.sampledAt.getTime());
-      const st = rows.map((r) => referenceStatus(r.value, { low: r.refLow, high: r.refHigh }));
+      const st = rows.map((r) => (r.value === null ? null : referenceStatus(r.value, { low: r.refLow, high: r.refHigh })));
       table(
         [{ label: 'Analyse', w: 2 }, { label: 'Résultat', w: 1.6 }, { label: 'Référence labo', w: 1.4 }, { label: 'Position', w: 1.7 }, { label: 'Prélèvement', w: 1.2 }, { label: 'Source', w: 1.6 }],
         rows.map((r, i) => [
           r.analyte,
-          `${r.comparator ? `${r.comparator} ` : ''}${formatNumberFr(r.value, 3)} ${r.unit}${r.source === 'manual' ? ' (S)' : ''}`,
+          `${formatLabResultFr(r, 3)}${r.source === 'manual' ? ' (S)' : ''}`,
           refText(r),
-          st[i] === 'below' ? 'sous l’intervalle' : st[i] === 'above' ? 'au-dessus' : st[i] === 'within' ? 'dans l’intervalle' : 'réf. absente',
+          st[i] === 'below' ? 'sous l’intervalle' : st[i] === 'above' ? 'au-dessus' : st[i] === 'within' ? 'dans l’intervalle' : r.qualitative === 'positive' ? 'positif' : st[i] === null ? '—' : 'réf. absente',
           fmtD(r.sampledAt),
           SOURCE_FR[r.source],
         ]),
-        { emphasize: (i) => (st[i] === 'below' || st[i] === 'above' ? C.amber : null) },
+        { emphasize: (i) => (st[i] === 'below' || st[i] === 'above' || rows[i]!.qualitative === 'positive' ? C.amber : null) },
       );
       note('Position par rapport à l’intervalle imprimé par chaque laboratoire ; à interpréter par le professionnel de santé.');
     }

@@ -55,3 +55,28 @@ describe('saisie manuelle d’un résultat', () => {
     expect(unitsFor(getAnalyte('vitamin_d_25oh')!)).toEqual(['ng/mL', 'nmol/L']);
   });
 });
+
+describe('sérologies : résultat positif / négatif', () => {
+  const sero = { analyteCode: 'hcv_ab', value: '', unit: '', sampledOn: '2026-09-03' };
+  it('accepte « Négatif » seul, sans valeur ni unité', () => {
+    const r = validateManualLab({ ...sero, qualitative: 'negative' }, TODAY);
+    expect(r.ok && r.value).toMatchObject({ value: null, unit: '', qualitative: 'negative', valueCanonical: null });
+  });
+  it('accepte la conclusion avec l’index chiffré', () => {
+    const r = validateManualLab({ ...sero, value: '0,12', unit: 'index', qualitative: 'positive' }, TODAY);
+    expect(r.ok && r.value).toMatchObject({ value: 0.12, unit: 'index', qualitative: 'positive' });
+  });
+  it('exige une conclusion ou une valeur', () => {
+    const r = validateManualLab(sero, TODAY);
+    expect(!r.ok && r.errors.value).toContain('Positif / Négatif');
+  });
+  it('refuse une conclusion inconnue', () => {
+    const r = validateManualLab({ ...sero, qualitative: 'peut-être' }, TODAY);
+    expect(!r.ok && r.errors.qualitative).toBeTruthy();
+  });
+  it('ignore la conclusion pour une analyse chiffrée (ferritine)', () => {
+    const r = validateManualLab({ ...base, qualitative: 'positive' }, TODAY);
+    expect(r.ok && r.value.qualitative).toBeNull();
+    expect(validateManualLab({ ...base, value: '', qualitative: 'negative' }, TODAY).ok).toBe(false);
+  });
+});

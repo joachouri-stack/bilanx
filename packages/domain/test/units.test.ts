@@ -109,3 +109,12 @@ describe('virus & sérologies', () => {
     expect(toCanonical(getAnalyte('anti_hbs')!, 120, 'UI/L')).toBe(120);
   });
 });
+
+describe('affichage d’un résultat', () => {
+  it('met la conclusion en premier', async () => {
+    const { formatLabResultFr } = await import('../src/lab-history');
+    expect(formatLabResultFr({ value: null, unit: '', qualitative: 'negative' })).toBe('Négatif');
+    expect(formatLabResultFr({ value: 0.12, unit: 'index', qualitative: 'positive' })).toBe('Positif (0,12 index)');
+    expect(formatLabResultFr({ value: 5, unit: 'mg/L', comparator: '<' })).toBe('< 5 mg/L');
+  });
+});

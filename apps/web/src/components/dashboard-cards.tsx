@@ -24,7 +24,7 @@ import { toggleGymAction } from '@/lib/server/actions';
 import { GymSubmit } from '@/components/gym-forms';
 import { GYM_WEEKDAYS_SHORT, gymDayLong, gymMonthName, gymPlural, gymRemainingLabel, gymWeekSentence } from '@/components/gym-shared';
 import { GLUCOSE_TARGETS, KEY_MOMENTS, frTime } from '@/lib/server/dashboard-data';
-import type { LabRow } from '@/lib/server/data';
+import type { NumericLabRow } from '@/lib/server/data';
 import type { IconName } from '@/components/icon';
 import { ButtonLink, Card, CardHeader, Chip, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
 import { Icon } from '@/components/icon';
@@ -958,7 +958,7 @@ function SoftGauge({ value, low, high, label }: { value: number; low: number | n
   );
 }
 
-export function WatchCard({ watch }: { watch: LabRow[] }) {
+export function WatchCard({ watch }: { watch: NumericLabRow[] }) {
   if (!watch.length)
     return (
       <Card>

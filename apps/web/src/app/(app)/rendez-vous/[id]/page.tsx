@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { formatNumberFr, getAnalyte, REMINDER_OPTIONS } from '@bilanx/domain';
+import { formatLabResultFr, formatNumberFr, getAnalyte, REMINDER_OPTIONS } from '@bilanx/domain';
 import { DEMO_TIMEZONE } from '@/lib/demo-data';
 import { appContext, moduleAllowed } from '@/lib/server/context';
 import { appointments, documents } from '@/lib/server/auth';
@@ -37,7 +37,7 @@ export default async function AppointmentPage({ params, searchParams }: { params
   const localTime = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, hour: '2-digit', minute: '2-digit' }).format(a.startsAt);
   const linkedDocs = new Set(a.links.map((l) => l.documentId).filter(Boolean));
   const linkedLabs = new Set(a.links.map((l) => l.labResultId).filter(Boolean));
-  const labLabel = (r: (typeof labs)[number]) => `${getAnalyte(r.analyteCode)?.nameFr ?? r.analyteCode} ${formatNumberFr(r.value)} ${r.unit} · ${fmtD.format(r.sampledAt)}`;
+  const labLabel = (r: (typeof labs)[number]) => `${getAnalyte(r.analyteCode)?.nameFr ?? r.analyteCode} ${formatLabResultFr(r)} · ${fmtD.format(r.sampledAt)}`;
 
   return (
     <div className="fade-in">

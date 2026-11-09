@@ -331,6 +331,7 @@ export async function addLabResultAction(_: FormState, fd: FormData): Promise<Fo
     refLow: str(fd, 'refLow'),
     refHigh: str(fd, 'refHigh'),
     note: str(fd, 'note'),
+    qualitative: str(fd, 'qualitative'),
   };
   let r;
   try {

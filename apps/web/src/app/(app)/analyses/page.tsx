@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ANALYTE_CATEGORY_LABELS, ANALYTES, formatNumberFr, getAnalyte, type AnalyteCategory } from '@bilanx/domain';
+import { ANALYTE_CATEGORY_LABELS, ANALYTES, LAB_QUALITATIVE_LABELS, formatNumberFr, getAnalyte, type AnalyteCategory } from '@bilanx/domain';
 import { DEMO_TIMEZONE } from '@/lib/demo-data';
 import { appContext, moduleAllowed } from '@/lib/server/context';
 import { labResults, type LabRow } from '@/lib/server/data';
 import { ModuleForbidden } from '@/components/module-forbidden';
-import { ReferenceBar, ReferenceChip } from '@/components/analyses-gauge';
+import { QualitativeChip, ReferenceBar, ReferenceChip } from '@/components/analyses-gauge';
 import { Icon } from '@/components/icon';
 import { ButtonLink, Card, EmptyState, Meta, PageHeader } from '@/components/ui';
 
@@ -68,17 +68,26 @@ export default async function AnalysesPage() {
                         >
                           <span className="flex items-baseline justify-between gap-3">
                             <span className="min-w-0 font-semibold">{a.nameFr}</span>
-                            <span className="shrink-0 whitespace-nowrap">
-                              <strong className="tabular text-xl">
-                                {r.comparator ? `${r.comparator} ` : ''}
-                                {formatNumberFr(r.value)}
-                              </strong>{' '}
-                              <span className="text-sm text-ink-3">{r.unit}</span>
-                            </span>
+                            {r.value !== null ? (
+                              <span className="shrink-0 whitespace-nowrap">
+                                <strong className="tabular text-xl">
+                                  {r.comparator ? `${r.comparator} ` : ''}
+                                  {formatNumberFr(r.value)}
+                                </strong>{' '}
+                                <span className="text-sm text-ink-3">{r.unit}</span>
+                              </span>
+                            ) : (
+                              r.qualitative && <strong className="shrink-0 text-xl">{LAB_QUALITATIVE_LABELS[r.qualitative]}</strong>
+                            )}
                           </span>
-                          <ReferenceBar value={r.value} refLow={r.refLow} refHigh={r.refHigh} label={a.nameFr} />
+                          {r.value !== null && <ReferenceBar value={r.value} refLow={r.refLow} refHigh={r.refHigh} label={a.nameFr} />}
                           <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                            <ReferenceChip value={r.value} refLow={r.refLow} refHigh={r.refHigh} />
+                            <span className="flex flex-wrap gap-1.5">
+                              {r.qualitative && r.value !== null && <QualitativeChip qualitative={r.qualitative} />}
+                              {r.value !== null && (!r.qualitative || r.refLow !== null || r.refHigh !== null) && (
+                                <ReferenceChip value={r.value} refLow={r.refLow} refHigh={r.refHigh} />
+                              )}
+                            </span>
                             <span className="text-[13px] text-ink-3">{fmt.format(r.sampledAt)}</span>
                           </span>
                         </Link>
@@ -90,7 +99,8 @@ export default async function AnalysesPage() {
             ))}
           </div>
           <Meta className="mt-3">
-            La bande verte montre les valeurs de référence de votre laboratoire. Le repère montre votre résultat. Parlez-en avec votre médecin.
+            La bande verte montre les valeurs de référence de votre laboratoire. Le repère montre votre résultat. Pour les virus, « Positif » peut
+            signifier une protection (vaccin, infection ancienne) comme une infection en cours. Parlez-en avec votre médecin.
           </Meta>
         </>
       )}

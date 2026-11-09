@@ -34,18 +34,19 @@ export function createLabService(cfg: LabServiceConfig) {
         const [dup] = await tx`
           SELECT 1 FROM lab_result
           WHERE profile_id = ${profileId} AND analyte_code = ${r.analyte.code} AND deleted_at IS NULL
-            AND (sampled_at AT TIME ZONE ${tz})::date = ${r.sampledOn}::date AND value = ${r.value} AND unit = ${r.unit}`;
+            AND (sampled_at AT TIME ZONE ${tz})::date = ${r.sampledOn}::date AND value IS NOT DISTINCT FROM ${r.value} AND unit = ${r.unit}
+            AND qualitative IS NOT DISTINCT FROM ${r.qualitative}`;
         if (dup)
           return {
             ok: false as const,
             duplicate: true as const,
-            message: `Un résultat identique (${r.analyte.nameFr}, même date, même valeur) est déjà enregistré. Confirmez s’il s’agit bien d’un second résultat.`,
+            message: `Un résultat identique (${r.analyte.nameFr}, même date, même résultat) est déjà enregistré. Confirmez s’il s’agit bien d’un second résultat.`,
           };
       }
       const [row] = await tx<{ id: string }[]>`
-        INSERT INTO lab_result (profile_id, analyte_code, value, unit, value_canonical, comparator, ref_low, ref_high,
+        INSERT INTO lab_result (profile_id, analyte_code, value, unit, value_canonical, comparator, qualitative, ref_low, ref_high,
                                 sampled_at, laboratory, source_type, confirmed_by, confirmed_at, note)
-        VALUES (${profileId}, ${r.analyte.code}, ${r.value}, ${r.unit}, ${r.valueCanonical}, ${r.comparator}, ${r.refLow}, ${r.refHigh},
+        VALUES (${profileId}, ${r.analyte.code}, ${r.value}, ${r.unit}, ${r.valueCanonical}, ${r.comparator}, ${r.qualitative}, ${r.refLow}, ${r.refHigh},
                 ${sampledAt}, ${r.laboratory}, 'manual', ${actor.accountId}, ${now()}, ${r.note})
         RETURNING id`;
       return { ok: true as const, id: row!.id, analyteCode: r.analyte.code };

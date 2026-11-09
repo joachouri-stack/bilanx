@@ -3,6 +3,7 @@
  * généré) ou profil réel (PostgreSQL, sous Row-Level Security, accès journalisé).
  */
 import type { GlucoseContext, GlucoseReading, LocalDate } from '@bilanx/domain';
+import { isLabQualitative, type LabQualitative } from '@bilanx/domain';
 import { addDays, dayBounds } from '@bilanx/domain';
 import { DEMO_LAB_RESULTS, DEMO_TIMEZONE, demoDay, demoSensorRange, type DemoEvent } from '@/lib/demo-data';
 import { glucose as glucoseRecords, insulin, journal, profiles } from './auth';
@@ -17,7 +18,11 @@ export interface LabRow {
   analyteCode: string;
   comparator: string | null;
   note: string | null;
-  value: number;
+  /** Null pour un résultat seulement qualitatif (sérologie « Négatif » sans index). */
+  value: number | null;
+  /** Conclusion du laboratoire pour les sérologies. */
+  qualitative: LabQualitative | null;
+  /** Chaîne vide quand il n'y a pas de valeur chiffrée. */
   unit: string;
   sampledAt: Date;
   refLow: number | null;
@@ -25,6 +30,10 @@ export interface LabRow {
   laboratory: string | null;
   source: 'document' | 'manual' | 'demo';
 }
+
+/** Résultat chiffré (exclut les sérologies rendues seulement « positif / négatif »). */
+export type NumericLabRow = LabRow & { value: number };
+export const isNumericLab = (r: LabRow): r is NumericLabRow => r.value !== null;
 
 export interface GlucoseDay {
   sensor: GlucoseReading[];
@@ -40,6 +49,7 @@ export async function labResults(ctx: AppContext, analyteCode?: string): Promise
       id: null,
       comparator: null,
       note: null,
+      qualitative: null,
       analyteCode: r.analyteCode,
       value: r.value,
       unit: r.unit,
@@ -52,8 +62,8 @@ export async function labResults(ctx: AppContext, analyteCode?: string): Promise
   }
   const profileId = ctx.active.access.profileId;
   const rows = await profiles().withProfileData(ctx.user, profileId, 'lab', 'read', (tx) =>
-    tx<{ id: string; analyte_code: string; value: string; unit: string; sampled_at: Date; ref_low: string | null; ref_high: string | null; laboratory: string | null; source_type: string; comparator: string | null; note: string | null }[]>`
-      SELECT id, analyte_code, value, unit, sampled_at, ref_low, ref_high, laboratory, source_type, comparator, note
+    tx<{ id: string; analyte_code: string; value: string | null; unit: string; sampled_at: Date; ref_low: string | null; ref_high: string | null; laboratory: string | null; source_type: string; comparator: string | null; note: string | null; qualitative: string | null }[]>`
+      SELECT id, analyte_code, value, unit, sampled_at, ref_low, ref_high, laboratory, source_type, comparator, note, qualitative
       FROM lab_result
       WHERE profile_id = ${profileId} AND deleted_at IS NULL ${analyteCode ? tx`AND analyte_code = ${analyteCode}` : tx``}
       ORDER BY sampled_at`,
@@ -63,7 +73,8 @@ export async function labResults(ctx: AppContext, analyteCode?: string): Promise
     comparator: r.comparator,
     note: r.note,
     analyteCode: r.analyte_code,
-    value: Number(r.value),
+    value: r.value === null ? null : Number(r.value),
+    qualitative: isLabQualitative(r.qualitative) ? r.qualitative : null,
     unit: r.unit,
     sampledAt: r.sampled_at,
     refLow: r.ref_low === null ? null : Number(r.ref_low),

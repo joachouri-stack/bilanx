@@ -2,11 +2,13 @@
  * Historique des résultats de laboratoire : uniquement les dates réelles de
  * prélèvement, jamais de valeurs interpolées ou « mensualisées ».
  */
-import { getAnalyte, toCanonical } from './analytes';
+import { getAnalyte, LAB_QUALITATIVE_LABELS, toCanonical, type LabQualitative } from './analytes';
+import { formatNumberFr } from './units';
 
 export interface LabResult {
   analyteCode: string;
-  value: number;
+  /** Null pour un résultat seulement qualitatif (« Négatif » sans valeur chiffrée). */
+  value: number | null;
   unit: string;
   sampledAt: Date;
   refLow?: number | null;
@@ -31,7 +33,8 @@ export interface Evolution<T extends LabResult = LabResult> {
 
 /** Évolution entre le dernier résultat et le précédent pour un analyte. */
 export function latestEvolution<T extends LabResult>(results: readonly T[]): Evolution<T> | null {
-  const sorted = sortHistory(results);
+  // Seuls les résultats chiffrés se comparent entre eux.
+  const sorted = sortHistory(results.filter((r): r is T & { value: number } => r.value !== null));
   const latest = sorted[sorted.length - 1];
   if (!latest) return null;
   const previous = sorted[sorted.length - 2] ?? null;
@@ -58,4 +61,18 @@ export function historyWindow<T extends LabResult>(results: readonly T[], months
   const from = new Date(now);
   from.setMonth(from.getMonth() - months);
   return sortHistory(results).filter((r) => r.sampledAt >= from && r.sampledAt <= now);
+}
+
+/**
+ * Résultat lisible à la française : « 25 µg/L », « < 5 UI/mL », « Négatif », « Négatif (0,12 index) ».
+ * La conclusion du laboratoire (sérologies) passe en premier quand elle existe.
+ */
+export function formatLabResultFr(
+  r: { value: number | null; unit: string; comparator?: string | null; qualitative?: LabQualitative | null },
+  maxDecimals = 2,
+): string {
+  const num = r.value === null ? null : `${r.comparator ? `${r.comparator} ` : ''}${formatNumberFr(r.value, maxDecimals)}${r.unit ? ` ${r.unit}` : ''}`;
+  const qual = r.qualitative ? LAB_QUALITATIVE_LABELS[r.qualitative] : null;
+  if (qual && num) return `${qual} (${num})`;
+  return qual ?? num ?? '—';
 }

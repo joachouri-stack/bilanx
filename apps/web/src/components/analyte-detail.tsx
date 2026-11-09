@@ -1,15 +1,15 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { formatNumberFr, getAnalyte, hba1cPercentToMmolMol, latestEvolution, sortHistory, toCanonical, type Analyte } from '@bilanx/domain';
+import { formatLabResultFr, formatNumberFr, getAnalyte, hba1cPercentToMmolMol, LAB_QUALITATIVE_LABELS, latestEvolution, sortHistory, toCanonical, type Analyte } from '@bilanx/domain';
 import { DEMO_TIMEZONE } from '@/lib/demo-data';
 import { appContext, moduleAllowed } from '@/lib/server/context';
-import { labResults, type LabRow } from '@/lib/server/data';
+import { isNumericLab, labResults, type LabRow, type NumericLabRow } from '@/lib/server/data';
 import { ModuleForbidden } from './module-forbidden';
 import { CapsuleGauge } from './capsule-gauge';
 import { Button, ButtonLink, Card, EmptyState, Meta, PageHeader, buttonClass } from './ui';
 import { Icon } from './icon';
 import { AnalysesChart } from './analyses-chart';
-import { ReferenceChip } from './analyses-gauge';
+import { QualitativeChip, ReferenceChip } from './analyses-gauge';
 import { deleteLabResultAction } from '@/lib/server/actions';
 
 /**
@@ -52,18 +52,24 @@ export async function AnalyteDetail({ code, sp }: { code: string; sp: { ajout?: 
       </div>
     );
   }
-  const ev = latestEvolution(results)!;
-  const latest = ev.latest;
+  // Dernier résultat, chiffré ou seulement qualitatif (sérologie « Négatif ») ; l'évolution, la courbe
+  // et les repères ne portent que sur les résultats chiffrés.
+  const latest = results.at(-1)!;
+  const numeric = results.filter(isNumericLab);
+  const ev = latestEvolution(numeric);
+  const latestNum = latest.value !== null ? (latest as NumericLabRow) : null;
   const fmt = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'medium' });
   const fmtShort = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, day: 'numeric', month: 'short' });
   const hasRef = latest.refLow != null || latest.refHigh != null;
-  const series = chartSeries(results, analyte);
+  const series = numeric.length ? chartSeries(numeric, analyte) : null;
   const ref = (low: number | null, high: number | null) =>
     low != null && high != null ? `${formatNumberFr(low)} – ${formatNumberFr(high)}` : high != null ? `< ${formatNumberFr(high)}` : low != null ? `> ${formatNumberFr(low)}` : 'non notées';
   // Repères de l'historique (même unité que le dernier résultat).
-  const sameUnit = results.filter((r) => r.unit === latest.unit);
-  const minR = sameUnit.reduce((m, r) => (r.value < m.value ? r : m), latest);
-  const maxR = sameUnit.reduce((m, r) => (r.value > m.value ? r : m), latest);
+  const refNum = latestNum ?? numeric.at(-1) ?? null;
+  const sameUnit = refNum ? numeric.filter((r) => r.unit === refNum.unit) : [];
+  const minR = refNum ? sameUnit.reduce((m, r) => (r.value < m.value ? r : m), refNum) : null;
+  const maxR = refNum ? sameUnit.reduce((m, r) => (r.value > m.value ? r : m), refNum) : null;
+  const evShown = ev && latestNum && ev.latest === latestNum ? ev : null;
   const sourceLabel = (s: LabRow['source']) => (s === 'demo' ? 'Bilan sanguin (démo)' : s === 'document' ? 'Bilan sanguin' : 'Saisie manuelle');
 
   return (
@@ -99,44 +105,49 @@ export async function AnalyteDetail({ code, sp }: { code: string; sp: { ajout?: 
           </div>
           <div className="relative mt-4 flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="flex items-baseline gap-1.5">
-                <strong className="tabular text-[56px] font-bold leading-none tracking-tight">
-                  {latest.comparator ? `${latest.comparator} ` : ''}
-                  {formatNumberFr(latest.value)}
-                </strong>
-                <span className="text-xl text-ink-3">{latest.unit}</span>
-              </p>
-              {isHbA1c && <p className="mt-2 text-ink-2">soit {Math.round(hba1cPercentToMmolMol(latest.value))} mmol/mol</p>}
+              {latestNum ? (
+                <p className="flex items-baseline gap-1.5">
+                  <strong className="tabular text-[56px] font-bold leading-none tracking-tight">
+                    {latestNum.comparator ? `${latestNum.comparator} ` : ''}
+                    {formatNumberFr(latestNum.value)}
+                  </strong>
+                  <span className="text-xl text-ink-3">{latestNum.unit}</span>
+                </p>
+              ) : (
+                latest.qualitative && <p className="text-[44px] font-bold leading-none tracking-tight">{LAB_QUALITATIVE_LABELS[latest.qualitative]}</p>
+              )}
+              {isHbA1c && latestNum && <p className="mt-2 text-ink-2">soit {Math.round(hba1cPercentToMmolMol(latestNum.value))} mmol/mol</p>}
             </div>
-            {hasRef && <CapsuleGauge value={latest.value} refLow={latest.refLow ?? null} refHigh={latest.refHigh ?? null} label={analyte.nameFr} />}
+            {hasRef && latestNum && <CapsuleGauge value={latestNum.value} refLow={latestNum.refLow ?? null} refHigh={latestNum.refHigh ?? null} label={analyte.nameFr} />}
           </div>
           <div className="relative mt-4 flex flex-wrap gap-2">
-            {ev.previous && ev.delta !== null && (
+            {latest.qualitative && latestNum && <QualitativeChip qualitative={latest.qualitative} />}
+            {evShown?.previous && evShown.delta !== null && (
               <span
                 className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-semibold ${
                   // HbA1c : baisse = vert, hausse = rouge, stable = orange ; autres analyses : neutre.
-                  isHbA1c ? (ev.delta < 0 ? 'bg-sage-2 text-go' : ev.delta > 0 ? 'bg-red-2 text-red' : 'bg-amber-2 text-amber') : 'bg-surface-2 text-ink-2'
+                  isHbA1c ? (evShown.delta < 0 ? 'bg-sage-2 text-go' : evShown.delta > 0 ? 'bg-red-2 text-red' : 'bg-amber-2 text-amber') : 'bg-surface-2 text-ink-2'
                 }`}
               >
-                {ev.delta > 0 ? '↑ +' : ev.delta < 0 ? '↓ −' : '→ '}
-                {formatNumberFr(Math.abs(ev.delta))}{' '}
-                {(ev.converted ? analyte.canonicalUnit : latest.unit) === '%'
-                  ? Math.abs(ev.delta) >= 2
+                {evShown.delta > 0 ? '↑ +' : evShown.delta < 0 ? '↓ −' : '→ '}
+                {formatNumberFr(Math.abs(evShown.delta))}{' '}
+                {(evShown.converted ? analyte.canonicalUnit : latest.unit) === '%'
+                  ? Math.abs(evShown.delta) >= 2
                     ? 'points'
                     : 'point'
-                  : ev.converted
+                  : evShown.converted
                     ? analyte.canonicalUnit
                     : latest.unit}
-                <span className="font-normal"> depuis le {fmtShort.format(ev.previous.sampledAt)}</span>
+                <span className="font-normal"> depuis le {fmtShort.format(evShown.previous.sampledAt)}</span>
               </span>
             )}
-            {hasRef && <ReferenceChip value={latest.value} refLow={latest.refLow} refHigh={latest.refHigh} />}
+            {hasRef && latestNum && <ReferenceChip value={latestNum.value} refLow={latestNum.refLow} refHigh={latestNum.refHigh} />}
           </div>
           <ul className="relative mt-4 divide-y divide-line">
             {[
-              ev.previous ? { dot: 'bg-indigo', label: 'Précédent', value: `${formatNumberFr(ev.previous.value)} ${ev.previous.unit}` } : null,
-              results.length > 1 ? { dot: 'bg-go', label: 'Plus bas', value: `${formatNumberFr(minR.value)} ${minR.unit}` } : null,
-              results.length > 1 ? { dot: 'bg-amber', label: 'Plus haut', value: `${formatNumberFr(maxR.value)} ${maxR.unit}` } : null,
+              results.length > 1 ? { dot: 'bg-indigo', label: 'Précédent', value: formatLabResultFr(results.at(-2)!) } : null,
+              sameUnit.length > 1 && minR ? { dot: 'bg-go', label: 'Plus bas', value: `${formatNumberFr(minR.value)} ${minR.unit}` } : null,
+              sameUnit.length > 1 && maxR ? { dot: 'bg-amber', label: 'Plus haut', value: `${formatNumberFr(maxR.value)} ${maxR.unit}` } : null,
               { dot: 'bg-petrol', label: 'Résultats', value: String(results.length) },
             ]
               .filter((r): r is { dot: string; label: string; value: string } => r !== null)
@@ -156,22 +167,24 @@ export async function AnalyteDetail({ code, sp }: { code: string; sp: { ajout?: 
         </section>
 
         <div className="flex min-w-0 flex-col gap-4">
-          <Card>
-            <h2 className="mb-2 font-semibold">Évolution</h2>
-            {series.converted && <p className="mb-2 text-sm text-ink-2">Résultats rendus dans des unités différentes : tous affichés ici en {series.unit}.</p>}
-            <AnalysesChart
-              points={series.rows.map((r) => ({ t: r.sampledAt.getTime(), v: r.value, label: formatNumberFr(r.value) }))}
-              refLow={series.rows.at(-1)!.refLow ?? null}
-              refHigh={series.rows.at(-1)!.refHigh ?? null}
-              unit={series.unit}
-            />
-          </Card>
+          {series && series.rows.length > 0 && (
+            <Card>
+              <h2 className="mb-2 font-semibold">Évolution</h2>
+              {series.converted && <p className="mb-2 text-sm text-ink-2">Résultats rendus dans des unités différentes : tous affichés ici en {series.unit}.</p>}
+              <AnalysesChart
+                points={series.rows.map((r) => ({ t: r.sampledAt.getTime(), v: r.value, label: formatNumberFr(r.value) }))}
+                refLow={series.rows.at(-1)!.refLow ?? null}
+                refHigh={series.rows.at(-1)!.refHigh ?? null}
+                unit={series.unit}
+              />
+            </Card>
+          )}
           <Card>
             <h2 className="mb-1 font-semibold">Historique</h2>
             <ul className="divide-y divide-line">
               {[...results].reverse().map((r, i, arr) => {
                 const older = arr[i + 1];
-                const d = older && older.unit === r.unit ? Math.round((r.value - older.value) * 100) / 100 : null;
+                const d = older && older.unit === r.unit && r.value !== null && older.value !== null ? Math.round((r.value - older.value) * 100) / 100 : null;
                 return (
                   <li
                     key={r.id ?? r.sampledAt.toISOString()}
@@ -195,13 +208,18 @@ export async function AnalyteDetail({ code, sp }: { code: string; sp: { ajout?: 
                         {d < 0 ? '↓' : '↑'} {formatNumberFr(Math.abs(d))}
                       </span>
                     )}
-                    <span className="tabular text-right">
-                      <strong className="text-lg">
-                        {r.comparator ? `${r.comparator} ` : ''}
-                        {formatNumberFr(r.value)}
-                      </strong>{' '}
-                      <span className="text-ink-3">{r.unit}</span>
-                      {isHbA1c && <span className="block text-[13px] text-ink-3">{Math.round(hba1cPercentToMmolMol(r.value))} mmol/mol</span>}
+                    <span className="tabular flex flex-col items-end gap-1 text-right">
+                      {r.qualitative && <QualitativeChip qualitative={r.qualitative} />}
+                      {r.value !== null && (
+                        <span>
+                          <strong className="text-lg">
+                            {r.comparator ? `${r.comparator} ` : ''}
+                            {formatNumberFr(r.value)}
+                          </strong>{' '}
+                          <span className="text-ink-3">{r.unit}</span>
+                        </span>
+                      )}
+                      {isHbA1c && r.value !== null && <span className="block text-[13px] text-ink-3">{Math.round(hba1cPercentToMmolMol(r.value))} mmol/mol</span>}
                     </span>
                     {canWrite && r.id && (
                       // Seule la petite croix ouvre la confirmation ; le panneau s'affiche sous la ligne.
@@ -235,7 +253,7 @@ export async function AnalyteDetail({ code, sp }: { code: string; sp: { ajout?: 
  * Si les résultats ont été rendus dans des unités différentes, ils sont tous convertis
  * dans l'unité canonique (valeurs et références) pour rester comparables ; sinon, valeurs telles quelles.
  */
-function chartSeries(results: LabRow[], analyte: Analyte): { rows: LabRow[]; unit: string; converted: boolean } {
+function chartSeries(results: NumericLabRow[], analyte: Analyte): { rows: NumericLabRow[]; unit: string; converted: boolean } {
   const units = new Set(results.map((r) => r.unit));
   if (units.size <= 1) return { rows: results, unit: results[0]?.unit ?? analyte.canonicalUnit, converted: false };
   const conv = (v: number | null, u: string) => (v === null ? null : toCanonical(analyte, v, u));

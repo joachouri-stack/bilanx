@@ -1,10 +1,12 @@
-import type { Adherence, AgpHour, DailyInsulin, GlucoseStats, GlucoseUnit, MeterStats, StepsDay, StepsStats } from '@bilanx/domain';
+import type { Adherence, AgpHour, DailyInsulin, GlucoseStats, GlucoseUnit, LabQualitative, MeterStats, StepsDay, StepsStats } from '@bilanx/domain';
 
 export type Source = 'manual' | 'document' | 'import' | 'demo';
 
 export interface ReportLab {
   analyte: string;
-  value: number;
+  /** Null pour un résultat seulement qualitatif (sérologie « Négatif »). */
+  value: number | null;
+  qualitative?: LabQualitative | null;
   comparator: string | null;
   unit: string;
   refLow: number | null;
