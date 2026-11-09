@@ -259,7 +259,10 @@ export function UploadForm({
   defaultSpecialty,
   defaultFolder,
   today,
+  initialFiles,
 }: {
+  /** Pages déjà prises (bouton ＋ « Scanner » de la barre du bas). */
+  initialFiles?: File[];
   defaultKind?: string;
   /** Type d'examen présélectionné (imagerie), ex. « irm » depuis /documents?examen=irm. */
   defaultExamType?: string;
@@ -292,6 +295,10 @@ export function UploadForm({
     if (list) sync([...files, ...Array.from(list)].slice(0, 10));
   };
   const remove = (i: number) => sync(files.filter((_, j) => j !== i));
+  useEffect(() => {
+    if (initialFiles?.length) sync(initialFiles.slice(0, 10));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pages reçues à l'ouverture seulement
+  }, [initialFiles]);
   const pick =
     'flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-2xl bg-surface-2 p-3 text-center transition hover:bg-line active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-petrol';
   const reads = !type || type.kind === '' || type.kind === 'prescription' || type.kind === 'lab_report';
