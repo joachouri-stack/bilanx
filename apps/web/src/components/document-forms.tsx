@@ -271,7 +271,7 @@ function SpecialtyPicker({ value, onChange, hint }: { value: string; onChange: (
         </label>
       )}
 
-      <div role="radiogroup" aria-labelledby="quelle-specialite" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div role="radiogroup" aria-labelledby="quelle-specialite" className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2">
         {list.map((s) => {
           const on = value === s.code;
           return (
@@ -289,7 +289,7 @@ function SpecialtyPicker({ value, onChange, hint }: { value: string; onChange: (
               <span className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${on ? 'bg-petrol text-on-accent' : 'bg-surface-2 text-ink-2'}`} aria-hidden>
                 <DocIcon name={s.icon} className="size-[18px]" />
               </span>
-              <span className="min-w-0 flex-1">{s.short}</span>
+              <span className="min-w-0 flex-1 break-words">{s.short}</span>
               {on && <Icon name="check" className="size-4 shrink-0 text-petrol" strokeWidth={2.4} />}
             </button>
           );
