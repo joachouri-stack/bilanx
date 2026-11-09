@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { appContext, moduleAllowed } from '@/lib/server/context';
 import { documents } from '@/lib/server/auth';
 import { Chip, EmptyState, PageHeader, buttonClass } from '@/components/ui';
+import { TONES, type ToneName } from '@/lib/tones';
 import { Icon } from '@/components/icon';
 import { DocumentsAdd } from '@/components/documents-add';
 import { DocIcon } from '@/components/documents-icons';
@@ -56,31 +57,7 @@ const KIND_WORDS: Record<string, [string, string]> = {
   'comptes-rendus': ['compte rendu', 'comptes rendus'],
   autres: ['autre', 'autres'],
 };
-const SPEC_TONE = 'bg-rose-2 text-rose';
 const FOLDER_TONE: Record<string, string> = { mutuelle: 'bg-petrol-2 text-petrol', attestation: 'bg-surface-2 text-ink-2' };
-
-/** Tuile de dossier (page d'accueil des documents). */
-function FolderTile({ href, icon, tone, label, count, sub }: { href: string; icon: DocCategoryIcon; tone: string; label: string; count: number; sub?: string }) {
-  return (
-    <li className="min-w-0">
-      <Link
-        href={href}
-        className="flex h-full min-h-16 items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-[var(--shadow-card)] transition hover:bg-surface-2 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-petrol"
-      >
-        <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${tone}`} aria-hidden>
-          <DocIcon name={icon} className="size-6" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold leading-tight">{label}</span>
-          <span className="block truncate text-[13px] text-ink-3">{sub ?? (count ? plural(count, 'document', 'documents') : 'Vide')}</span>
-        </span>
-        <span aria-hidden className="text-lg text-ink-3">
-          ›
-        </span>
-      </Link>
-    </li>
-  );
-}
 
 /** Pastille de sous-dossier (filtre dans un dossier). */
 function SubChip({ href, current, label, count, icon }: { href: string; current: boolean; label: string; count: number; icon?: DocCategoryIcon }) {
@@ -95,6 +72,49 @@ function SubChip({ href, current, label, count, icon }: { href: string; current:
       >
         {icon && <DocIcon name={icon} className="size-[18px] shrink-0" />}
         {label} <span className="tabular opacity-80">{count}</span>
+      </Link>
+    </li>
+  );
+}
+
+/** Grande carte de dossier (accueil) : couleur du dossier, nombre de documents, contenu par type. */
+function FolderCard({ href, icon, tone, label, count, sub }: { href: string; icon: DocCategoryIcon; tone: ToneName; label: string; count: number; sub?: string }) {
+  const t = TONES[tone];
+  return (
+    <li className="min-w-0">
+      <Link
+        href={href}
+        className="group relative flex h-full min-h-32 flex-col overflow-hidden rounded-[20px] border border-line bg-surface p-4 shadow-[var(--shadow-card)] transition duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-petrol"
+      >
+        <span aria-hidden className={`pointer-events-none absolute -right-10 -top-12 size-32 rounded-full blur-2xl transition-opacity group-hover:opacity-100 ${t.glow} opacity-70`} />
+        <span className={`relative grid size-12 place-items-center rounded-2xl ${t.soft}`} aria-hidden>
+          <DocIcon name={icon} className="size-6" />
+        </span>
+        <span className="relative mt-auto block pt-3 text-[17px] font-semibold leading-tight">{label}</span>
+        <span className="relative mt-0.5 block truncate text-[13px] text-ink-3">{sub ?? plural(count, 'document', 'documents')}</span>
+        <span aria-hidden className={`tabular absolute right-4 top-3.5 text-[28px] font-bold leading-none ${t.text}`}>
+          {count}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+/** Petite tuile (types de document, administratif, sous-dossiers). */
+function TypeTile({ href, icon, tone, label, count }: { href: string; icon: DocCategoryIcon; tone: string; label: string; count: number }) {
+  return (
+    <li className="min-w-0">
+      <Link
+        href={href}
+        className={`flex h-full min-h-[60px] items-center gap-3 rounded-2xl border border-line bg-surface px-3 py-2.5 transition hover:bg-surface-2 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-petrol`}
+      >
+        <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${tone}`} aria-hidden>
+          <DocIcon name={icon} className="size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold leading-tight">{label}</span>
+          <span className="block text-[13px] text-ink-3">{count ? plural(count, 'document', 'documents') : 'Vide'}</span>
+        </span>
       </Link>
     </li>
   );
@@ -200,6 +220,19 @@ export default async function DocumentsPage({
           ? `Ajouter un document · ${specialtyByCode(addSpec)!.short}`
           : 'Ajouter un document';
 
+  // Icône de l'en-tête : celle du dossier (ou du sous-dossier) ouvert.
+  const headSpec = specRoot ?? (subSpec && subSpec !== 'aucune' ? specialtyByCode(subSpec) : null);
+  const headCat = subType ?? (typeRoot && !subSpec ? typeRoot : null);
+  const headIcon: { icon: DocCategoryIcon; tone: string } | null = exam
+    ? { icon: 'imaging', tone: CAT_TONE.imagerie!.soft }
+    : headCat
+      ? { icon: headCat.svg, tone: CAT_TONE[headCat.key]!.soft }
+      : headSpec
+        ? { icon: headSpec.icon, tone: TONES[headSpec.tone].soft }
+        : folder
+          ? { icon: folder.icon, tone: FOLDER_TONE[folder.code]! }
+          : null;
+
   // Fil d'Ariane : Documents › Yeux › Ordonnances.
   const rootHref = typeRoot ? `/documents?cat=${typeRoot.key}` : specRoot ? `/documents?specialite=${specRoot.code}` : folder ? `/documents?dossier=${folder.code}` : '/documents';
   const crumbs: { href: string; label: string }[] = isHome && !showAll ? [] : [{ href: '/documents', label: 'Documents' }];
@@ -235,6 +268,15 @@ export default async function DocumentsPage({
   })
     .filter((t) => t.n || PINNED_SPECIALTIES.includes(t.s.code))
     .sort((a, b) => b.n - a.n || PINNED_SPECIALTIES.indexOf(a.s.code) - PINNED_SPECIALTIES.indexOf(b.s.code));
+  const filledSpecs = specTiles.filter((t) => t.n);
+  const emptySpecs = specTiles.filter((t) => !t.n);
+  const newest = all.reduce<Date | null>((m, d) => (!m || d.uploaded_at > m ? d.uploaded_at : m), null);
+  const lastAdded = newest
+    ? (() => {
+        const days = Math.floor((Date.now() - newest.getTime()) / 86_400_000);
+        return days <= 0 ? 'aujourd’hui' : days === 1 ? 'hier' : days < 7 ? `il y a ${days} jours` : `le ${new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'Europe/Paris' }).format(newest)}`;
+      })()
+    : null;
 
   const rowList = (
     <>
@@ -280,7 +322,7 @@ export default async function DocumentsPage({
                           {showType && <span className={`rounded-full px-2 py-0.5 text-[12px] font-medium ${tone.soft}`}>{c.single}</span>}
                           {fo && !folder && <span className={`rounded-full px-2 py-0.5 text-[12px] font-medium ${FOLDER_TONE[fo.code]}`}>{fo.title}</span>}
                           {showSpec && (
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium ${SPEC_TONE}`}>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium ${TONES[sp!.tone].soft}`}>
                               <DocIcon name={sp!.icon} className="size-3.5" />
                               {sp!.short}
                             </span>
@@ -326,7 +368,22 @@ export default async function DocumentsPage({
           </ol>
         </nav>
       )}
-      <PageHeader title={pageTitle} subtitle={specRoot && !subTitle ? `${specRoot.title} · ${ctx.active.access.displayName}` : ctx.active.access.displayName} />
+      {headIcon ? (
+        // Dossier ouvert : grande icône à sa couleur, nom et contenu.
+        <header className="mb-5 flex items-center gap-4">
+          <span className={`grid size-14 shrink-0 place-items-center rounded-2xl shadow-[var(--shadow-card)] ${headIcon.tone}`} aria-hidden>
+            <DocIcon name={headIcon.icon} className="size-7" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="font-display text-[26px] font-semibold leading-tight sm:text-[32px]">{pageTitle}</h1>
+            <p className="mt-0.5 text-ink-2">
+              {plural(list.length, 'document', 'documents')} · {ctx.active.access.displayName}
+            </p>
+          </div>
+        </header>
+      ) : (
+        <PageHeader title={pageTitle} subtitle={ctx.active.access.displayName} />
+      )}
       {sp.supprime && (
         <p role="status" className="mb-4 rounded-xl bg-sage-2 px-4 py-3 text-sm">
           Document supprimé. Les résultats déjà validés restent dans vos analyses.
@@ -349,33 +406,80 @@ export default async function DocumentsPage({
         <div className="flex min-w-0 flex-col gap-4 lg:order-1">
           {isHome && !showAll && (
             <>
+              {/* Bandeau : l'essentiel en un coup d'œil. */}
+              <section
+                aria-label="Résumé de vos documents"
+                className="relative overflow-hidden rounded-[24px] bg-[linear-gradient(135deg,var(--rose),var(--violet))] p-5 text-on-accent shadow-[var(--shadow-card)]"
+              >
+                <span aria-hidden className="pointer-events-none absolute -bottom-16 -right-10 size-48 rounded-full bg-on-accent/10" />
+                <span aria-hidden className="pointer-events-none absolute -right-2 -top-8 size-28 rounded-full bg-on-accent/10" />
+                <div className="relative flex items-end justify-between gap-4">
+                  <div>
+                    <p className="tabular text-[40px] font-bold leading-none">{all.length}</p>
+                    <p className="mt-1 font-medium">{all.length > 1 ? 'documents rangés' : 'document rangé'}</p>
+                    <p className="mt-0.5 text-sm opacity-90">
+                      {filledSpecs.length ? `dans ${plural(filledSpecs.length, 'dossier', 'dossiers')}` : 'Rangez-les par dossier : Yeux, Diabète…'}
+                      {lastAdded ? ` · dernier ajout ${lastAdded}` : ''}
+                    </p>
+                  </div>
+                  <Icon name="folder" className="relative size-14 shrink-0 opacity-30" strokeWidth={1.4} />
+                </div>
+                {toReview > 0 && (
+                  <p className="relative mt-3 inline-flex items-center gap-1.5 rounded-full bg-on-accent/20 px-3 py-1 text-sm font-semibold">
+                    {toReview} à valider
+                  </p>
+                )}
+              </section>
+
               <section aria-labelledby="par-specialite">
-                <h2 id="par-specialite" className="mb-2 px-1 text-sm font-semibold text-ink-2">
+                <h2 id="par-specialite" className="mb-2.5 px-1 text-[15px] font-semibold">
                   Mes dossiers
                 </h2>
-                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {specTiles.map(({ s, n, sub }) => (
-                    <FolderTile key={s.code} href={`/documents?specialite=${s.code}`} icon={s.icon} tone={SPEC_TONE} label={s.short} count={n} sub={sub} />
-                  ))}
-                </ul>
+                {filledSpecs.length > 0 && (
+                  <ul className="grid grid-cols-2 gap-2.5 xl:grid-cols-3">
+                    {filledSpecs.map(({ s, n, sub }) => (
+                      <FolderCard key={s.code} href={`/documents?specialite=${s.code}`} icon={s.icon} tone={s.tone} label={s.short} count={n} sub={sub} />
+                    ))}
+                  </ul>
+                )}
+                {emptySpecs.length > 0 && (
+                  <ul className={`flex flex-wrap gap-2 ${filledSpecs.length ? 'mt-3' : ''}`} aria-label="Dossiers encore vides">
+                    {emptySpecs.map(({ s }) => (
+                      <li key={s.code}>
+                        <Link
+                          href={`/documents?specialite=${s.code}`}
+                          className="inline-flex min-h-11 items-center gap-2 rounded-full border border-dashed border-line bg-surface px-3.5 text-[15px] font-medium text-ink-2 transition hover:text-ink"
+                        >
+                          <span className={`grid size-6 place-items-center rounded-full ${TONES[s.tone].soft}`} aria-hidden>
+                            <DocIcon name={s.icon} className="size-3.5" />
+                          </span>
+                          {s.short}
+                          <span className="sr-only">(vide)</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </section>
+
               <section aria-labelledby="par-type">
-                <h2 id="par-type" className="mb-2 px-1 text-sm font-semibold text-ink-2">
-                  Tous mes documents, par type
+                <h2 id="par-type" className="mb-2.5 px-1 text-[15px] font-semibold">
+                  Par type
                 </h2>
-                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <ul className="grid grid-cols-2 gap-2 2xl:grid-cols-3">
                   {DOC_CATEGORIES.filter((c) => c.key !== 'autres' || byKind(c.kinds)).map((c) => (
-                    <FolderTile key={c.key} href={`/documents?cat=${c.key}`} icon={c.svg} tone={CAT_TONE[c.key]!.soft} label={c.label} count={byKind(c.kinds)} />
+                    <TypeTile key={c.key} href={`/documents?cat=${c.key}`} icon={c.svg} tone={CAT_TONE[c.key]!.soft} label={c.label} count={byKind(c.kinds)} />
                   ))}
                 </ul>
               </section>
+
               <section aria-labelledby="administratif">
-                <h2 id="administratif" className="mb-2 px-1 text-sm font-semibold text-ink-2">
+                <h2 id="administratif" className="mb-2.5 px-1 text-[15px] font-semibold">
                   Administratif
                 </h2>
-                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <ul className="grid grid-cols-2 gap-2 2xl:grid-cols-3">
                   {FOLDERS.map((f) => (
-                    <FolderTile
+                    <TypeTile
                       key={f.code}
                       href={`/documents?dossier=${f.code}`}
                       icon={f.icon}
@@ -395,9 +499,9 @@ export default async function DocumentsPage({
               <h2 id="sous-dossiers" className="mb-2 px-1 text-sm font-semibold text-ink-2">
                 Sous-dossiers
               </h2>
-              <ul className="grid grid-cols-2 gap-2">
+              <ul className="grid grid-cols-2 gap-2 2xl:grid-cols-4">
                 {DOC_CATEGORIES.filter((c) => c.key !== 'autres' || inRoot.some((d) => c.kinds.includes(d.kind))).map((c) => (
-                  <FolderTile
+                  <TypeTile
                     key={c.key}
                     href={`/documents?specialite=${specRoot.code}&type=${c.key}`}
                     icon={c.svg}

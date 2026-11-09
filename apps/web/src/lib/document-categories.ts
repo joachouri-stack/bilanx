@@ -1,4 +1,5 @@
 import type { IconName } from '@/components/icon';
+import type { ToneName } from './tones';
 
 /** Icône d'une catégorie : une icône du composant `Icon`, ou un tracé local de components/documents-icons.tsx. */
 export type DocCategoryIcon =
@@ -65,44 +66,47 @@ export interface SpecialtyInfo {
   /** Complément du nom : « d’urologie », « de cardiologie ». */
   of: string;
   icon: DocCategoryIcon;
+  /** Couleur du dossier (carte, pastilles). */
+  tone: ToneName;
 }
 
-const spec = (code: string, short: string, title: string, of: string, icon: DocCategoryIcon): SpecialtyInfo => ({
+const spec = (code: string, short: string, title: string, of: string, icon: DocCategoryIcon, tone: ToneName = 'petrol'): SpecialtyInfo => ({
   code,
   short,
   title,
   label: short === title ? title : `${short} (${title.toLowerCase()})`,
   of,
   icon,
+  tone,
 });
 
 /** Ordre d'affichage : les plus courantes d'abord. */
 export const SPECIALTIES: SpecialtyInfo[] = [
-  spec('vitamines', 'Vitamines', 'Vitamines et compléments', 'de vitamines', 'capsule'),
-  spec('ophtalmologie', 'Yeux', 'Ophtalmologie', 'd’ophtalmologie', 'eye'),
-  spec('endocrinologie', 'Diabète', 'Endocrinologie', 'd’endocrinologie', 'drop'),
-  spec('thrombose', 'Thrombose', 'Médecine vasculaire', 'de thrombose', 'vessel'),
-  spec('neurologie', 'Cerveau', 'Neurologie', 'de neurologie', 'brain'),
-  spec('cardiologie', 'Cœur', 'Cardiologie', 'de cardiologie', 'heart'),
-  spec('orl', 'ORL', 'ORL', 'd’ORL', 'ear'),
-  spec('urologie', 'Urologie', 'Urologie', 'd’urologie', 'kidney'),
-  spec('nephrologie', 'Reins', 'Néphrologie', 'de néphrologie', 'kidney'),
-  spec('dentaire', 'Dents', 'Dentaire', 'dentaire', 'tooth'),
+  spec('vitamines', 'Vitamines', 'Vitamines et compléments', 'de vitamines', 'capsule', 'sage'),
+  spec('ophtalmologie', 'Yeux', 'Ophtalmologie', 'd’ophtalmologie', 'eye', 'indigo'),
+  spec('endocrinologie', 'Diabète', 'Endocrinologie', 'd’endocrinologie', 'drop', 'glucose'),
+  spec('thrombose', 'Thrombose', 'Médecine vasculaire', 'de thrombose', 'vessel', 'red'),
+  spec('neurologie', 'Cerveau', 'Neurologie', 'de neurologie', 'brain', 'violet'),
+  spec('cardiologie', 'Cœur', 'Cardiologie', 'de cardiologie', 'heart', 'rose'),
+  spec('orl', 'ORL', 'ORL', 'd’ORL', 'ear', 'amber'),
+  spec('urologie', 'Urologie', 'Urologie', 'd’urologie', 'kidney', 'petrol'),
+  spec('nephrologie', 'Reins', 'Néphrologie', 'de néphrologie', 'kidney', 'amber'),
+  spec('dentaire', 'Dents', 'Dentaire', 'dentaire', 'tooth', 'indigo'),
   spec('generaliste', 'Généraliste', 'Médecine générale', 'de médecine générale', 'user'),
-  spec('pneumologie', 'Poumons', 'Pneumologie', 'de pneumologie', 'lungs'),
-  spec('rhumatologie', 'Os et articulations', 'Rhumatologie', 'de rhumatologie', 'bone'),
-  spec('kine', 'Kiné', 'Kinésithérapie', 'de kinésithérapie', 'motion'),
-  spec('osteopathe', 'Ostéopathe', 'Ostéopathie', 'd’ostéopathie', 'spine'),
-  spec('orthophonie', 'Orthophoniste', 'Orthophonie', 'd’orthophonie', 'speech'),
-  spec('dermatologie', 'Peau', 'Dermatologie', 'de dermatologie', 'sparkle'),
-  spec('gastro', 'Digestion', 'Gastro-entérologie', 'de gastro-entérologie', 'meal'),
-  spec('gynecologie', 'Gynécologie', 'Gynécologie', 'de gynécologie', 'user'),
-  spec('podologie', 'Pieds', 'Podologie', 'de podologie', 'steps'),
-  spec('cancer', 'Cancer', 'Oncologie', 'd’oncologie', 'ribbon'),
-  spec('psychologue', 'Psychologue', 'Psychologie', 'de psychologie', 'talk'),
-  spec('mdph', 'MDPH', 'Handicap', 'MDPH', 'access'),
-  spec('psychiatrie', 'Psychiatrie', 'Psychiatrie', 'de psychiatrie', 'user'),
-  spec('radiologie', 'Radiologie', 'Radiologie', 'de radiologie', 'imaging'),
+  spec('pneumologie', 'Poumons', 'Pneumologie', 'de pneumologie', 'lungs', 'glucose'),
+  spec('rhumatologie', 'Os et articulations', 'Rhumatologie', 'de rhumatologie', 'bone', 'amber'),
+  spec('kine', 'Kiné', 'Kinésithérapie', 'de kinésithérapie', 'motion', 'sage'),
+  spec('osteopathe', 'Ostéopathe', 'Ostéopathie', 'd’ostéopathie', 'spine', 'amber'),
+  spec('orthophonie', 'Orthophoniste', 'Orthophonie', 'd’orthophonie', 'speech', 'indigo'),
+  spec('dermatologie', 'Peau', 'Dermatologie', 'de dermatologie', 'sparkle', 'rose'),
+  spec('gastro', 'Digestion', 'Gastro-entérologie', 'de gastro-entérologie', 'meal', 'sage'),
+  spec('gynecologie', 'Gynécologie', 'Gynécologie', 'de gynécologie', 'user', 'violet'),
+  spec('podologie', 'Pieds', 'Podologie', 'de podologie', 'steps', 'sage'),
+  spec('cancer', 'Cancer', 'Oncologie', 'd’oncologie', 'ribbon', 'rose'),
+  spec('psychologue', 'Psychologue', 'Psychologie', 'de psychologie', 'talk', 'violet'),
+  spec('mdph', 'MDPH', 'Handicap', 'MDPH', 'access', 'glucose'),
+  spec('psychiatrie', 'Psychiatrie', 'Psychiatrie', 'de psychiatrie', 'user', 'violet'),
+  spec('radiologie', 'Radiologie', 'Radiologie', 'de radiologie', 'imaging', 'glucose'),
   spec('autre', 'Autre spécialité', 'Autre spécialité', 'd’une autre spécialité', 'folder'),
 ];
 

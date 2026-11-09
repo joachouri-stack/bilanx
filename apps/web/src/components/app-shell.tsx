@@ -437,6 +437,24 @@ function Favorites({ items, isActive, onNavigate, large = false }: { items: NavI
           })}
           <li className="px-2.5 py-1 text-[13px] text-ink-3">Touchez l’étoile pour ajouter ou retirer ({MAX_FAVORITES} au plus).</li>
         </ul>
+      ) : shown.length && !large ? (
+        // Menu latéral (étroit) : lignes colorées, libellés entiers.
+        <ul className="flex flex-col gap-0.5">
+          {shown.map((n) => (
+            <li key={n.href}>
+              <Link
+                href={n.href}
+                aria-current={isActive(n.href) ? 'page' : undefined}
+                className={`flex min-h-11 items-center gap-3 rounded-xl px-2 font-medium transition-colors ${isActive(n.href) ? 'bg-petrol-2 text-petrol' : 'text-ink hover:bg-surface-2'}`}
+              >
+                <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${FAV_TONE[n.href] ?? 'bg-surface-2 text-ink-2'}`} aria-hidden>
+                  <Icon name={n.icon} className="size-[18px]" />
+                </span>
+                <span className="min-w-0 flex-1 py-1 leading-tight">{n.label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       ) : shown.length ? (
         <ul className="grid grid-cols-3 gap-2">
           {shown.map((n) => (
