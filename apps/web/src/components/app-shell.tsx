@@ -8,6 +8,7 @@ import { signOutAction, switchProfileAction } from '@/lib/server/actions';
 import { Icon } from './icon';
 import { Sheet } from './sheet';
 import { QuickAddContent } from './quick-add';
+import { UploadForm } from './document-forms';
 
 export interface ShellUser {
   email: string;
@@ -49,7 +50,33 @@ export function AppShell({
   const main = NAV.filter((n) => n.group === 'main' && !hidden.includes(n.href));
   const account = NAV.filter((n) => n.group === 'account');
   const quick = QUICK_ADD.filter((q) => !hidden.includes(q.base));
-  const [sheet, setSheet] = useState<'menu' | 'add' | 'profile' | null>(null);
+  const [sheet, setSheet] = useState<'menu' | 'add' | 'profile' | 'scan' | null>(null);
+  // Bouton ＋ : appareil photo tout de suite (scanner un document) ; annuler la photo ouvre les autres ajouts.
+  const scanInput = useRef<HTMLInputElement>(null);
+  const [scanFiles, setScanFiles] = useState<File[]>([]);
+  const canScan = !hidden.includes('/documents');
+  const startScan = () => {
+    const input = scanInput.current;
+    if (!canScan || !input) return setSheet('add');
+    input.value = '';
+    let settled = false;
+    const settle = (files: File[]) => {
+      if (settled && !files.length) return;
+      settled = true;
+      window.removeEventListener('focus', onFocus);
+      if (files.length) {
+        setScanFiles(files);
+        setSheet('scan');
+      } else setSheet('add');
+    };
+    // Retour sans photo : événement « cancel » (Safari récent), sinon retour au premier plan sans fichier.
+    const onFocus = () => window.setTimeout(() => !input.files?.length && settle([]), 1500);
+    input.onchange = () => settle(Array.from(input.files ?? []));
+    input.oncancel = () => settle([]);
+    window.addEventListener('focus', onFocus, { once: true });
+    input.click();
+  };
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date());
   const closeSheet = () => setSheet(null);
   // Fermeture à chaque changement de page ou de profil affiché.
   useEffect(() => setSheet(null), [pathname, activeId]);
@@ -121,13 +148,14 @@ export function AppShell({
           {home ? <TabLink item={home} active={isActive(home.href)} /> : <span />}
           {glucose ? <TabLink item={glucose} active={isActive(glucose.href)} /> : <span />}
           <div className="flex items-start justify-center">
+            <input ref={scanInput} type="file" accept="image/*" capture="environment" hidden aria-hidden tabIndex={-1} />
             <button
               type="button"
-              onClick={() => setSheet('add')}
+              onClick={startScan}
               aria-haspopup="dialog"
-              aria-expanded={sheet === 'add'}
+              aria-expanded={sheet === 'add' || sheet === 'scan'}
               aria-controls="ajout-rapide"
-              aria-label="Ajouter : glycémie, pas, séance de sport, insuline, repas, médicament, HbA1c, rendez-vous, document"
+              aria-label="Ajouter : scanner un document (appareil photo) ; annuler la photo pour glycémie, pas, séance de sport, insuline, repas, médicament, HbA1c, rendez-vous"
               className="-mt-4 grid size-14 place-items-center rounded-full bg-petrol text-on-accent shadow-lg ring-4 ring-bg active:scale-95"
             >
               <Icon name="plus" className="size-7" strokeWidth={2.2} />
@@ -148,7 +176,26 @@ export function AppShell({
         </div>
       </nav>
 
+      <Sheet open={sheet === 'scan'} onClose={closeSheet} title="Scanner un document" id="scanner-document">
+        {sheet === 'scan' && <UploadForm today={today} initialFiles={scanFiles} />}
+        <button type="button" onClick={() => setSheet('add')} className="mt-4 inline-flex min-h-11 w-full items-center justify-center font-medium text-petrol">
+          Autre ajout : glycémie, poids, rendez-vous…
+        </button>
+      </Sheet>
+
       <Sheet open={sheet === 'add'} onClose={closeSheet} title="Ajouter" id="ajout-rapide">
+        {canScan && (
+          <button
+            type="button"
+            onClick={startScan}
+            className="mb-3 flex min-h-16 w-full items-center gap-3 rounded-2xl bg-petrol px-4 text-left font-semibold text-on-accent active:scale-[0.98]"
+          >
+            <span className="grid size-10 place-items-center rounded-full bg-on-accent/15" aria-hidden>
+              <Icon name="camera" className="size-6" />
+            </span>
+            Scanner un document
+          </button>
+        )}
         {quick.length ? (
           // Clé : revient au premier écran à chaque ouverture de la feuille.
           <QuickAddContent key={sheet === 'add' ? 'ouvert' : 'ferme'} items={quick} onDone={closeSheet} />

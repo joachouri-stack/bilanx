@@ -374,7 +374,9 @@ export async function uploadDocumentAction(_: FormState, fd: FormData): Promise<
     r = await documents().upload(ctx.user, ctx.active.access.profileId, payload, details);
   } catch (e) {
     if (e instanceof ForbiddenError) return { errors: { form: e.message }, values };
-    throw e;
+    // Jamais de page d'erreur pendant un envoi : message clair, l'utilisateur peut réessayer.
+    console.error('Envoi de document impossible', e);
+    return { errors: { form: 'L’envoi n’a pas abouti. Vérifiez la connexion puis touchez à nouveau « Enregistrer ».' }, values };
   }
   if (!r.ok) return { errors: { form: r.error }, values };
   revalidatePath('/documents');
