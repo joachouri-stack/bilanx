@@ -272,7 +272,8 @@ export function UploadForm({
 }) {
   const [state, action] = useActionState(uploadDocumentAction, {} as FormState);
   const preset = useMemo(() => initialType(defaultKind, defaultFolder), [defaultKind, defaultFolder]);
-  const [type, setType] = useState<TypeChoice | null>(preset);
+  // Sans dossier d'origine : « Je ne sais pas » coché d'avance (la lecture reconnaît ordonnances et bilans) ; jamais de bouton bloqué.
+  const [type, setType] = useState<TypeChoice | null>(preset ?? TYPE_CHOICES.find((t) => t.key === 'auto')!);
   const [choosing, setChoosing] = useState(!preset);
   const [exam, setExam] = useState(defaultExamType ?? 'irm');
   const [spec, setSpec] = useState(defaultSpecialty ?? '');
