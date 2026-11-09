@@ -49,7 +49,7 @@ export type ExamType = (typeof EXAM_TYPES)[number];
 export const SPECIALTIES = [
   'generaliste', 'cardiologie', 'dermatologie', 'endocrinologie', 'gastro', 'gynecologie', 'nephrologie', 'neurologie',
   'ophtalmologie', 'orl', 'pneumologie', 'rhumatologie', 'urologie', 'podologie', 'dentaire', 'psychiatrie', 'radiologie', 'autre',
-  'vitamines', 'thrombose',
+  'vitamines', 'thrombose', 'cancer', 'psychologue', 'mdph',
 ] as const;
 export type Specialty = (typeof SPECIALTIES)[number];
 /** Dossiers de rangement (liste fixe, voir db/migrations/0027_document_folder.sql). */

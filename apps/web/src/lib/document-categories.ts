@@ -16,7 +16,10 @@ export type DocCategoryIcon =
   | 'brain'
   | 'tooth'
   | 'lungs'
-  | 'vessel';
+  | 'vessel'
+  | 'ribbon'
+  | 'talk'
+  | 'access';
 
 /** Catégories de documents affichées (ordre d'affichage) et libellés. */
 export interface DocCategory {
@@ -89,13 +92,19 @@ export const SPECIALTIES: SpecialtyInfo[] = [
   spec('gastro', 'Digestion', 'Gastro-entérologie', 'de gastro-entérologie', 'meal'),
   spec('gynecologie', 'Gynécologie', 'Gynécologie', 'de gynécologie', 'user'),
   spec('podologie', 'Pieds', 'Podologie', 'de podologie', 'steps'),
+  spec('cancer', 'Cancer', 'Oncologie', 'd’oncologie', 'ribbon'),
+  spec('psychologue', 'Psychologue', 'Psychologie', 'de psychologie', 'talk'),
+  spec('mdph', 'MDPH', 'Handicap', 'MDPH', 'access'),
   spec('psychiatrie', 'Psychiatrie', 'Psychiatrie', 'de psychiatrie', 'user'),
   spec('radiologie', 'Radiologie', 'Radiologie', 'de radiologie', 'imaging'),
   spec('autre', 'Autre spécialité', 'Autre spécialité', 'd’une autre spécialité', 'folder'),
 ];
 
-/** Spécialités proposées d'emblée (formulaire d'ajout, page Documents même vides). */
-export const PINNED_SPECIALTIES = ['ophtalmologie', 'endocrinologie', 'vitamines', 'thrombose', 'neurologie', 'cardiologie', 'orl', 'urologie'];
+/** Spécialités proposées d'emblée (formulaire d'ajout, page Documents même vides), les plus utiles d'abord. */
+export const PINNED_SPECIALTIES = [
+  'endocrinologie', 'ophtalmologie', 'cardiologie', 'cancer', 'thrombose', 'vitamines', 'psychologue', 'mdph',
+  'neurologie', 'orl', 'urologie',
+];
 
 /** Dossiers de rangement (codes de la migration 0027) : vitamines, mutuelle, attestation. */
 export interface FolderInfo {

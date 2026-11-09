@@ -23,6 +23,9 @@ const CLUES: [Specialty, RegExp][] = [
   ['gynecologie', /\bgyn[ée]colog\w*|\bsage-femme\b/gi],
   ['podologie', /\bpodolog\w*|\bsemelles orthop[ée]diques\b/gi],
   ['psychiatrie', /\bpsychiatr\w*/gi],
+  ['cancer', /\boncolog\w*|\bcanc[ée]rolog\w*|\bchimioth[ée]rapie\b|\bradioth[ée]rapie\b|\bimmunoth[ée]rapie\b|\bcentre de lutte contre le cancer\b|\br[ée]union de concertation pluridisciplinaire\b|\btumeurs? maligne\w*|\bm[ée]tastas\w*/gi],
+  ['psychologue', /\bpsychologue\b|\bpsychoth[ée]rap\w*|\bneuropsycholog\w*|\bmon soutien psy\b/gi],
+  ['mdph', /\bm\.?d\.?p\.?h\b|\bmaison d[ée]partementale des personnes handicap[ée]es\b|\bcdaph\b|\ba\.?a\.?h\b|\ballocation aux adultes handicap[ée]s\b|\bpch\b|\bprestation de compensation du handicap\b|\bcarte mobilit[ée] inclusion\b|\brqth\b|\btaux d['’ ]incapacit[ée]\b/gi],
 ];
 
 export function guessSpecialty(text: string): Specialty | null {
