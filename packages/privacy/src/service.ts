@@ -163,6 +163,14 @@ export function createPrivacyService(cfg: PrivacyConfig) {
       rdv.map((r) => [r.starts_at, r.specialty, r.practitioner, r.location, r.reason, r.to_prepare, r.reminder_minutes?.[0] ?? null, r.notes_after]),
     );
 
+    const contactRows = await P.withProfileData(actor, profileId, 'appointments', 'read', (tx) =>
+      tx`SELECT first_name, last_name, specialty, phone, email, address, notes, created_at FROM health_contact
+         WHERE profile_id = ${profileId} AND deleted_at IS NULL ORDER BY last_name, first_name`);
+    files[`${dir}/contacts.csv`] = csv(
+      ['prenom', 'nom', 'specialite', 'telephone', 'email', 'adresse', 'notes', 'ajoute_le'],
+      contactRows.map((r) => [r.first_name, r.last_name, r.specialty, r.phone, r.email, r.address, r.notes, r.created_at]),
+    );
+
     const steps = await P.withProfileData(actor, profileId, 'activity', 'read', (tx) =>
       tx`SELECT to_char(day, 'YYYY-MM-DD') AS day, steps FROM activity_daily WHERE profile_id = ${profileId} ORDER BY day`);
     files[`${dir}/activite-pas.csv`] = csv(['jour', 'pas'], steps.map((r) => [r.day, r.steps]));

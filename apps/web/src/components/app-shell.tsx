@@ -355,6 +355,7 @@ const FAV_TONE: Record<string, string> = {
   '/documents': 'bg-rose-2 text-rose',
   '/ordonnances': 'bg-amber-2 text-amber',
   '/rendez-vous': 'bg-violet-2 text-violet',
+  '/contacts': 'bg-sage-2 text-sage',
   '/rapports': 'bg-petrol-2 text-petrol',
   '/glycemie': 'bg-glucose-2 text-glucose',
   '/analyses': 'bg-petrol-2 text-petrol',

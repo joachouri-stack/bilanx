@@ -19,7 +19,7 @@ for(const [vw,tag,scheme] of [[{width:1280,height:900},'bureau','light'],[{width
  if(!tag.includes('mobile')){await p.goto(B+'/tableau-de-bord');await p.keyboard.press('Tab');const first=await p.evaluate(()=>document.activeElement?.textContent?.trim());const vis=await p.evaluate(()=>{const r=document.activeElement.getBoundingClientRect();return r.width>20&&r.height>10});await p.keyboard.press('Enter');await p.waitForTimeout(200);const after=await p.evaluate(()=>document.activeElement?.id);console.log(`clavier (${tag}) : 1re tabulation « ${first} » ${vis?'visible':'INVISIBLE'}, puis focus sur #${after}`);if(first!=='Aller au contenu'||!vis||after!=='contenu')results['clavier-evitement']={impact:'serious',help:'Lien d’évitement',pages:new Set([tag]),nodes:[first+' / '+after]}}
  // Profil réel (formulaires)
  await p.goto(B+'/parametres');await p.evaluate(()=>document.querySelectorAll('main#contenu details').forEach(d=>d.open=true));await audit(p,`${tag} réel /parametres (rubriques ouvertes)`,results);
- for(const u of ['/tableau-de-bord','/analyses/ajouter','/traitements','/medicaments','/journal','/documents','/rendez-vous','/rapports','/famille','/parametres','/activite','/salle-de-sport','/salle-de-sport?vue=annee'])
+ for(const u of ['/tableau-de-bord','/analyses/ajouter','/traitements','/medicaments','/journal','/documents','/rendez-vous','/contacts','/rapports','/famille','/parametres','/activite','/salle-de-sport','/salle-de-sport?vue=annee'])
   {await p.goto(B+u);await p.waitForLoadState('networkidle');await audit(p,`${tag} réel ${u}`,results)}
  // Profil de démonstration (données)
  if(tag.includes('mobile')){
@@ -28,7 +28,7 @@ for(const [vw,tag,scheme] of [[{width:1280,height:900},'bureau','light'],[{width
   await p.getByRole('button',{name:'Menu'}).click();await p.getByRole('dialog',{name:'Menu'}).waitFor();await audit(p,`${tag} feuille Menu`,results);await p.keyboard.press('Escape');
   await p.getByRole('button',{name:/^Changer de profil/}).click();await p.getByRole('dialog',{name:'Changer de profil'}).waitFor();await audit(p,`${tag} feuille Changer de profil`,results)}else{await p.locator('aside summary').click()}
  await p.getByRole('button',{name:/Claire/}).first().click();await p.getByText('Profil de démonstration —').waitFor();
- for(const u of ['/tableau-de-bord','/glycemie','/glycemie?periode=14','/glycemie?periode=90','/analyses','/analyses/hba1c','/analyses/ferritin','/traitements','/medicaments','/activite','/salle-de-sport','/salle-de-sport?vue=annee','/journal','/rendez-vous','/rapports'])
+ for(const u of ['/tableau-de-bord','/glycemie','/glycemie?periode=14','/glycemie?periode=90','/analyses','/analyses/hba1c','/analyses/ferritin','/traitements','/medicaments','/activite','/salle-de-sport','/salle-de-sport?vue=annee','/journal','/rendez-vous','/contacts','/rapports'])
   {await p.goto(B+u);await p.waitForLoadState('networkidle');await audit(p,`${tag} démo ${u}`,results)}
  await ctx.close()}
 const out=Object.entries(results).sort((a,b)=>({critical:0,serious:1,moderate:2,minor:3}[a[1].impact]-({critical:0,serious:1,moderate:2,minor:3}[b[1].impact])));

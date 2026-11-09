@@ -24,7 +24,7 @@ const BASE = `http://localhost:${PORT}`;
 
 // Ordre d'exécution ; « application-installable » tourne sur un second serveur protégé par mot de passe.
 const ALL = [
-  'comptes', 'famille', 'analyses', 'documents', 'insuline', 'journal', 'rendez-vous', 'rapports', 'rgpd', 'activite',
+  'comptes', 'famille', 'analyses', 'documents', 'insuline', 'journal', 'rendez-vous', 'contacts', 'rapports', 'rgpd', 'activite',
   'medicaments', 'compte-securite', 'telephone-2fa', 'cles-acces', 'partage', 'ordonnances', 'rappels', 'unites', 'glycemie',
   'salle-de-sport', 'accessibilite', 'application-installable',
 ];
