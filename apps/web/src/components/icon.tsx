@@ -62,6 +62,7 @@ export const ICONS = {
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4 3.6-6 8-6s8 2 8 6',
   logout: 'M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5M10 16.5L5.5 12 10 7.5M5.5 12H16',
   sparkle: 'M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z',
+  star: 'M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z',
 } as const;
 
 export type IconName = keyof typeof ICONS;

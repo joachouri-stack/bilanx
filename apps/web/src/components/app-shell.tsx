@@ -99,6 +99,7 @@ export function AppShell({
           <AccountBox user={user} />
           <ProfileSwitcher key={activeId} profiles={profiles} active={active} />
           <nav aria-label="Navigation principale" className="mt-4">
+            <Favorites items={main} isActive={isActive} />
             <NavGroups main={main} account={account} isActive={isActive} />
           </nav>
           <p className="mt-6 px-3 text-[11px] leading-snug text-ink-3">{DISCLAIMER}</p>
@@ -157,6 +158,7 @@ export function AppShell({
       </Sheet>
 
       <Sheet open={sheet === 'menu'} onClose={closeSheet} title="Menu" id="menu-complet">
+        <Favorites items={main} isActive={isActive} onNavigate={closeSheet} large />
         <ProfileList profiles={profiles} active={active} />
         <nav aria-label="Rubriques" className="mt-4">
           <NavGroups main={main} account={account} isActive={isActive} onNavigate={closeSheet} large />
@@ -295,6 +297,123 @@ function ProfileSwitcher({ profiles, active }: { profiles: ShellProfile[]; activ
         <ProfileList profiles={profiles} active={active} />
       </div>
     </details>
+  );
+}
+
+/** Favoris par défaut : en haut du menu (modifiables, mémorisés sur l'appareil). */
+const DEFAULT_FAVORITES = ['/documents', '/rendez-vous', '/rapports'];
+const FAVORITES_KEY = 'bilanx_favoris';
+const MAX_FAVORITES = 6;
+const FAV_TONE: Record<string, string> = {
+  '/documents': 'bg-rose-2 text-rose',
+  '/ordonnances': 'bg-amber-2 text-amber',
+  '/rendez-vous': 'bg-violet-2 text-violet',
+  '/rapports': 'bg-petrol-2 text-petrol',
+  '/glycemie': 'bg-glucose-2 text-glucose',
+  '/analyses': 'bg-petrol-2 text-petrol',
+  '/activite': 'bg-sage-2 text-sage',
+  '/salle-de-sport': 'bg-sage-2 text-sage',
+  '/poids': 'bg-indigo-2 text-indigo',
+};
+
+function readFavorites(): string[] {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(FAVORITES_KEY) ?? 'null');
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : DEFAULT_FAVORITES;
+  } catch {
+    return DEFAULT_FAVORITES;
+  }
+}
+
+/** Favoris partagés entre le menu latéral et la feuille du téléphone (même appareil). */
+function useFavorites(): [string[], (next: string[]) => void] {
+  const [fav, setFav] = useState(DEFAULT_FAVORITES);
+  useEffect(() => {
+    const sync = () => setFav(readFavorites());
+    sync();
+    window.addEventListener('bilanx-favoris', sync);
+    return () => window.removeEventListener('bilanx-favoris', sync);
+  }, []);
+  const save = (next: string[]) => {
+    setFav(next);
+    try {
+      window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+    } catch {
+      /* stockage indisponible : les favoris valent pour cette visite */
+    }
+    window.dispatchEvent(new Event('bilanx-favoris'));
+  };
+  return [fav, save];
+}
+
+/** Favoris en haut du menu : grandes tuiles colorées ; « Modifier » permet d'en ajouter ou d'en retirer (6 au plus). */
+function Favorites({ items, isActive, onNavigate, large = false }: { items: NavItem[]; isActive: (h: string) => boolean; onNavigate?: () => void; large?: boolean }) {
+  const [fav, save] = useFavorites();
+  const [editing, setEditing] = useState(false);
+  const choices = items.filter((n) => n.href !== '/tableau-de-bord');
+  const shown = fav.map((h) => choices.find((n) => n.href === h)).filter((n): n is NavItem => !!n);
+  const toggle = (href: string) => save(fav.includes(href) ? fav.filter((h) => h !== href) : [...fav, href].slice(0, MAX_FAVORITES));
+  return (
+    <section aria-labelledby={large ? 'favoris-menu' : 'favoris-cote'} className="mb-4">
+      <div className="mb-2 flex items-center justify-between px-1">
+        <h2 id={large ? 'favoris-menu' : 'favoris-cote'} className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wider text-ink-3">
+          <Icon name="star" className="size-3.5" />
+          Favoris
+        </h2>
+        <button type="button" onClick={() => setEditing((e) => !e)} aria-expanded={editing} className="min-h-11 px-2 text-sm font-medium text-petrol">
+          {editing ? 'Terminé' : 'Modifier'}
+        </button>
+      </div>
+      {editing ? (
+        <ul className="flex flex-col gap-1 rounded-2xl border border-line p-1.5">
+          {choices.map((n) => {
+            const on = fav.includes(n.href);
+            const full = !on && fav.length >= MAX_FAVORITES;
+            return (
+              <li key={n.href}>
+                <button
+                  type="button"
+                  aria-pressed={on}
+                  disabled={full}
+                  onClick={() => toggle(n.href)}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-xl px-2.5 text-left font-medium text-ink-2 hover:bg-surface-2 disabled:opacity-50"
+                >
+                  <Icon name={n.icon} className="size-5 shrink-0" />
+                  <span className="flex-1">{n.label}</span>
+                  <svg viewBox="0 0 24 24" className={`size-5 shrink-0 ${on ? 'fill-amber text-amber' : 'fill-none text-ink-3'}`} stroke="currentColor" strokeWidth={1.7} strokeLinejoin="round" aria-hidden>
+                    <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z" />
+                  </svg>
+                  <span className="sr-only">{on ? '(favori)' : ''}</span>
+                </button>
+              </li>
+            );
+          })}
+          <li className="px-2.5 py-1 text-[13px] text-ink-3">Touchez l’étoile pour ajouter ou retirer ({MAX_FAVORITES} au plus).</li>
+        </ul>
+      ) : shown.length ? (
+        <ul className="grid grid-cols-3 gap-2">
+          {shown.map((n) => (
+            <li key={n.href} className="min-w-0">
+              <Link
+                href={n.href}
+                onClick={onNavigate}
+                aria-current={isActive(n.href) ? 'page' : undefined}
+                className={`flex h-full flex-col items-center justify-center gap-1.5 rounded-2xl border p-2 text-center text-[13px] font-semibold leading-tight transition active:scale-[0.97] ${large ? 'min-h-24' : 'min-h-20'} ${
+                  isActive(n.href) ? 'border-petrol bg-petrol-2' : 'border-line bg-surface hover:bg-surface-2'
+                }`}
+              >
+                <span className={`grid size-10 place-items-center rounded-xl ${FAV_TONE[n.href] ?? 'bg-surface-2 text-ink-2'}`} aria-hidden>
+                  <Icon name={n.icon} className="size-5" />
+                </span>
+                <span className="line-clamp-2 w-full break-words">{n.label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="px-1 text-sm text-ink-3">Aucun favori. Touchez « Modifier » pour en choisir.</p>
+      )}
+    </section>
   );
 }
 
