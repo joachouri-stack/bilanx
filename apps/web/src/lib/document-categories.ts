@@ -15,7 +15,8 @@ export type DocCategoryIcon =
   | 'heart'
   | 'brain'
   | 'tooth'
-  | 'lungs';
+  | 'lungs'
+  | 'vessel';
 
 /** Catégories de documents affichées (ordre d'affichage) et libellés. */
 export interface DocCategory {
@@ -74,6 +75,7 @@ export const SPECIALTIES: SpecialtyInfo[] = [
   spec('vitamines', 'Vitamines', 'Vitamines et compléments', 'de vitamines', 'capsule'),
   spec('ophtalmologie', 'Yeux', 'Ophtalmologie', 'd’ophtalmologie', 'eye'),
   spec('endocrinologie', 'Diabète', 'Endocrinologie', 'd’endocrinologie', 'drop'),
+  spec('thrombose', 'Thrombose', 'Médecine vasculaire', 'de thrombose', 'vessel'),
   spec('neurologie', 'Cerveau', 'Neurologie', 'de neurologie', 'brain'),
   spec('cardiologie', 'Cœur', 'Cardiologie', 'de cardiologie', 'heart'),
   spec('orl', 'ORL', 'ORL', 'd’ORL', 'ear'),
@@ -93,7 +95,7 @@ export const SPECIALTIES: SpecialtyInfo[] = [
 ];
 
 /** Spécialités proposées d'emblée (formulaire d'ajout, page Documents même vides). */
-export const PINNED_SPECIALTIES = ['ophtalmologie', 'endocrinologie', 'vitamines', 'neurologie', 'cardiologie', 'orl', 'urologie'];
+export const PINNED_SPECIALTIES = ['ophtalmologie', 'endocrinologie', 'vitamines', 'thrombose', 'neurologie', 'cardiologie', 'orl', 'urologie'];
 
 /** Dossiers de rangement (codes de la migration 0027) : vitamines, mutuelle, attestation. */
 export interface FolderInfo {
