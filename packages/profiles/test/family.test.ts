@@ -31,7 +31,7 @@ describe.skipIf(!TEST_DB)('Famille & profils (PostgreSQL réel, Row-Level Securi
     ctx = await setupAuth();
     profiles = createProfilesService({ sql: ctx.sql, mailer: ctx.mailer, appUrl: 'https://bilanx.test', now: () => new Date(ctx.clock.t) });
     // Catalogue chargé par la migration 0004.
-    expect((await ctx.sql`SELECT count(*)::int AS n FROM analyte`)[0]!.n).toBe(22);
+    expect((await ctx.sql`SELECT count(*)::int AS n FROM analyte`)[0]!.n).toBe(45);
     jo = await createUser('jo@exemple.fr', 'Jo');
     marc = await createUser('marc@exemple.fr', 'Marc');
     dr = await createUser('dr.martin@exemple.fr', 'Dr Martin');

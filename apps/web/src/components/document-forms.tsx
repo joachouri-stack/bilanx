@@ -8,8 +8,7 @@ import { Alert } from './forms';
 import { useFormStatus } from 'react-dom';
 import { Icon } from './icon';
 import { DocIcon } from './documents-icons';
-import { Button, Meta, buttonClass } from './ui';
-import { DecisionButtons, StickySaveBar, rowClass } from './documents-review';
+import { Meta, buttonClass } from './ui';
 
 function Submit({ children, pending, disabled }: { children: React.ReactNode; pending: string; disabled?: boolean }) {
   const s = useFormStatus();
@@ -526,6 +525,142 @@ const fmt = (n: number | null) => (n === null ? '' : String(n).replace('.', ',')
 const input = 'min-h-11 w-full min-w-0 rounded-lg border border-line bg-surface px-2.5 text-ink';
 const small = 'flex min-w-0 flex-col gap-0.5 text-sm text-ink-2';
 
+/** Lignes sans danger à pré-cocher : analyse reconnue, aucune alerte bloquante, unité comprise, lecture sûre. */
+const SAFE_SKIP = new Set(['unit_unknown', 'low_confidence', 'unit_ocr_corrected']);
+const isSafe = (d: ReviewDraft) => !!d.analyteCode && !d.checks.some((c) => c.severity === 'block' || SAFE_SKIP.has(c.code));
+/** Alertes affichées sur la ligne (la date manquante est demandée une seule fois, en haut). */
+const rowChecks = (d: ReviewDraft) => d.checks.filter((c) => c.code !== 'sampling_date_missing' && c.code !== 'analyte_unmatched');
+
+/** Ligne d'un résultat : case à cocher, nom, valeur ; « Modifier » ouvre la correction. */
+function ResultRow({
+  d,
+  r,
+  set,
+  error,
+  initiallyOpen,
+}: {
+  d: ReviewDraft;
+  r: RowState;
+  set: (patch: Partial<RowState>) => void;
+  error?: string;
+  initiallyOpen: boolean;
+}) {
+  const [open, setOpen] = useState(initiallyOpen);
+  const analyte = getAnalyte(r.analyteCode);
+  const units = analyte ? unitsFor(analyte) : [];
+  const checks = rowChecks(d);
+  const blocked = checks.some((c) => c.severity === 'block');
+  const on = r.action === 'confirm';
+  const ref = r.refLow || r.refHigh ? `${r.refLow || '…'} – ${r.refHigh || '…'}` : null;
+  return (
+    <li
+      data-ligne
+      className={`rounded-2xl border p-3 transition ${on ? 'border-sage bg-sage-2/30' : blocked ? 'border-red' : checks.length ? 'border-amber' : 'border-line'}`}
+    >
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={on}
+          aria-label={`${on ? 'Ne pas enregistrer' : 'Enregistrer'} ${analyte?.nameFr ?? d.rawLabel}`}
+          onClick={() => set({ action: on ? 'ignore' : 'confirm' })}
+          className={`grid size-7 shrink-0 place-items-center rounded-lg border-2 transition active:scale-90 ${on ? 'border-go bg-go text-white' : 'border-line bg-surface'}`}
+        >
+          {on && <Icon name="check" className="size-4" strokeWidth={3} />}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold">{analyte?.nameFr ?? 'Analyse à choisir'}</p>
+          <p className="truncate text-[12px] text-ink-3">
+            {ref ? `réf. ${ref}` : `« ${d.rawLabel} »`}
+          </p>
+        </div>
+        <p className="tabular shrink-0 text-right">
+          <span className="text-lg font-bold">{r.value || '—'}</span> <span className="text-[13px] text-ink-3">{r.unit}</span>
+        </p>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-label={`Modifier ${analyte?.nameFr ?? d.rawLabel}`}
+          className="grid size-9 shrink-0 place-items-center rounded-full text-ink-3 hover:bg-surface-2"
+        >
+          <Icon name="chevronDown" className={`size-5 transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+      </div>
+      {checks.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-0.5 pl-10">
+          {checks.map((c, i) => (
+            <li key={i} data-check={c.severity} className={`text-[13px] ${c.severity === 'block' ? 'font-medium text-red' : 'text-amber'}`}>
+              {c.severity === 'block' ? 'À corriger : ' : ''}
+              {c.messageFr}
+            </li>
+          ))}
+        </ul>
+      )}
+      {error && (
+        <p role="alert" className="mt-2 pl-10 text-sm text-red">
+          {error}
+        </p>
+      )}
+      {open && (
+        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-line pt-3">
+          <p className="col-span-2 break-words text-[12px] text-ink-3">
+            Lu{d.page ? ` page ${d.page}` : ''} : <span className="font-mono">« {d.lineText ?? d.rawLabel} »</span>
+          </p>
+          <label className={`${small} col-span-2`}>
+            Analyse
+            <select
+              value={r.analyteCode}
+              onChange={(e) => {
+                const a = getAnalyte(e.target.value);
+                set({ analyteCode: e.target.value, unit: a && !unitsFor(a).includes(r.unit) ? a.canonicalUnit : r.unit });
+              }}
+              className={input}
+            >
+              <option value="">— choisir —</option>
+              {ANALYTES.map((a) => (
+                <option key={a.code} value={a.code}>
+                  {a.nameFr}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={small}>
+            Résultat
+            <input value={r.value} onChange={(e) => set({ value: e.target.value })} inputMode="decimal" className={`${input} tabular font-semibold`} />
+          </label>
+          <label className={small}>
+            Unité
+            <select value={r.unit} onChange={(e) => set({ unit: e.target.value })} className={input}>
+              {!units.includes(r.unit) && <option value={r.unit}>{r.unit || '—'}</option>}
+              {units.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className={small}>
+            Référence basse
+            <input value={r.refLow} onChange={(e) => set({ refLow: e.target.value })} inputMode="decimal" className={input} />
+          </label>
+          <label className={small}>
+            Référence haute
+            <input value={r.refHigh} onChange={(e) => set({ refHigh: e.target.value })} inputMode="decimal" className={input} />
+          </label>
+        </div>
+      )}
+    </li>
+  );
+}
+
+/**
+ * Validation d'un bilan lu automatiquement, en une étape :
+ * - les résultats reconnus sans alerte sont pré-cochés (l'utilisateur relit et peut décocher) ;
+ * - ceux qui demandent une vérification sont décochés et signalés ;
+ * - les lignes non reconnues (adresses, numéros…) sont repliées et ignorées.
+ * Rien n'est enregistré avant « Enregistrer ».
+ */
 export function ReviewForm({
   documentId,
   drafts,
@@ -545,7 +680,7 @@ export function ReviewForm({
       drafts.map((d) => [
         d.id,
         {
-          action: null,
+          action: isSafe(d) ? 'confirm' : 'ignore',
           analyteCode: d.analyteCode ?? '',
           value: d.rawValue,
           unit: d.rawUnit ?? '',
@@ -558,26 +693,29 @@ export function ReviewForm({
   const [date, setDate] = useState(sampledOn ?? '');
   const [lab, setLab] = useState(laboratory ?? '');
   const set = (id: string, patch: Partial<RowState>) => setRows((r) => ({ ...r, [id]: { ...r[id]!, ...patch } }));
-  const ignoreAll = () => setRows((r) => Object.fromEntries(Object.entries(r).map(([id, row]) => [id, { ...row, action: row.action ?? 'ignore' }])));
-  const undecided = drafts.filter((d) => !rows[d.id]!.action).length;
+  const recognized = drafts.filter((d) => d.analyteCode);
+  const unknown = drafts.filter((d) => !d.analyteCode);
   const confirmed = drafts.filter((d) => rows[d.id]!.action === 'confirm').length;
+  const allOn = recognized.length > 0 && recognized.every((d) => rows[d.id]!.action === 'confirm');
   const decisions = useMemo(
     () =>
       JSON.stringify(
         drafts.map((d) => {
           const r = rows[d.id]!;
-          return {
-            draftId: d.id,
-            action: r.action ?? 'ignore',
-            analyteCode: r.analyteCode,
-            value: r.value,
-            unit: r.unit,
-            refLow: r.refLow,
-            refHigh: r.refHigh,
-          };
+          return { draftId: d.id, action: r.action ?? 'ignore', analyteCode: r.analyteCode, value: r.value, unit: r.unit, refLow: r.refLow, refHigh: r.refHigh };
         }),
       ),
     [rows, drafts],
+  );
+  const row = (d: ReviewDraft) => (
+    <ResultRow
+      key={d.id}
+      d={d}
+      r={rows[d.id]!}
+      set={(patch) => set(d.id, patch)}
+      error={state.fieldErrors?.[d.id]}
+      initiallyOpen={rowChecks(d).some((c) => c.severity === 'block')}
+    />
   );
 
   return (
@@ -585,114 +723,72 @@ export function ReviewForm({
       <input type="hidden" name="documentId" value={documentId} />
       <input type="hidden" name="decisions" value={decisions} />
       {state.errors?.form && <Alert tone="error">{state.errors.form}</Alert>}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+
+      <div className="grid grid-cols-2 gap-3">
         <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Date du prélèvement
-          <input type="date" name="sampledOn" required max={today} value={date} onChange={(e) => setDate(e.target.value)} className={input} />
-          {!sampledOn && <span className="font-normal text-amber">Date non trouvée dans le document : indiquez-la.</span>}
+          <input type="date" name="sampledOn" required max={today} value={date} onChange={(e) => setDate(e.target.value)} className={`${input} ${!date ? 'border-amber' : ''}`} />
         </label>
         <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Laboratoire
           <input name="laboratory" maxLength={120} value={lab} onChange={(e) => setLab(e.target.value)} className={input} />
         </label>
       </div>
-      {undecided > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <Meta>Comparez chaque ligne avec le document, puis confirmez ou ignorez-la.</Meta>
-          <Button variant="ghost" onClick={ignoreAll}>
-            Tout ignorer
-          </Button>
+      {!date && <p className="-mt-2 text-[13px] text-amber">Date non trouvée sur le document : indiquez-la.</p>}
+
+      <section aria-labelledby="resultats-reconnus">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h3 id="resultats-reconnus" className="font-semibold">
+            Résultats reconnus <span className="tabular font-normal text-ink-3">· {recognized.length}</span>
+          </h3>
+          {recognized.length > 1 && (
+            <button
+              type="button"
+              className="min-h-10 text-sm font-medium text-petrol"
+              onClick={() => setRows((rs) => Object.fromEntries(Object.entries(rs).map(([id, r]) => [id, recognized.some((d) => d.id === id) ? { ...r, action: allOn ? 'ignore' : 'confirm' } : r])))}
+            >
+              {allOn ? 'Tout décocher' : 'Tout cocher'}
+            </button>
+          )}
         </div>
+        {recognized.length ? (
+          <ul className="flex flex-col gap-2">{recognized.map(row)}</ul>
+        ) : (
+          <p className="rounded-2xl border border-dashed border-line p-4 text-center text-sm text-ink-2">Aucune analyse reconnue automatiquement.</p>
+        )}
+        <p className="mt-2 text-[13px] text-ink-3">Comparez avec le document ci-dessus. Décochez ce qui ne doit pas être enregistré ; touchez ⌄ pour corriger.</p>
+      </section>
+
+      {unknown.length > 0 && (
+        <details className="group rounded-2xl border border-line">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-3 text-sm text-ink-2 [&::-webkit-details-marker]:hidden">
+            <span className="flex-1">
+              {unknown.length} ligne{unknown.length > 1 ? 's' : ''} non reconnue{unknown.length > 1 ? 's' : ''} (adresses, numéros…) : ignorée{unknown.length > 1 ? 's' : ''}
+            </span>
+            <Icon name="chevronDown" className="size-4 transition-transform group-open:rotate-180" />
+          </summary>
+          <ul className="flex flex-col gap-2 px-3 pb-3">{unknown.map(row)}</ul>
+        </details>
       )}
 
-      <ul className="flex flex-col gap-3">
-        {drafts.map((d) => {
-          const r = rows[d.id]!;
-          const analyte = getAnalyte(r.analyteCode);
-          const units = analyte ? unitsFor(analyte) : [];
-          const alert = d.checks.some((c) => c.severity === 'block') ? 'block' : d.checks.length ? 'warn' : null;
-          const serverErr = state.fieldErrors?.[d.id];
-          return (
-            <li key={d.id} className={rowClass(r.action, alert)}>
-              <p className="font-semibold">{analyte?.nameFr ?? 'Analyse non reconnue'}</p>
-              <p className="break-words text-[13px] text-ink-3">
-                Lu{d.page ? ` page ${d.page}` : ''} : <span className="font-mono">« {d.lineText ?? d.rawLabel} »</span>
-              </p>
-              {d.checks.length > 0 && (
-                <ul className="mt-2 flex flex-col gap-1">
-                  {d.checks.map((c, i) => (
-                    <li key={i} data-check={c.severity} className={`text-sm ${c.severity === 'block' ? 'font-medium text-red' : 'text-amber'}`}>
-                      ⚠️ {c.severity === 'block' ? 'À corriger : ' : ''}
-                      {c.messageFr}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-[1.6fr_1fr_1fr_0.8fr_0.8fr]">
-                <label className={`${small} col-span-2 sm:col-span-1`}>
-                  Analyse
-                  <select
-                    value={r.analyteCode}
-                    onChange={(e) => {
-                      const a = getAnalyte(e.target.value);
-                      set(d.id, {
-                        analyteCode: e.target.value,
-                        unit: a && !unitsFor(a).includes(r.unit) ? a.canonicalUnit : r.unit,
-                      });
-                    }}
-                    className={input}
-                  >
-                    <option value="">— choisir —</option>
-                    {ANALYTES.map((a) => (
-                      <option key={a.code} value={a.code}>
-                        {a.nameFr}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={small}>
-                  Résultat
-                  <input
-                    value={r.value}
-                    onChange={(e) => set(d.id, { value: e.target.value })}
-                    inputMode="decimal"
-                    className={`${input} tabular font-semibold`}
-                  />
-                </label>
-                <label className={small}>
-                  Unité
-                  <select value={r.unit} onChange={(e) => set(d.id, { unit: e.target.value })} className={input}>
-                    {!units.includes(r.unit) && <option value={r.unit}>{r.unit || '—'}</option>}
-                    {units.map((u) => (
-                      <option key={u} value={u}>
-                        {u}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={small}>
-                  Référence basse
-                  <input value={r.refLow} onChange={(e) => set(d.id, { refLow: e.target.value })} inputMode="decimal" className={input} />
-                </label>
-                <label className={small}>
-                  Référence haute
-                  <input value={r.refHigh} onChange={(e) => set(d.id, { refHigh: e.target.value })} inputMode="decimal" className={input} />
-                </label>
-              </div>
-              {serverErr && (
-                <p role="alert" className="mt-2 text-sm text-red">
-                  {serverErr}
-                </p>
-              )}
-              <DecisionButtons value={r.action} onChange={(a) => set(d.id, { action: a })} label={`Décision pour ${d.rawLabel}`} />
-            </li>
-          );
-        })}
-      </ul>
-
-      <StickySaveBar undecided={undecided} disabled={undecided > 0 || !date} pending="Enregistrement…">
-        {confirmed ? `Enregistrer les ${confirmed} résultat${confirmed > 1 ? 's' : ''} confirmé${confirmed > 1 ? 's' : ''}` : 'Terminer sans rien enregistrer'}
-      </StickySaveBar>
+      <ReviewSaveBar count={confirmed} disabled={!date} />
     </form>
+  );
+}
+
+function ReviewSaveBar({ count, disabled }: { count: number; disabled: boolean }) {
+  const s = useFormStatus();
+  return (
+    <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom))] z-10 rounded-2xl border border-line bg-surface p-3 shadow-lg lg:bottom-3">
+      <button type="submit" disabled={s.pending || disabled} className={buttonClass({ variant: 'primary', className: 'w-full' })}>
+        {s.pending
+          ? 'Enregistrement…'
+          : disabled
+            ? 'Indiquez la date du prélèvement'
+            : count
+              ? `Enregistrer ${count} résultat${count > 1 ? 's' : ''}`
+              : 'Terminer sans rien enregistrer'}
+      </button>
+    </div>
   );
 }

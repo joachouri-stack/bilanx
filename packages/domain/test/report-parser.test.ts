@@ -60,7 +60,7 @@ describe('lecture d’un bilan (couche texte PDF)', () => {
       ['magnesium', '0,75', 'mmol/L', '0,70 - 1,05'],
       ['ferritin', '25', 'μg/L', '30 - 300'],
       ['vitamin_d_25oh', '18', 'ng/mL', '30 - 100'],
-      [null, '250', 'G/L', '150 - 400'], // Plaquettes : hors catalogue, proposée sans correspondance
+      ['platelets', '250', 'G/L', '150 - 400'],
     ]);
   });
 

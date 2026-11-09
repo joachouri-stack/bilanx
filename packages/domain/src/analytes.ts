@@ -22,7 +22,9 @@ export type AnalyteCategory =
   | 'lipids'
   | 'thyroid'
   | 'hormones'
-  | 'inflammation';
+  | 'inflammation'
+  | 'liver'
+  | 'proteins';
 
 export interface Analyte {
   code: string;
@@ -57,6 +59,29 @@ export const ANALYTES: readonly Analyte[] = [
   { code: 'tsh', nameFr: 'TSH', synonyms: ['tsh', 'thyréostimuline', 'tsh us'], category: 'thyroid', canonicalUnit: 'mUI/L', conversions: [{ unit: 'µUI/mL', factor: 1 }], plausible: { min: 0.001, max: 500 } },
   { code: 'testosterone_total', nameFr: 'Testostérone totale', synonyms: ['testostérone', 'testosterone', 'testostérone totale'], category: 'hormones', canonicalUnit: 'nmol/L', conversions: [{ unit: 'ng/mL', factor: 3.467 }], plausible: { min: 0.05, max: 100 } },
   { code: 'crp', nameFr: 'CRP', synonyms: ['crp', 'protéine c réactive', 'proteine c reactive', 'crp us'], category: 'inflammation', canonicalUnit: 'mg/L', conversions: [], plausible: { min: 0, max: 600 } },
+  { code: 'leukocytes', nameFr: 'Leucocytes', synonyms: ['leucocytes', 'globules blancs', 'gb', 'leucocyte'], category: 'hematology', canonicalUnit: 'G/L', conversions: [{ unit: '/mm3', factor: 0.001 }, { unit: '10*9/L', factor: 1 }, { unit: 'giga/L', factor: 1 }, { unit: '10^9/L', factor: 1 }], plausible: { min: 0.1, max: 500 } },
+  { code: 'erythrocytes', nameFr: 'Hématies', synonyms: ['hématies', 'hematies', 'globules rouges', 'gr', 'érythrocytes', 'erythrocytes'], category: 'hematology', canonicalUnit: 'T/L', conversions: [{ unit: '10*12/L', factor: 1 }, { unit: '10^12/L', factor: 1 }, { unit: 'tera/L', factor: 1 }, { unit: 'M/mm3', factor: 1 }, { unit: '/mm3', factor: 1e-06 }], plausible: { min: 0.5, max: 10 } },
+  { code: 'hematocrit', nameFr: 'Hématocrite', synonyms: ['hématocrite', 'hematocrite', 'ht'], category: 'hematology', canonicalUnit: '%', conversions: [{ unit: 'L/L', factor: 100 }], plausible: { min: 5, max: 80 } },
+  { code: 'mcv', nameFr: 'VGM', synonyms: ['vgm', 'v.g.m', 'v.g.m.', 'volume globulaire moyen'], category: 'hematology', canonicalUnit: 'fL', conversions: [{ unit: 'µ3', factor: 1 }, { unit: 'fl', factor: 1 }], plausible: { min: 40, max: 150 } },
+  { code: 'mch', nameFr: 'TCMH', synonyms: ['tcmh', 't.c.m.h', 't.c.m.h.', 'teneur corpusculaire moyenne en hémoglobine', 'tgmh'], category: 'hematology', canonicalUnit: 'pg', conversions: [], plausible: { min: 10, max: 60 } },
+  { code: 'mchc', nameFr: 'CCMH', synonyms: ['ccmh', 'c.c.m.h', 'c.c.m.h.', 'concentration corpusculaire moyenne en hémoglobine'], category: 'hematology', canonicalUnit: 'g/dL', conversions: [{ unit: 'g/L', factor: 0.1 }, { unit: '%', factor: 1 }], plausible: { min: 20, max: 45 } },
+  { code: 'platelets', nameFr: 'Plaquettes', synonyms: ['plaquettes', 'thrombocytes', 'numération plaquettaire'], category: 'hematology', canonicalUnit: 'G/L', conversions: [{ unit: '/mm3', factor: 0.001 }, { unit: '10*9/L', factor: 1 }, { unit: 'giga/L', factor: 1 }, { unit: '10^9/L', factor: 1 }], plausible: { min: 1, max: 2000 } },
+  { code: 'neutrophils', nameFr: 'Polynucléaires neutrophiles', synonyms: ['polynucléaires neutrophiles', 'polynucleaires neutrophiles', 'neutrophiles', 'pnn'], category: 'hematology', canonicalUnit: 'G/L', conversions: [{ unit: '/mm3', factor: 0.001 }, { unit: '10*9/L', factor: 1 }, { unit: 'giga/L', factor: 1 }], plausible: { min: 0, max: 100 } },
+  { code: 'lymphocytes', nameFr: 'Lymphocytes', synonyms: ['lymphocytes'], category: 'hematology', canonicalUnit: 'G/L', conversions: [{ unit: '/mm3', factor: 0.001 }, { unit: '10*9/L', factor: 1 }, { unit: 'giga/L', factor: 1 }], plausible: { min: 0, max: 100 } },
+  { code: 'monocytes', nameFr: 'Monocytes', synonyms: ['monocytes'], category: 'hematology', canonicalUnit: 'G/L', conversions: [{ unit: '/mm3', factor: 0.001 }, { unit: '10*9/L', factor: 1 }, { unit: 'giga/L', factor: 1 }], plausible: { min: 0, max: 50 } },
+  { code: 'eosinophils', nameFr: 'Polynucléaires éosinophiles', synonyms: ['polynucléaires éosinophiles', 'polynucleaires eosinophiles', 'éosinophiles', 'eosinophiles'], category: 'hematology', canonicalUnit: 'G/L', conversions: [{ unit: '/mm3', factor: 0.001 }, { unit: '10*9/L', factor: 1 }, { unit: 'giga/L', factor: 1 }], plausible: { min: 0, max: 50 } },
+  { code: 'basophils', nameFr: 'Polynucléaires basophiles', synonyms: ['polynucléaires basophiles', 'polynucleaires basophiles', 'basophiles'], category: 'hematology', canonicalUnit: 'G/L', conversions: [{ unit: '/mm3', factor: 0.001 }, { unit: '10*9/L', factor: 1 }, { unit: 'giga/L', factor: 1 }], plausible: { min: 0, max: 20 } },
+  { code: 'urea', nameFr: 'Urée', synonyms: ['urée', 'uree', 'urémie', 'uremie', 'urée sanguine'], category: 'kidney', canonicalUnit: 'mmol/L', conversions: [{ unit: 'g/L', factor: 16.65 }, { unit: 'mg/dL', factor: 0.1665 }], plausible: { min: 0.5, max: 80 } },
+  { code: 'uric_acid', nameFr: 'Acide urique', synonyms: ['acide urique', 'uricémie', 'uricemie'], category: 'kidney', canonicalUnit: 'µmol/L', conversions: [{ unit: 'mg/L', factor: 5.948 }, { unit: 'mg/dL', factor: 59.48 }], plausible: { min: 30, max: 1500 } },
+  { code: 'ast', nameFr: 'ASAT (TGO)', synonyms: ['asat', 'tgo', 'aspartate aminotransférase', 'transaminases asat', 'sgot'], category: 'liver', canonicalUnit: 'UI/L', conversions: [{ unit: 'U/L', factor: 1 }], plausible: { min: 1, max: 10000 } },
+  { code: 'alt', nameFr: 'ALAT (TGP)', synonyms: ['alat', 'tgp', 'alanine aminotransférase', 'transaminases alat', 'sgpt'], category: 'liver', canonicalUnit: 'UI/L', conversions: [{ unit: 'U/L', factor: 1 }], plausible: { min: 1, max: 10000 } },
+  { code: 'ggt', nameFr: 'Gamma-GT', synonyms: ['gamma gt', 'gamma-gt', 'ggt', 'gamma glutamyl transférase', 'γgt'], category: 'liver', canonicalUnit: 'UI/L', conversions: [{ unit: 'U/L', factor: 1 }], plausible: { min: 1, max: 10000 } },
+  { code: 'alp', nameFr: 'Phosphatases alcalines', synonyms: ['phosphatases alcalines', 'pal'], category: 'liver', canonicalUnit: 'UI/L', conversions: [{ unit: 'U/L', factor: 1 }], plausible: { min: 5, max: 5000 } },
+  { code: 'bilirubin_total', nameFr: 'Bilirubine totale', synonyms: ['bilirubine totale', 'bilirubine'], category: 'liver', canonicalUnit: 'µmol/L', conversions: [{ unit: 'mg/L', factor: 1.71 }, { unit: 'mg/dL', factor: 17.1 }], plausible: { min: 1, max: 1000 } },
+  { code: 'albumin', nameFr: 'Albumine', synonyms: ['albumine', 'albuminémie', 'albuminemie'], category: 'proteins', canonicalUnit: 'g/L', conversions: [{ unit: 'g/dL', factor: 10 }], plausible: { min: 5, max: 70 } },
+  { code: 'protein_total', nameFr: 'Protides totaux', synonyms: ['protides totaux', 'protéines totales', 'proteines totales', 'protidémie', 'protidemie'], category: 'proteins', canonicalUnit: 'g/L', conversions: [{ unit: 'g/dL', factor: 10 }], plausible: { min: 20, max: 140 } },
+  { code: 'chloride', nameFr: 'Chlore', synonyms: ['chlore', 'chlorémie', 'chloremie', 'chlorures'], category: 'electrolytes', canonicalUnit: 'mmol/L', conversions: [], plausible: { min: 60, max: 150 } },
+  { code: 'phosphorus', nameFr: 'Phosphore', synonyms: ['phosphore', 'phosphorémie', 'phosphoremie', 'phosphates'], category: 'minerals', canonicalUnit: 'mmol/L', conversions: [{ unit: 'mg/L', factor: 0.0323 }], plausible: { min: 0.1, max: 5 } },
 ];
 
 const BY_CODE = new Map(ANALYTES.map((a) => [a.code, a]));

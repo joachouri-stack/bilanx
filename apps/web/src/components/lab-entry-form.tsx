@@ -17,6 +17,8 @@ const CATEGORY_LABELS: Record<AnalyteCategory, string> = {
   thyroid: 'Thyroïde',
   hormones: 'Hormones',
   inflammation: 'Inflammation',
+  liver: 'Foie',
+  proteins: 'Protéines',
 };
 
 const input = 'min-h-12 w-full rounded-xl border bg-surface px-3.5 text-base outline-none focus:border-petrol focus:ring-2 focus:ring-petrol-2';

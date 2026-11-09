@@ -70,7 +70,7 @@ describe.skipIf(!TEST_DB)('documents et scanner de bilans (PostgreSQL, PDF et re
     const view = (await docs.get(jo, pid, pdfDoc))!;
     expect(view.job).toMatchObject({ status: 'to_review', method: 'pdf_text', detected_sampling_date: '2026-09-03', detected_lab: 'LABORATOIRE DE BIOLOGIE MÉDICALE EXEMPLE' });
     expect(view.drafts.map((d) => [d.analyteCode, d.rawValue])).toEqual([
-      ['glucose_fasting', '1,32'], ['hba1c', '7,2'], ['creatinine', '78'], ['magnesium', '0,75'], ['ferritin', '25'], ['vitamin_d_25oh', '18'], [null, '250'],
+      ['glucose_fasting', '1,32'], ['hba1c', '7,2'], ['creatinine', '78'], ['magnesium', '0,75'], ['ferritin', '25'], ['vitamin_d_25oh', '18'], ['platelets', '250'],
     ]);
     expect(view.drafts.find((d) => d.analyteCode === 'ferritin')).toMatchObject({ refLow: 30, refHigh: 300, lineText: expect.stringContaining('Ferritine') });
     const n = await profiles.withProfileData(jo, pid, 'lab', 'read', (tx) => tx`SELECT count(*)::int AS n FROM lab_result`);
@@ -116,7 +116,7 @@ describe.skipIf(!TEST_DB)('documents et scanner de bilans (PostgreSQL, PDF et re
           : { draftId: d.id, action: d.analyteCode ? ('confirm' as const) : ('ignore' as const) },
       ),
     });
-    expect(r).toEqual({ ok: true, saved: 6 });
+    expect(r).toEqual({ ok: true, saved: 7 });
     const rows = await profiles.withProfileData(jo, pid, 'lab', 'read', (tx) =>
       tx`SELECT analyte_code, value, unit, source_type, document_id, draft_id, laboratory FROM lab_result ORDER BY analyte_code`);
     expect(rows.every((x) => x.source_type === 'document_extraction' && x.document_id === photoDoc && x.draft_id)).toBe(true);
@@ -125,7 +125,6 @@ describe.skipIf(!TEST_DB)('documents et scanner de bilans (PostgreSQL, PDF et re
     const after = (await docs.get(jo, pid, photoDoc))!;
     expect(after.job?.status).toBe('reviewed');
     expect(after.drafts.find((d) => d.analyteCode === 'hba1c')?.status).toBe('corrected');
-    expect(after.drafts.find((d) => d.analyteCode === null)?.status).toBe('rejected');
     expect(await docs.review(jo, pid, photoDoc, { sampledOn: '2026-09-03', decisions: [] })).toMatchObject({ ok: false });
   });
 
@@ -145,7 +144,7 @@ describe.skipIf(!TEST_DB)('documents et scanner de bilans (PostgreSQL, PDF et re
     expect(await docs.readFiles(jo, pid, photoDoc)).toEqual([]);
     expect((await docs.list(jo, pid)).map((d) => d.id)).toEqual([pdfDoc]);
     const n = await profiles.withProfileData(jo, pid, 'lab', 'read', (tx) => tx`SELECT count(*)::int AS n FROM lab_result`);
-    expect(n[0]!.n).toBe(6);
+    expect(n[0]!.n).toBe(7);
   });
 
   it('spécialité médicale : enregistrée à l’import, modifiée au classement, valeur inconnue refusée', async () => {
