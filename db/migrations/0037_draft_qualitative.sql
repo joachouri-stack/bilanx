@@ -1,5 +1,5 @@
 -- =====================================================================
--- BILANX — Migration 0036 : conclusion lue dans les bilans (sérologies)
+-- BILANX — Migration 0037 : conclusion lue dans les bilans (sérologies)
 -- « Négatif », « Non réactif »… relevés par le lecteur de bilans, à valider comme les valeurs.
 -- raw_value vaut '' quand la ligne ne porte que la conclusion.
 -- =====================================================================

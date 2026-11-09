@@ -1,5 +1,5 @@
 -- =====================================================================
--- BILANX — Migration 0034 : catalogue « Virus & sérologies »
+-- BILANX — Migration 0035 : catalogue « Virus & sérologies »
 -- Ajouté depuis packages/domain/src/analytes.ts (source de vérité). Bornes « plausibles » = détection d'erreurs de lecture.
 -- Résultats chiffrés uniquement (index, titre d'anticorps, charge virale) : la conclusion « positif / négatif »
 -- du laboratoire se note dans le commentaire du résultat.
