@@ -1,5 +1,5 @@
 -- =====================================================================
--- BILANX — Migration 0034 : résultats qualitatifs (sérologies virales)
+-- BILANX — Migration 0035 : résultats qualitatifs (sérologies virales)
 -- Un résultat peut porter la conclusion du laboratoire (positif / négatif / douteux),
 -- seule ou avec une valeur chiffrée (index, titre). Sans valeur chiffrée, l'unité est une chaîne vide.
 -- =====================================================================
