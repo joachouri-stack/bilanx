@@ -21,13 +21,14 @@ export interface NavItem {
 
 /**
  * Menu principal, dans l'ordre d'affichage :
- * Accueil ; Suivi (Glycémie, Analyses, Activité, Salle de sport, Poids, Journal) ; Traitements (Médicaments, Insuline) ; Rendez-vous ;
+ * Accueil ; Suivi (Glycémie, HbA1c, Analyses, Activité, Salle de sport, Poids, Journal) ; Traitements (Médicaments, Insuline) ; Rendez-vous ;
  * Documents (Documents, Ordonnances, Partager avec un soignant) ; puis le compte (Famille & profils, Paramètres).
  * La route /assistant (prévue) existe toujours mais n'est plus dans le menu.
  */
 export const NAV: NavItem[] = [
   { href: '/tableau-de-bord', label: 'Accueil', short: 'Accueil', icon: 'home', status: 'available', group: 'main' },
   { href: '/glycemie', label: 'Glycémie', short: 'Glycémie', icon: 'drop', status: 'available', group: 'main', section: 'Suivi' },
+  { href: '/hba1c', label: 'HbA1c', short: 'HbA1c', icon: 'flask', status: 'available', group: 'main', section: 'Suivi' },
   { href: '/analyses', label: 'Analyses', short: 'Analyses', icon: 'flask', status: 'available', group: 'main', section: 'Suivi' },
   { href: '/activite', label: 'Activité', short: 'Activité', icon: 'steps', status: 'available', group: 'main', section: 'Suivi' },
   { href: '/salle-de-sport', label: 'Salle de sport', short: 'Sport', icon: 'dumbbell', status: 'available', group: 'main', section: 'Suivi' },
@@ -74,10 +75,18 @@ export const QUICK_ADD: QuickAddItem[] = [
   { href: '/traitements#injection', label: 'Injection d’insuline', icon: '💉', svg: 'syringe', base: '/traitements', tone: 'petrol' },
   { href: '/journal#ajouter-journal', label: 'Repas ou événement', icon: '🍽️', svg: 'meal', base: '/journal', tone: 'petrol' },
   { href: '/medicaments#prises', label: 'Prise de médicament', icon: '💊', svg: 'pill', base: '/medicaments', tone: 'petrol' },
-  { href: '/analyses/ajouter?analyse=hba1c', label: 'HbA1c', icon: '🧪', svg: 'flask', base: '/analyses', tone: 'petrol' },
+  { href: '/analyses/ajouter?analyse=hba1c', label: 'HbA1c', icon: '🧪', svg: 'flask', base: '/hba1c', tone: 'petrol' },
   { href: '/rendez-vous#nouveau-rendez-vous', label: 'Rendez-vous', icon: '📅', svg: 'calendar', base: '/rendez-vous', tone: 'violet' },
   { href: '/documents#ajouter', label: 'Document ou photo', icon: '📄', svg: 'camera', base: '/documents', tone: 'rose', special: 'documents' },
 ];
+
+/**
+ * Fiche d'une analyse : l'HbA1c a sa propre rubrique (/hba1c),
+ * les autres analyses (vitamines, fer, calcium, sérologies…) sont sous /analyses.
+ */
+export function analyteHref(code: string): string {
+  return code === 'hba1c' ? '/hba1c' : `/analyses/${encodeURIComponent(code)}`;
+}
 
 /** Ce que chaque module « prévu » nécessitera — affiché honnêtement sur sa page. */
 export const PLANNED_DETAILS: Record<string, { title: string; version: string; needs: string[] }> = {

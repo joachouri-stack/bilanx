@@ -43,6 +43,7 @@ const labSource = (r: LabRow): Source => (r.source === 'demo' ? 'demo' : r.sourc
 const toReportLab = (r: LabRow): ReportLab => ({
   analyte: getAnalyte(r.analyteCode)?.nameFr ?? r.analyteCode,
   value: r.value,
+  qualitative: r.qualitative,
   comparator: r.comparator,
   unit: r.unit,
   refLow: r.refLow,

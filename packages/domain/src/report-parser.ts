@@ -4,10 +4,12 @@
  * Méthode déterministe (règles, sans IA) : pour chaque ligne, libellé → premier
  * nombre (le résultat) → unité → intervalle de référence. Les colonnes suivantes
  * (antériorités) sont ignorées. Rien n'est inventé : un élément absent reste vide.
+ * Sérologies : la conclusion écrite (« Négatif », « Non réactif »…) est aussi relevée, seule ou
+ * à côté de l'index chiffré, uniquement pour une analyse reconnue qui en admet une.
  * Chaque proposition passe ensuite par `assessDraft` puis par la validation humaine.
  */
 import { matchAnalyte } from './analytes';
-import type { ExtractedDraft } from './extraction-checks';
+import { findQualitativeInLine, type ExtractedDraft } from './extraction-checks';
 
 export interface SourceLine {
   page: number;
@@ -76,17 +78,32 @@ export function parseLabReport(lines: readonly SourceLine[]): ParsedReport {
   const samplingDate = detectSamplingDate(lines);
   lines.forEach((line, lineIndex) => {
     const text = line.text.trim();
-    if (!/\d/.test(text)) return;
-    const m = LINE_RE.exec(text);
-    if (!m?.groups) return;
-    const label = m.groups.label!.replace(/[\s:.…]+$/, '').trim();
-    if (label.length < 2 || NOT_A_RESULT.test(label)) return;
-    const analyte = matchAnalyte(label);
-    const rawUnit = m.groups.unit?.trim() ?? null;
+    const qual = findQualitativeInLine(text);
+    const common = {
+      samplingDate: samplingDate ? new Date(`${samplingDate}T12:00:00Z`) : null,
+      page: line.page,
+      lineText: text.replace(/\t/g, '  '),
+      lineIndex,
+      confidence: line.confidence,
+      bbox: line.bbox,
+    };
+    const m = /\d/.test(text) ? LINE_RE.exec(text) : null;
+    const label = m?.groups ? m.groups.label!.replace(/[\s:.…]+$/, '').trim() : '';
+    const analyte = label.length >= 2 && !NOT_A_RESULT.test(label) ? matchAnalyte(label) : undefined;
+    const rawUnit = m?.groups?.unit?.trim() ?? null;
     // Ligne non reconnue sans unité : trop ambiguë pour être proposée.
-    if (!analyte && !rawUnit) return;
+    if (!m?.groups || label.length < 2 || NOT_A_RESULT.test(label) || (!analyte && !rawUnit)) {
+      // Pas de valeur chiffrée exploitable : une sérologie peut n'avoir que sa conclusion (« Ac anti-VHC   Négatif »).
+      if (!qual) return;
+      const qLabel = text.slice(0, qual.index).replace(/[\s:.…]+$/, '').trim();
+      const qAnalyte = qLabel.length >= 2 && !NOT_A_RESULT.test(qLabel) ? matchAnalyte(qLabel) : undefined;
+      if (!qAnalyte?.qualitative) return;
+      drafts.push({ ...common, rawLabel: qLabel, rawValue: '', rawUnit: null, rawReference: null, rawQualitative: qual.raw, analyteCode: qAnalyte.code, unitCorrected: false });
+      return;
+    }
     const { unit, corrected } = rawUnit ? correctOcrUnit(rawUnit) : { unit: null, corrected: false };
     drafts.push({
+      rawQualitative: analyte?.qualitative && qual ? qual.raw : null,
       rawLabel: label,
       rawValue: `${m.groups.cmp?.trim() ?? ''}${m.groups.cmp ? ' ' : ''}${m.groups.value}`,
       rawUnit: unit,

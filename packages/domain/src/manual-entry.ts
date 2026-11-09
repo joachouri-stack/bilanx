@@ -2,7 +2,7 @@
  * Validation d'un résultat d'analyse saisi à la main. Fonction pure, utilisable
  * côté serveur (contrôle faisant foi) et côté navigateur (aide à la saisie).
  */
-import { getAnalyte, isKnownUnit, toCanonical, type Analyte } from './analytes';
+import { getAnalyte, isKnownUnit, isLabQualitative, toCanonical, type Analyte, type LabQualitative } from './analytes';
 import { parseLabNumber } from './extraction-checks';
 import { normalizeUnit } from './units';
 
@@ -16,13 +16,18 @@ export interface ManualLabInput {
   refLow?: string;
   refHigh?: string;
   note?: string;
+  /** Conclusion « positive » / « negative » / « equivocal » (analyses qualitatives uniquement). */
+  qualitative?: string;
 }
 
 export interface ManualLabValid {
   analyte: Analyte;
-  value: number;
+  /** Null pour un résultat seulement qualitatif (ex. « Négatif » sans index). */
+  value: number | null;
   comparator: '<' | '<=' | '>' | '>=' | null;
+  /** Chaîne vide quand il n'y a pas de valeur chiffrée. */
   unit: string;
+  qualitative: LabQualitative | null;
   valueCanonical: number | null;
   sampledOn: string;
   laboratory: string | null;
@@ -52,11 +57,26 @@ export function validateManualLab(
   const analyte = getAnalyte(input.analyteCode);
   if (!analyte) errors.analyteCode = 'Choisissez une analyse dans la liste.';
 
-  const parsed = parseLabNumber(input.value);
-  if (!parsed) errors.value = 'Saisissez un nombre, par exemple 7,2 ou < 5.';
+  // Sérologies : la conclusion du laboratoire (positif / négatif / douteux) peut remplacer la valeur chiffrée.
+  const qualitativeAllowed = !!analyte?.qualitative;
+  const rawQual = input.qualitative?.trim() ?? '';
+  let qualitative: LabQualitative | null = null;
+  if (rawQual && qualitativeAllowed) {
+    if (isLabQualitative(rawQual)) qualitative = rawQual;
+    else errors.qualitative = 'Choisissez Positif, Négatif ou Douteux.';
+  }
+  const hasValue = input.value.trim() !== '';
+  const valueOptional = qualitativeAllowed && (qualitative !== null || !!errors.qualitative);
+  const parsed = hasValue || !valueOptional ? parseLabNumber(input.value) : null;
+  if ((hasValue || !valueOptional) && !parsed)
+    errors.value = qualitativeAllowed
+      ? 'Saisissez un nombre (par exemple 0,25 ou < 5), ou choisissez seulement le résultat Positif / Négatif.'
+      : 'Saisissez un nombre, par exemple 7,2 ou < 5.';
 
-  const unit = input.unit.trim();
-  if (!unit) errors.unit = 'Choisissez l’unité indiquée sur le compte rendu.';
+  const unit = parsed ? input.unit.trim() : '';
+  if (!parsed) {
+    /* pas de valeur chiffrée : pas d'unité */
+  } else if (!unit) errors.unit = 'Choisissez l’unité indiquée sur le compte rendu.';
   else if (analyte && !isKnownUnit(analyte, unit))
     errors.unit = `Unité non reconnue pour ${analyte.nameFr}. Unités possibles : ${unitsFor(analyte).join(', ')}.`;
 
@@ -87,14 +107,15 @@ export function validateManualLab(
   const note = input.note?.trim() || null;
   if (note && note.length > 500) errors.note = '500 caractères maximum.';
 
-  if (Object.keys(errors).length || !analyte || !parsed) return { ok: false, errors };
+  if (Object.keys(errors).length || !analyte || (!parsed && !qualitative)) return { ok: false, errors };
   return {
     ok: true,
     value: {
       analyte,
-      value: parsed.value,
-      comparator: parsed.comparator,
-      unit: normalizeUnit(unit) === normalizeUnit(analyte.canonicalUnit) ? analyte.canonicalUnit : unit,
+      value: parsed?.value ?? null,
+      comparator: parsed?.comparator ?? null,
+      unit: !parsed ? '' : normalizeUnit(unit) === normalizeUnit(analyte.canonicalUnit) ? analyte.canonicalUnit : unit,
+      qualitative,
       valueCanonical,
       sampledOn: input.sampledOn,
       laboratory,

@@ -47,7 +47,7 @@ telles qu'enregistrées dans BILANX à la date indiquée dans compte.json.
   appareils recevant les rappels de prise.
 - profils/<nom>/ : un dossier par profil géré
     profil.json            informations du profil et personnes ayant accès
-    analyses.csv           résultats d'analyses (valeur, unité, références du laboratoire, source)
+    analyses.csv           résultats d'analyses (valeur, conclusion positif/négatif, unité, références du laboratoire, source)
     glycemie.csv           mesures de glycémie (mg/dL ; capteur, capillaire)
     insuline.csv           injections déclarées ; insulines.csv ; modifications-prescrites.csv
     journal.csv            repas et événements
@@ -87,11 +87,11 @@ export function createPrivacyService(cfg: PrivacyConfig) {
     });
 
     const lab = await P.withProfileData(actor, profileId, 'lab', 'read', (tx) =>
-      tx`SELECT analyte_code, value, comparator, unit, value_canonical, ref_low, ref_high, ref_text, sampled_at, laboratory, source_type, document_id, confirmed_at, note
+      tx`SELECT analyte_code, value, comparator, qualitative, unit, value_canonical, ref_low, ref_high, ref_text, sampled_at, laboratory, source_type, document_id, confirmed_at, note
          FROM lab_result WHERE profile_id = ${profileId} AND deleted_at IS NULL ORDER BY sampled_at`);
     files[`${dir}/analyses.csv`] = csv(
-      ['analyse', 'valeur', 'comparateur', 'unite', 'valeur_unite_canonique', 'ref_basse', 'ref_haute', 'ref_texte', 'preleve_le', 'laboratoire', 'source', 'document', 'confirme_le', 'note'],
-      lab.map((r) => [r.analyte_code, r.value, r.comparator, r.unit, r.value_canonical, r.ref_low, r.ref_high, r.ref_text, r.sampled_at, r.laboratory, r.source_type, r.document_id, r.confirmed_at, r.note]),
+      ['analyse', 'valeur', 'comparateur', 'conclusion', 'unite', 'valeur_unite_canonique', 'ref_basse', 'ref_haute', 'ref_texte', 'preleve_le', 'laboratoire', 'source', 'document', 'confirme_le', 'note'],
+      lab.map((r) => [r.analyte_code, r.value, r.comparator, r.qualitative, r.unit, r.value_canonical, r.ref_low, r.ref_high, r.ref_text, r.sampled_at, r.laboratory, r.source_type, r.document_id, r.confirmed_at, r.note]),
     );
 
     const glucose = await P.withProfileData(actor, profileId, 'glucose', 'read', (tx) =>

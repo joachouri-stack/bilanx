@@ -48,6 +48,7 @@ export function moduleAllowed(active: ActiveProfile, module: ModuleKey, mode: 'r
 /** Correspondance des pages de navigation avec les modules de données. */
 export const NAV_MODULES: Record<string, ModuleKey> = {
   '/glycemie': 'glucose',
+  '/hba1c': 'lab',
   '/analyses': 'lab',
   '/traitements': 'insulin',
   '/medicaments': 'medications',

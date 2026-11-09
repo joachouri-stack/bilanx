@@ -15,6 +15,8 @@ import {
   zonedTimeToUtc,
   type CheckResult,
   type ManualLabErrors,
+  isLabQualitative,
+  type LabQualitative,
 } from '@bilanx/domain';
 import { ForbiddenError, type Actor, type ProfilesService } from '@bilanx/profiles';
 import { imageText, pdfText, sniffMime, type AcceptedMime, type ExtractedText } from './text';
@@ -80,6 +82,9 @@ export interface DraftView {
   rawUnit: string | null;
   rawReference: string | null;
   analyteCode: string | null;
+  /** Conclusion lue (sérologies) : texte du document et interprétation. */
+  rawQualitative: string | null;
+  qualitative: LabQualitative | null;
   refLow: number | null;
   refHigh: number | null;
   page: number | null;
@@ -95,6 +100,8 @@ export interface Decision {
   analyteCode?: string;
   value?: string;
   unit?: string;
+  /** 'positive' | 'negative' | 'equivocal' | '' (aucune conclusion). */
+  qualitative?: string;
   refLow?: string;
   refHigh?: string;
 }
@@ -292,9 +299,10 @@ export function createDocumentsService(cfg: DocumentsConfig) {
         const ref = parseReference(d.rawReference);
         await tx`
           INSERT INTO extracted_value_draft (job_id, profile_id, raw_label, raw_value, raw_unit, raw_reference, page, bbox, matched_analyte,
-                                             parsed_value, parsed_unit, ref_low, ref_high, confidence, checks, status, line_text, line_index)
+                                             parsed_value, parsed_unit, raw_qualitative, parsed_qualitative, ref_low, ref_high, confidence, checks, status, line_text, line_index)
           VALUES (${job!.id}, ${profileId}, ${d.rawLabel}, ${d.rawValue}, ${d.rawUnit ?? null}, ${d.rawReference ?? null}, ${d.page},
-                  ${d.bbox ? tx.json(d.bbox) : null}, ${a.analyteCode}, ${a.parsedValue}, ${d.rawUnit ?? null}, ${ref?.low ?? null}, ${ref?.high ?? null},
+                  ${d.bbox ? tx.json(d.bbox) : null}, ${a.analyteCode}, ${a.parsedValue}, ${d.rawUnit ?? null}, ${d.rawQualitative ?? null}, ${a.qualitative},
+                  ${ref?.low ?? null}, ${ref?.high ?? null},
                   ${d.confidence ?? null}, ${tx.json(checks as never)}, 'proposed', ${d.lineText}, ${d.lineIndex})`;
       }
       // Pas un bilan (courrier, compte rendu…) : spécialité devinée d'après le texte, si l'utilisateur n'en a pas choisi.
@@ -408,8 +416,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
         FROM extraction_job WHERE document_id = ${documentId} ORDER BY created_at DESC LIMIT 1`;
       const drafts = job
         ? (
-            await tx<{ id: string; raw_label: string; raw_value: string; raw_unit: string | null; raw_reference: string | null; matched_analyte: string | null; ref_low: string | null; ref_high: string | null; page: number | null; line_text: string | null; confidence: string | null; checks: CheckResult[]; status: DraftView['status'] }[]>`
-              SELECT id, raw_label, raw_value, raw_unit, raw_reference, matched_analyte, ref_low, ref_high, page, line_text, confidence, checks, status
+            await tx<{ id: string; raw_label: string; raw_value: string; raw_unit: string | null; raw_reference: string | null; matched_analyte: string | null; raw_qualitative: string | null; parsed_qualitative: string | null; ref_low: string | null; ref_high: string | null; page: number | null; line_text: string | null; confidence: string | null; checks: CheckResult[]; status: DraftView['status'] }[]>`
+              SELECT id, raw_label, raw_value, raw_unit, raw_reference, matched_analyte, raw_qualitative, parsed_qualitative, ref_low, ref_high, page, line_text, confidence, checks, status
               FROM extracted_value_draft WHERE job_id = ${job.id} ORDER BY line_index`
           ).map(
             (d): DraftView => ({
@@ -419,6 +427,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
               rawUnit: d.raw_unit,
               rawReference: d.raw_reference,
               analyteCode: d.matched_analyte,
+              rawQualitative: d.raw_qualitative,
+              qualitative: isLabQualitative(d.parsed_qualitative) ? d.parsed_qualitative : null,
               refLow: d.ref_low === null ? null : Number(d.ref_low),
               refHigh: d.ref_high === null ? null : Number(d.ref_high),
               page: d.page,
@@ -519,6 +529,7 @@ export function createDocumentsService(cfg: DocumentsConfig) {
         analyteCode: dec.analyteCode ?? d.analyteCode ?? '',
         value: dec.value ?? d.rawValue,
         unit: dec.unit ?? d.rawUnit ?? '',
+        qualitative: dec.qualitative ?? d.qualitative ?? '',
         sampledOn: input.sampledOn,
         laboratory: input.laboratory,
         refLow: dec.refLow ?? (d.refLow === null ? '' : String(d.refLow)),
@@ -530,7 +541,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
         continue;
       }
       const corrected =
-        values.analyteCode !== d.analyteCode || values.value.replace(/\s/g, '') !== d.rawValue.replace(/\s/g, '') || values.unit !== (d.rawUnit ?? '');
+        values.analyteCode !== d.analyteCode || values.value.replace(/\s/g, '') !== d.rawValue.replace(/\s/g, '') || values.unit !== (d.rawUnit ?? '') ||
+        (values.qualitative || null) !== d.qualitative;
       toSave.push({ draft: d, corrected, v: v.value });
     }
     if (Object.keys(draftErrors).length) return { ok: false, error: 'Certaines lignes confirmées sont invalides : corrigez-les ou ignorez-les.', draftErrors };
@@ -542,9 +554,9 @@ export function createDocumentsService(cfg: DocumentsConfig) {
       let n = 0;
       for (const s of toSave) {
         const [row] = await tx<{ id: string }[]>`
-          INSERT INTO lab_result (profile_id, analyte_code, value, unit, value_canonical, comparator, ref_low, ref_high, sampled_at, laboratory,
+          INSERT INTO lab_result (profile_id, analyte_code, value, unit, value_canonical, comparator, qualitative, ref_low, ref_high, sampled_at, laboratory,
                                   source_type, document_id, draft_id, confirmed_by, confirmed_at)
-          VALUES (${profileId}, ${s.v.analyte.code}, ${s.v.value}, ${s.v.unit}, ${s.v.valueCanonical}, ${s.v.comparator}, ${s.v.refLow}, ${s.v.refHigh},
+          VALUES (${profileId}, ${s.v.analyte.code}, ${s.v.value}, ${s.v.unit}, ${s.v.valueCanonical}, ${s.v.comparator}, ${s.v.qualitative}, ${s.v.refLow}, ${s.v.refHigh},
                   ${sampledAt}, ${s.v.laboratory}, 'document_extraction', ${documentId}, ${s.draft.id}, ${actor.accountId}, ${now()})
           RETURNING id`;
         await tx`UPDATE extracted_value_draft SET status = ${s.corrected ? 'corrected' : 'confirmed'}, reviewed_by = ${actor.accountId},

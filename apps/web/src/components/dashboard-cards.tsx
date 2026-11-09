@@ -24,11 +24,12 @@ import { toggleGymAction } from '@/lib/server/actions';
 import { GymSubmit } from '@/components/gym-forms';
 import { GYM_WEEKDAYS_SHORT, gymDayLong, gymMonthName, gymPlural, gymRemainingLabel, gymWeekSentence } from '@/components/gym-shared';
 import { GLUCOSE_TARGETS, KEY_MOMENTS, frTime } from '@/lib/server/dashboard-data';
-import type { LabRow } from '@/lib/server/data';
+import type { NumericLabRow } from '@/lib/server/data';
 import type { IconName } from '@/components/icon';
 import { ButtonLink, Card, CardHeader, Chip, Meta, RangeBar, Stat, pct, type Tone } from '@/components/ui';
 import { Icon } from '@/components/icon';
 import { DashboardSparkline } from '@/components/dashboard-sparkline';
+import { analyteHref } from '@/lib/navigation';
 
 type HbA1cUnit = '%' | 'mmol/mol';
 
@@ -530,7 +531,7 @@ export function Hba1cCard({ points, unit, canWrite }: { points: Hba1cPoint[]; un
   }
   return (
     // Toute la carte mène à l'historique complet.
-    <Card href="/analyses/hba1c" accent="petrol">
+    <Card href="/hba1c" accent="petrol">
       <CardHeader
         title="HbA1c"
         icon="flask"
@@ -957,7 +958,7 @@ function SoftGauge({ value, low, high, label }: { value: number; low: number | n
   );
 }
 
-export function WatchCard({ watch }: { watch: LabRow[] }) {
+export function WatchCard({ watch }: { watch: NumericLabRow[] }) {
   if (!watch.length)
     return (
       <Card>
@@ -992,7 +993,7 @@ export function WatchCard({ watch }: { watch: LabRow[] }) {
           const ref = r.refLow !== null && r.refHigh !== null ? `${formatNumberFr(r.refLow)}–${formatNumberFr(r.refHigh)}` : r.refHigh !== null ? `moins de ${formatNumberFr(r.refHigh)}` : `plus de ${formatNumberFr(r.refLow ?? 0)}`;
           return (
             <li key={r.analyteCode}>
-              <Link href={`/analyses/${r.analyteCode}`} className="-mx-2 block rounded-lg px-2 py-3 hover:bg-surface-2">
+              <Link href={analyteHref(r.analyteCode)} className="-mx-2 block rounded-lg px-2 py-3 hover:bg-surface-2">
                 <span className="flex flex-wrap items-baseline justify-between gap-x-3">
                   <span className="font-medium">{a.nameFr}</span>
                   <span>

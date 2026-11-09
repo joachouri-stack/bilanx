@@ -121,3 +121,46 @@ describe('cas particuliers', () => {
     expect(correctOcrUnit('mmol/L')).toEqual({ unit: 'mmol/L', corrected: false });
   });
 });
+
+describe('sérologies : conclusion Positif / Négatif lue dans le bilan', () => {
+  const SERO = `LABORATOIRE DE BIOLOGIE MÉDICALE EXEMPLE
+Prélevé le : 03/09/2026
+SÉROLOGIES
+Ac anti-VHC\tNégatif
+VIH 1+2 (Ag p24 et Ac)\tNON REACTIF
+Ac anti-HBs\t120\tmUI/mL\tPositif
+Ac anti-HBc totaux\t0,15\tindex\t(Négatif < 1,00)
+Toxoplasmose IgG\tDouteux
+Interprétation : négatif
+Ferritine\t25\tμg/L\t30 - 300`;
+  const lines = (t: string): SourceLine[] => t.split('\n').map((text) => ({ page: 1, text }));
+  const r = parseLabReport(lines(SERO));
+  const by = (code: string) => r.drafts.find((d) => d.analyteCode === code);
+
+  it('lit une conclusion seule, sans valeur ni unité', () => {
+    expect(by('hcv_ab')).toMatchObject({ rawValue: '', rawUnit: null, rawQualitative: 'Négatif' });
+    expect(by('hiv_ag_ab')).toMatchObject({ rawValue: '', rawQualitative: 'NON REACTIF' });
+    expect(by('toxo_igg')).toMatchObject({ rawQualitative: 'Douteux' });
+  });
+  it('garde la valeur chiffrée et la conclusion quand les deux sont écrites', () => {
+    expect(by('anti_hbs')).toMatchObject({ rawValue: '120', rawUnit: 'mUI/mL', rawQualitative: 'Positif' });
+  });
+  it('ignore un mot placé dans la référence', () => {
+    expect(by('anti_hbc')).toMatchObject({ rawValue: '0,15', rawQualitative: null });
+  });
+  it('ne propose pas de ligne sans analyse reconnue, ni de conclusion pour une analyse chiffrée', () => {
+    expect(r.drafts.some((d) => /interpr/i.test(d.rawLabel))).toBe(false);
+    expect(by('ferritin')!.rawQualitative).toBeNull();
+    expect(r.drafts).toHaveLength(6);
+  });
+  it('contrôles : conclusion seule acceptée sans alerte bloquante', () => {
+    const a = assessDraft(by('hcv_ab')!, SERO);
+    expect(a).toMatchObject({ qualitative: 'negative', parsedValue: null, status: 'ok' });
+    expect(assessDraft(by('hiv_ag_ab')!, SERO).qualitative).toBe('negative');
+    expect(assessDraft(by('anti_hbs')!, SERO)).toMatchObject({ qualitative: 'positive', parsedValue: 120 });
+  });
+  it('anti-hallucination : une conclusion absente du document bloque', () => {
+    const a = assessDraft({ rawLabel: 'Ac anti-VHC', rawValue: '', rawQualitative: 'Positif', analyteCode: 'hcv_ab', samplingDate: new Date('2026-09-03') }, SERO);
+    expect(a.status).toBe('block');
+  });
+});
