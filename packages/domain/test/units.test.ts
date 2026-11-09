@@ -90,3 +90,31 @@ describe('glycémie : unité d’affichage au choix', () => {
     expect([isGlucoseUnit('g/L'), isGlucoseUnit('mg/l')]).toEqual([true, false]);
   });
 });
+
+describe('virus & sérologies', () => {
+  it('reconnaît les libellés usuels des sérologies virales', () => {
+    expect(matchAnalyte('Ac anti-HBs')?.code).toBe('anti_hbs');
+    expect(matchAnalyte('Antigène HBs')?.code).toBe('hbs_ag');
+    expect(matchAnalyte('Ac anti-HBc totaux')?.code).toBe('anti_hbc');
+    expect(matchAnalyte('Anticorps anti-VHC')?.code).toBe('hcv_ab');
+    expect(matchAnalyte('Sérologie VIH')?.code).toBe('hiv_ag_ab');
+    expect(matchAnalyte('Charge virale VHC')?.code).toBe('hcv_viral_load');
+    expect(matchAnalyte('Toxoplasmose IgG')?.code).toBe('toxo_igg');
+  });
+  it('ne confond pas IgG et IgM', () => {
+    expect(matchAnalyte('Toxoplasmose IgM')).toBeUndefined();
+    expect(matchAnalyte('Ac anti-VHA IgM')).toBeUndefined();
+  });
+  it('accepte l’écriture en UI/L pour les anticorps anti-HBs', () => {
+    expect(toCanonical(getAnalyte('anti_hbs')!, 120, 'UI/L')).toBe(120);
+  });
+});
+
+describe('affichage d’un résultat', () => {
+  it('met la conclusion en premier', async () => {
+    const { formatLabResultFr } = await import('../src/lab-history');
+    expect(formatLabResultFr({ value: null, unit: '', qualitative: 'negative' })).toBe('Négatif');
+    expect(formatLabResultFr({ value: 0.12, unit: 'index', qualitative: 'positive' })).toBe('Positif (0,12 index)');
+    expect(formatLabResultFr({ value: 5, unit: 'mg/L', comparator: '<' })).toBe('< 5 mg/L');
+  });
+});

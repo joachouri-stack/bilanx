@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { formatNumberFr, getAnalyte, REMINDER_OPTIONS } from '@bilanx/domain';
+import { formatLabResultFr, formatNumberFr, getAnalyte, REMINDER_OPTIONS } from '@bilanx/domain';
 import { DEMO_TIMEZONE } from '@/lib/demo-data';
 import { appContext, moduleAllowed } from '@/lib/server/context';
 import { appointments, documents } from '@/lib/server/auth';
@@ -13,6 +13,7 @@ import { ConfirmDelete } from '@/components/autres-confirmer';
 import { appointmentWhen } from '@/components/rendez-vous-when';
 import { AppointmentForm } from '@/components/appointment-form';
 import { ModuleForbidden } from '@/components/module-forbidden';
+import { analyteHref } from '@/lib/navigation';
 
 export const metadata: Metadata = { title: 'Rendez-vous' };
 
@@ -36,7 +37,7 @@ export default async function AppointmentPage({ params, searchParams }: { params
   const localTime = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, hour: '2-digit', minute: '2-digit' }).format(a.startsAt);
   const linkedDocs = new Set(a.links.map((l) => l.documentId).filter(Boolean));
   const linkedLabs = new Set(a.links.map((l) => l.labResultId).filter(Boolean));
-  const labLabel = (r: (typeof labs)[number]) => `${getAnalyte(r.analyteCode)?.nameFr ?? r.analyteCode} ${formatNumberFr(r.value)} ${r.unit} · ${fmtD.format(r.sampledAt)}`;
+  const labLabel = (r: (typeof labs)[number]) => `${getAnalyte(r.analyteCode)?.nameFr ?? r.analyteCode} ${formatLabResultFr(r)} · ${fmtD.format(r.sampledAt)}`;
 
   return (
     <div className="fade-in">
@@ -117,7 +118,7 @@ export default async function AppointmentPage({ params, searchParams }: { params
                 const label = d ? `${d.kind === 'lab_report' ? 'Bilan sanguin' : d.title}${d.document_date ? ` · ${fmtD.format(new Date(`${d.document_date}T12:00:00Z`))}` : ''}` : r ? labLabel(r) : 'Élément non accessible ou supprimé';
                 return (
                   <li key={l.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
-                    {d ? <Link href={`/documents/${d.id}`} className="text-petrol underline">{label}</Link> : r ? <Link href={`/analyses/${r.analyteCode}`} className="text-petrol underline">{label}</Link> : <span className="text-ink-3">{label}</span>}
+                    {d ? <Link href={`/documents/${d.id}`} className="text-petrol underline">{label}</Link> : r ? <Link href={analyteHref(r.analyteCode)} className="text-petrol underline">{label}</Link> : <span className="text-ink-3">{label}</span>}
                     {canWrite && (
                       <form action={unlinkAppointmentAction}>
                         <input type="hidden" name="id" value={a.id} />

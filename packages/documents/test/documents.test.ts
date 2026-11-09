@@ -179,4 +179,39 @@ describe.skipIf(!TEST_DB)('documents et scanner de bilans (PostgreSQL, PDF et re
     expect(inFolder).toMatchObject({ ok: true, status: 'stored', drafts: 0 });
     expect((await docs.get(marc, mpid, inFolder.ok ? inFolder.documentId : ''))?.document).toMatchObject({ kind: 'other', folder: 'attestation' });
   });
+
+  it('sérologies : « Négatif » lu dans le bilan, validé puis enregistré sans valeur chiffrée', async () => {
+    const mine = (await profiles.listProfiles(marc.accountId)).find((p) => p.role === 'owner')!.profileId;
+    const up = await docs.upload(marc, mine, [{ name: 'serologie.pdf', data: F('serologie-fictive.pdf') }]);
+    expect(up).toMatchObject({ ok: true, status: 'to_review' });
+    const docId = up.ok ? up.documentId : '';
+    const view = (await docs.get(marc, mine, docId))!;
+    const by = (code: string) => view.drafts.find((d) => d.analyteCode === code)!;
+    expect(by('hcv_ab')).toMatchObject({ rawValue: '', qualitative: 'negative', rawQualitative: 'Négatif' });
+    expect(by('hiv_ag_ab')).toMatchObject({ qualitative: 'negative' });
+    expect(by('anti_hbs')).toMatchObject({ rawValue: '120', qualitative: 'positive' });
+    expect(by('anti_hbc')).toMatchObject({ rawValue: '0,15', qualitative: null });
+    expect(by('hcv_ab').checks.filter((c) => c.severity === 'block')).toEqual([]);
+
+    const r = await docs.review(marc, mine, docId, {
+      sampledOn: '2026-09-03',
+      // Le VIH est corrigé à la main en « Douteux » pour vérifier la prise en compte de la correction.
+      decisions: view.drafts.map((d) => ({ draftId: d.id, action: d.analyteCode ? ('confirm' as const) : ('ignore' as const), ...(d.analyteCode === 'hiv_ag_ab' ? { qualitative: 'equivocal' } : {}) })),
+    });
+    expect(r).toMatchObject({ ok: true });
+    const rows = await profiles.withProfileData(marc, mine, 'lab', 'read', (tx) =>
+      tx<{ analyte_code: string; value: string | null; unit: string; qualitative: string | null }[]>`
+        SELECT analyte_code, value, unit, qualitative FROM lab_result WHERE document_id = ${docId} ORDER BY analyte_code`);
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        { analyte_code: 'hcv_ab', value: null, unit: '', qualitative: 'negative' },
+        { analyte_code: 'hiv_ag_ab', value: null, unit: '', qualitative: 'equivocal' },
+        { analyte_code: 'anti_hbs', value: '120', unit: 'mUI/mL', qualitative: 'positive' },
+        { analyte_code: 'anti_hbc', value: '0.15', unit: 'index', qualitative: null },
+      ]),
+    );
+    const [hiv] = await profiles.withProfileData(marc, mine, 'documents', 'read', (tx) =>
+      tx`SELECT status FROM extracted_value_draft WHERE id = ${by('hiv_ag_ab').id}`);
+    expect(hiv).toEqual({ status: 'corrected' });
+  });
 });

@@ -1,4 +1,4 @@
-import { GAUGE_RANGE_HIGH, GAUGE_RANGE_LOW, formatNumberFr, gaugePosition, referenceStatus } from '@bilanx/domain';
+import { GAUGE_RANGE_HIGH, GAUGE_RANGE_LOW, LAB_QUALITATIVE_LABELS, formatNumberFr, gaugePosition, referenceStatus, type LabQualitative } from '@bilanx/domain';
 import { Chip, type Tone } from './ui';
 
 export const REFERENCE_STATUS: Record<'below' | 'above' | 'within' | 'unknown', { label: string; tone: Tone }> = {
@@ -34,4 +34,14 @@ export function ReferenceBar({ value, refLow, refHigh, label }: { value: number;
       />
     </div>
   );
+}
+
+/**
+ * Conclusion du laboratoire pour une sérologie. Couleurs volontairement neutres :
+ * « positif » peut signifier une protection (vaccin) comme une infection — à interpréter avec le médecin.
+ */
+export const QUALITATIVE_TONES: Record<LabQualitative, Tone> = { positive: 'violet', negative: 'neutral', equivocal: 'amber' };
+
+export function QualitativeChip({ qualitative }: { qualitative: LabQualitative }) {
+  return <Chip tone={QUALITATIVE_TONES[qualitative]}>{LAB_QUALITATIVE_LABELS[qualitative]}</Chip>;
 }

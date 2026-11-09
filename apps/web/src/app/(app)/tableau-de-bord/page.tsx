@@ -68,7 +68,7 @@ export default async function DashboardPage() {
       // Baisse = vert, hausse = rouge, stable = orange.
       subTone = d < 0 ? 'ok' : d > 0 ? 'out' : 'mid';
     }
-    heroItems.push({ icon: 'flask', label: 'HbA1c', value: f.value, unit: f.unit, sub, subTone, href: '/analyses/hba1c' });
+    heroItems.push({ icon: 'flask', label: 'HbA1c', value: f.value, unit: f.unit, sub, subTone, href: '/hba1c' });
   }
   // Glycémie : moyenne d'aujourd'hui (capteur, sinon mesures au doigt du jour) — elle bouge au fil de la journée ;
   // à défaut, moyenne sur 7 jours.

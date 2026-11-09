@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
-import { ANALYTES, getAnalyte, unitsFor } from '@bilanx/domain';
+import { ANALYTES, getAnalyte, isLabQualitative, LAB_QUALITATIVE_LABELS, unitsFor, type LabQualitative } from '@bilanx/domain';
 import { reviewDocumentAction, updateDocumentDetailsAction, uploadDocumentAction, type FormState } from '@/lib/server/actions';
 import { DOC_CATEGORIES, EXAM_LABELS, FOLDERS, PINNED_SPECIALTIES, SPECIALTIES, type DocCategoryIcon } from '@/lib/document-categories';
 import { Alert } from './forms';
@@ -583,6 +583,8 @@ export interface ReviewDraft {
   rawValue: string;
   rawUnit: string | null;
   analyteCode: string | null;
+  /** Conclusion lue (sérologies) : 'positive' | 'negative' | 'equivocal'. */
+  qualitative: LabQualitative | null;
   refLow: number | null;
   refHigh: number | null;
   page: number | null;
@@ -595,6 +597,8 @@ type RowState = {
   analyteCode: string;
   value: string;
   unit: string;
+  /** '' = aucune conclusion. */
+  qualitative: string;
   refLow: string;
   refHigh: string;
 };
@@ -653,7 +657,17 @@ function ResultRow({
           </p>
         </div>
         <p className="tabular shrink-0 text-right">
-          <span className="text-lg font-bold">{r.value || '—'}</span> <span className="text-[13px] text-ink-3">{r.unit}</span>
+          {isLabQualitative(r.qualitative) && analyte?.qualitative && (
+            <span className="block text-lg font-bold" data-conclusion>
+              {LAB_QUALITATIVE_LABELS[r.qualitative]}
+            </span>
+          )}
+          {(r.value || !isLabQualitative(r.qualitative) || !analyte?.qualitative) && (
+            <span className={isLabQualitative(r.qualitative) && analyte?.qualitative ? 'text-[13px] text-ink-3' : ''}>
+              <span className={isLabQualitative(r.qualitative) && analyte?.qualitative ? '' : 'text-lg font-bold'}>{r.value || '—'}</span>{' '}
+              <span className="text-[13px] text-ink-3">{r.unit}</span>
+            </span>
+          )}
         </p>
         <button
           type="button"
@@ -703,8 +717,21 @@ function ResultRow({
               ))}
             </select>
           </label>
+          {analyte?.qualitative && (
+            <label className={`${small} col-span-2`}>
+              Conclusion du laboratoire
+              <select value={r.qualitative} onChange={(e) => set({ qualitative: e.target.value })} className={input}>
+                <option value="">Non indiquée</option>
+                {(Object.keys(LAB_QUALITATIVE_LABELS) as LabQualitative[]).map((q) => (
+                  <option key={q} value={q}>
+                    {LAB_QUALITATIVE_LABELS[q]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className={small}>
-            Résultat
+            {analyte?.qualitative ? 'Valeur chiffrée (facultative)' : 'Résultat'}
             <input value={r.value} onChange={(e) => set({ value: e.target.value })} inputMode="decimal" className={`${input} tabular font-semibold`} />
           </label>
           <label className={small}>
@@ -762,6 +789,7 @@ export function ReviewForm({
           analyteCode: d.analyteCode ?? '',
           value: d.rawValue,
           unit: d.rawUnit ?? '',
+          qualitative: d.qualitative ?? '',
           refLow: fmt(d.refLow),
           refHigh: fmt(d.refHigh),
         },
@@ -780,7 +808,7 @@ export function ReviewForm({
       JSON.stringify(
         drafts.map((d) => {
           const r = rows[d.id]!;
-          return { draftId: d.id, action: r.action ?? 'ignore', analyteCode: r.analyteCode, value: r.value, unit: r.unit, refLow: r.refLow, refHigh: r.refHigh };
+          return { draftId: d.id, action: r.action ?? 'ignore', analyteCode: r.analyteCode, value: r.value, unit: r.unit, qualitative: r.qualitative, refLow: r.refLow, refHigh: r.refHigh };
         }),
       ),
     [rows, drafts],

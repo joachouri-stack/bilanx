@@ -58,6 +58,25 @@ describe.skipIf(!TEST_DB)('saisie manuelle des analyses (PostgreSQL réel)', () 
     expect((await rows(joProfile)).length).toBe(before);
   });
 
+  it('enregistre une sérologie « Négatif » sans valeur chiffrée, et repère le doublon', async () => {
+    const input = { analyteCode: 'hcv_ab', value: '', unit: '', sampledOn: '2026-09-03', qualitative: 'negative' };
+    expect(await lab.addManual(jo, joProfile, input)).toMatchObject({ ok: true, analyteCode: 'hcv_ab' });
+    const [q] = await profiles.withProfileData(jo, joProfile, 'lab', 'read', (tx) =>
+      tx`SELECT value, unit, qualitative FROM lab_result WHERE profile_id = ${joProfile} AND analyte_code = 'hcv_ab'`);
+    expect(q).toEqual({ value: null, unit: '', qualitative: 'negative' });
+    expect(await lab.addManual(jo, joProfile, input)).toMatchObject({ ok: false, duplicate: true });
+    // Même jour mais conclusion différente : pas un doublon.
+    expect(await lab.addManual(jo, joProfile, { ...input, qualitative: 'positive', value: '3,1', unit: 'index' })).toMatchObject({ ok: true });
+  });
+
+  it('la base refuse un résultat sans valeur ni conclusion', async () => {
+    await expect(
+      profiles.withProfileData(jo, joProfile, 'lab', 'write', (tx) =>
+        tx`INSERT INTO lab_result (profile_id, analyte_code, value, unit, sampled_at, source_type, confirmed_by)
+           VALUES (${joProfile}, 'hcv_ab', NULL, '', now(), 'manual', ${jo.accountId})`),
+    ).rejects.toThrow(/lab_result_value_or_qualitative/);
+  });
+
   it('signale un doublon et ne l’enregistre qu’après confirmation', async () => {
     const input = { analyteCode: 'ferritin', value: '25', unit: 'µg/L', sampledOn: '2026-09-03' };
     expect(await lab.addManual(jo, joProfile, input)).toMatchObject({ ok: false, duplicate: true });

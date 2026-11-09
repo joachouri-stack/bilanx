@@ -1,25 +1,20 @@
 'use client';
 
 import { useActionState, useState } from 'react';
-import { ANALYTES, getAnalyte, unitsFor, type AnalyteCategory } from '@bilanx/domain';
+import { ANALYTE_CATEGORY_LABELS, ANALYTES, getAnalyte, LAB_QUALITATIVE_LABELS, unitsFor, type AnalyteCategory } from '@bilanx/domain';
 import { addLabResultAction, type FormState } from '@/lib/server/actions';
 import { Alert, SubmitButton } from './forms';
 
-const CATEGORY_LABELS: Record<AnalyteCategory, string> = {
-  diabetes: 'Diabète',
-  iron: 'Fer',
-  hematology: 'Hématologie',
-  vitamins: 'Vitamines',
-  minerals: 'Minéraux',
-  electrolytes: 'Ionogramme',
-  kidney: 'Fonction rénale',
-  lipids: 'Lipides',
-  thyroid: 'Thyroïde',
-  hormones: 'Hormones',
-  inflammation: 'Inflammation',
-  liver: 'Foie',
-  proteins: 'Protéines',
-};
+/** Diabète (HbA1c, glycémie à jeun) en tête, puis les familles dans l'ordre de la page « Analyses ». */
+const CATEGORY_ORDER = ['diabetes', ...Object.keys(ANALYTE_CATEGORY_LABELS).filter((c) => c !== 'diabetes')] as AnalyteCategory[];
+
+/** Choix proposés pour les sérologies ; « Non indiqué » = seulement la valeur chiffrée. */
+const QUALITATIVE_CHOICES: [string, string][] = [
+  ['negative', LAB_QUALITATIVE_LABELS.negative],
+  ['positive', LAB_QUALITATIVE_LABELS.positive],
+  ['equivocal', LAB_QUALITATIVE_LABELS.equivocal],
+  ['', 'Non indiqué'],
+];
 
 const input = 'min-h-12 w-full rounded-xl border bg-surface px-3.5 text-base outline-none focus:border-petrol focus:ring-2 focus:ring-petrol-2';
 
@@ -46,7 +41,7 @@ export function LabEntryForm({ today, initialAnalyte }: { today: string; initial
   const [code, setCode] = useState(v.analyteCode ?? initialAnalyte ?? '');
   const analyte = getAnalyte(code);
   const units = analyte ? unitsFor(analyte) : [];
-  const groups = Object.entries(CATEGORY_LABELS).map(([cat, label]) => ({ label, items: ANALYTES.filter((a) => a.category === cat) }));
+  const groups = CATEGORY_ORDER.map((cat) => ({ label: ANALYTE_CATEGORY_LABELS[cat], items: ANALYTES.filter((a) => a.category === cat) }));
   const cls = (k: string) => `${input} ${fe[k] ? 'border-red' : 'border-line'}`;
 
   return (
@@ -72,9 +67,32 @@ export function LabEntryForm({ today, initialAnalyte }: { today: string; initial
         <FieldError id="e-analyte" msg={fe.analyteCode} />
       </div>
 
+      {analyte?.qualitative && (
+        <fieldset className="flex min-w-0 flex-col gap-1.5" key={`q-${code}`} aria-describedby="e-qual">
+          <legend className="mb-1.5 text-sm font-medium">Conclusion du laboratoire</legend>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {([...QUALITATIVE_CHOICES] as const).map(([val, label]) => (
+              <label
+                key={val}
+                className="flex min-h-12 cursor-pointer items-center justify-center rounded-xl border border-line bg-surface px-3 text-sm font-medium has-[:checked]:border-petrol has-[:checked]:bg-petrol-2 has-[:checked]:text-petrol has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-petrol"
+              >
+                <input type="radio" name="qualitative" value={val} defaultChecked={(v.qualitative ?? '') === val} className="sr-only" />
+                {label}
+              </label>
+            ))}
+          </div>
+          <FieldError id="e-qual" msg={fe.qualitative} />
+          <p className="text-[13px] text-ink-3">
+            Recopiez ce qui est écrit sur le bilan. La valeur chiffrée (index, titre) est facultative si le laboratoire a conclu.
+          </p>
+        </fieldset>
+      )}
+
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,9rem)] gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
         <div className="flex min-w-0 flex-col gap-1.5">
-          <Label htmlFor="value">Résultat</Label>
+          <Label htmlFor="value" optional={!!analyte?.qualitative}>
+            {analyte?.qualitative ? 'Valeur chiffrée' : 'Résultat'}
+          </Label>
           <input id="value" name="value" inputMode="decimal" autoComplete="off" defaultValue={v.value} placeholder="ex. 7,2" className={cls('value')} aria-invalid={!!fe.value} aria-describedby="e-value" />
           <FieldError id="e-value" msg={fe.value} />
         </div>

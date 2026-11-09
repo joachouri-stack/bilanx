@@ -29,7 +29,7 @@ import { DEMO_NEXT_APPOINTMENT, DEMO_TIMEZONE, demoDay, demoToday } from '@/lib/
 import { DOC_SHORTCUTS } from '@/lib/document-categories';
 import { appointments, documents, glucose, journal, profiles } from './auth';
 import { moduleAllowed, type AppContext } from './context';
-import { labResults, sensorRange, type LabRow } from './data';
+import { isNumericLab, labResults, sensorRange, type LabRow, type NumericLabRow } from './data';
 import { insulinDoses, insulinProducts } from './insulin-data';
 import { stepsDaily, stepsGoal } from './activity-data';
 import { medicationDay, medicationList } from './medication-data';
@@ -207,7 +207,7 @@ export interface DashboardData {
   labsCount: number;
   hba1c: Hba1cPoint[];
   /** Dernier résultat de chaque analyse (hors HbA1c) en dehors des valeurs de référence. */
-  watch: LabRow[];
+  watch: NumericLabRow[];
   today_: TodaySummary | null;
   appointments: AppointmentsSummary | null;
   steps: StepsSummary | null;
@@ -223,7 +223,7 @@ export const frTime = (d: Date) =>
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
 
-function hba1cPercent(r: LabRow): number {
+function hba1cPercent(r: NumericLabRow): number {
   return normalizeUnit(r.unit) === normalizeUnit('mmol/mol') ? hba1cMmolMolToPercent(r.value) : r.value;
 }
 
@@ -388,6 +388,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
 
   const hba1c = labs
     .filter((r) => r.analyteCode === 'hba1c')
+    .filter(isNumericLab)
     .sort((a, b) => a.sampledAt.getTime() - b.sampledAt.getTime())
     .map((r) => ({ percent: hba1cPercent(r), sampledAt: r.sampledAt, laboratory: r.laboratory }));
 
@@ -396,7 +397,8 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     const cur = latestByAnalyte.get(r.analyteCode);
     if (!cur || r.sampledAt > cur.sampledAt) latestByAnalyte.set(r.analyteCode, r);
   }
-  const watch = [...latestByAnalyte.values()].filter((r) => {
+  // Seuls les résultats chiffrés se comparent aux valeurs de référence (une sérologie positive peut être une protection : vaccin).
+  const watch = [...latestByAnalyte.values()].filter(isNumericLab).filter((r) => {
     if (r.analyteCode === 'hba1c' || !getAnalyte(r.analyteCode)) return false;
     const st = referenceStatus(r.value, { low: r.refLow, high: r.refHigh });
     return st === 'below' || st === 'above';

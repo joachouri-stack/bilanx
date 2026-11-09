@@ -1,5 +1,5 @@
 -- =====================================================================
--- BILANX — Migration 0035 : dossiers « Cancer » (oncologie), « Psychologue »,
+-- BILANX — Migration 0038 : dossiers « Cancer » (oncologie), « Psychologue »,
 --   « MDPH » (handicap), « Kiné » (kinésithérapie), « Ostéopathe » et « Orthophoniste ».
 -- =====================================================================
 ALTER TABLE document DROP CONSTRAINT IF EXISTS document_specialty_check;

@@ -4,7 +4,7 @@
  * valeur : ils signalent ce qui doit être vérifié. Seule une confirmation
  * humaine transforme un brouillon en résultat.
  */
-import { getAnalyte, isKnownUnit, matchAnalyte, toCanonical } from './analytes';
+import { getAnalyte, isKnownUnit, matchAnalyte, toCanonical, type LabQualitative } from './analytes';
 
 export interface ExtractedDraft {
   rawLabel: string;
@@ -14,6 +14,54 @@ export interface ExtractedDraft {
   /** Code d'analyte proposé par l'IA ; recalculé par correspondance de synonymes s'il est absent. */
   analyteCode?: string | null;
   samplingDate?: Date | null;
+  /** Conclusion telle qu'écrite sur le document (« Négatif », « NON REACTIF »…), pour les sérologies. */
+  rawQualitative?: string | null;
+}
+
+/**
+ * Conclusion qualitative d'un libellé de laboratoire.
+ * « non réactif » est testé avant « réactif » ; « positivité » (seuil) n'est pas une conclusion.
+ */
+const QUALITATIVE_WORDS: [RegExp, LabQualitative][] = [
+  [/^(?:negati(?:f|ve)s?|neg\.?|non[\s-]+reacti(?:f|ve)|non[\s-]+detecte(?:e|s)?)$/, 'negative'],
+  [/^(?:positi(?:f|ve)s?|pos\.?|reacti(?:f|ve)|detecte(?:e|s)?)$/, 'positive'],
+  [/^(?:douteu(?:x|se)|equivoque|indetermine(?:e)?|limite)$/, 'equivocal'],
+];
+
+/** Repli des accents sans changer la longueur (positions conservées). */
+export function foldSameLength(s: string): string {
+  return [...s].map((c) => (c.normalize('NFD')[0] ?? c).toLowerCase().slice(0, 1) || c).join('');
+}
+
+export function parseQualitative(raw: string | null | undefined): LabQualitative | null {
+  if (!raw) return null;
+  const s = foldSameLength(raw.trim()).replace(/\s+/g, ' ');
+  for (const [re, q] of QUALITATIVE_WORDS) if (re.test(s)) return q;
+  return null;
+}
+
+const QUAL_IN_LINE =
+  /(?<![a-z])(non[\s-]+reacti(?:f|ve)|non[\s-]+detecte(?:e|s)?|negati(?:f|ve)s?|positi(?:f|ve)s?|reacti(?:f|ve)|douteu(?:x|se)|equivoque|indetermine(?:e)?)(?![a-z])/g;
+
+/**
+ * Cherche la conclusion d'une ligne de résultat. Ignore les mots placés dans une référence :
+ * entre parenthèses, ou suivis d'un seuil (« Négatif < 1,00 », « positif si > 10 »).
+ * Renvoie le texte tel qu'écrit et sa position, ou null si aucune conclusion (ou plusieurs différentes).
+ */
+export function findQualitativeInLine(text: string): { raw: string; index: number; qualitative: LabQualitative } | null {
+  const folded = foldSameLength(text);
+  const found: { raw: string; index: number; qualitative: LabQualitative }[] = [];
+  for (const m of folded.matchAll(QUAL_IN_LINE)) {
+    const index = m.index!;
+    const before = folded.slice(0, index);
+    if ((before.match(/\(/g)?.length ?? 0) > (before.match(/\)/g)?.length ?? 0)) continue;
+    const after = folded.slice(index + m[0].length);
+    if (/^\s*(?:si|:)?\s*(?:<|>|≤|≥|inf|sup|a partir)/.test(after)) continue;
+    const q = parseQualitative(m[0]);
+    if (q) found.push({ raw: text.slice(index, index + m[0].length), index, qualitative: q });
+  }
+  if (!found.length || found.some((f) => f.qualitative !== found[0]!.qualitative)) return null;
+  return found[0]!;
 }
 
 export type CheckCode =
@@ -41,6 +89,8 @@ export interface DraftAssessment {
   parsedValue: number | null;
   comparator: '<' | '<=' | '>' | '>=' | null;
   analyteCode: string | null;
+  /** Conclusion lue (sérologies). */
+  qualitative: LabQualitative | null;
   refLow: number | null;
   refHigh: number | null;
   checks: CheckResult[];
@@ -96,22 +146,33 @@ export function valueAppearsInSource(rawValue: string, sourceText: string): bool
 
 export function assessDraft(draft: ExtractedDraft, sourceText: string, now: Date = new Date()): DraftAssessment {
   const checks: CheckResult[] = [];
-  const parsed = parseLabNumber(draft.rawValue);
+  const analyte = (draft.analyteCode ? getAnalyte(draft.analyteCode) : undefined) ?? matchAnalyte(draft.rawLabel);
+  // Sérologies : la conclusion seule (« Négatif ») suffit, à condition d'être écrite dans le document.
+  const qualitative = analyte?.qualitative ? parseQualitative(draft.rawQualitative) : null;
+  // Anti-hallucination : le libellé et la conclusion doivent figurer sur une même ligne du document.
+  const label = foldSameLength(draft.rawLabel.trim());
+  const word = foldSameLength(draft.rawQualitative?.trim() ?? '');
+  if (qualitative && !sourceText.split('\n').some((l) => { const f = foldSameLength(l); return f.includes(label) && f.includes(word); })) {
+    checks.push({ code: 'value_not_in_source', severity: 'block', messageFr: "Ce résultat n'a pas été retrouvé tel quel dans le document." });
+  }
+  const hasValue = draft.rawValue.trim() !== '';
+  const parsed = hasValue ? parseLabNumber(draft.rawValue) : null;
 
-  if (!valueAppearsInSource(draft.rawValue, sourceText)) {
+  if (hasValue && !valueAppearsInSource(draft.rawValue, sourceText)) {
     checks.push({ code: 'value_not_in_source', severity: 'block', messageFr: "Cette valeur n'a pas été retrouvée telle quelle dans le document." });
   }
-  if (!parsed) {
+  if (!parsed && (hasValue || !qualitative)) {
     checks.push({ code: 'value_unparseable', severity: 'block', messageFr: "La valeur lue n'est pas un nombre exploitable." });
   }
 
-  const analyte = (draft.analyteCode ? getAnalyte(draft.analyteCode) : undefined) ?? matchAnalyte(draft.rawLabel);
   if (!analyte) {
     checks.push({ code: 'analyte_unmatched', severity: 'warn', messageFr: "L'analyse n'a pas été reconnue dans la bibliothèque : choisissez-la manuellement." });
   }
 
   const unit = draft.rawUnit?.trim() || null;
-  if (!unit) {
+  if (!hasValue && qualitative) {
+    /* conclusion seule : pas d'unité attendue */
+  } else if (!unit) {
     checks.push({ code: 'unit_missing', severity: 'warn', messageFr: "Aucune unité n'a été lue pour cette valeur." });
   } else if (analyte && !isKnownUnit(analyte, unit)) {
     checks.push({ code: 'unit_unknown', severity: 'warn', messageFr: `Unité « ${unit} » inhabituelle pour ${analyte.nameFr} : vérifiez-la.` });
@@ -152,6 +213,7 @@ export function assessDraft(draft: ExtractedDraft, sourceText: string, now: Date
     parsedValue: parsed?.value ?? null,
     comparator: parsed?.comparator ?? null,
     analyteCode: analyte?.code ?? null,
+    qualitative,
     refLow: ref?.low ?? null,
     refHigh: ref?.high ?? null,
     checks,
