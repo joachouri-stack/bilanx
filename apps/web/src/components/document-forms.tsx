@@ -205,7 +205,6 @@ const TYPE_CHOICES: TypeChoice[] = [
   { key: 'comptes-rendus', label: 'Compte rendu', icon: 'document', tone: 'sage', kind: 'medical_report', medical: true },
   { key: 'mutuelle', label: 'Mutuelle', icon: 'shield', tone: 'petrol', kind: 'other', folder: 'mutuelle', medical: false },
   { key: 'attestation', label: 'Attestation', icon: 'certificate', tone: 'neutral', kind: 'other', folder: 'attestation', medical: false },
-  { key: 'vitamines', label: 'Vitamines', icon: 'capsule', tone: 'sage', kind: 'other', folder: 'vitamines', medical: true },
   { key: 'autre', label: 'Autre', icon: 'folder', tone: 'neutral', kind: 'other', medical: true },
   { key: 'auto', label: 'Je ne sais pas', icon: 'sparkle', tone: 'neutral', kind: '', medical: true },
 ];
@@ -387,11 +386,11 @@ export function UploadForm({
       {showSpec && (
         <section aria-labelledby="quelle-specialite">
           <h3 id="quelle-specialite" className="mb-2 text-sm font-semibold text-ink-2">
-            Quelle spécialité ? <span className="font-normal text-ink-3">(facultatif)</span>
+            Dans quel dossier ? <span className="font-normal text-ink-3">(facultatif)</span>
           </h3>
           <div role="radiogroup" aria-labelledby="quelle-specialite" className="flex flex-wrap gap-2">
             <button type="button" role="radio" aria-checked={!spec} onClick={() => setSpec('')} className={pill(!spec)}>
-              Aucune
+              Aucun
             </button>
             {(moreSpecs ? SPECIALTIES : QUICK_SPECS).map((s) => (
               <button key={s.code} type="button" role="radio" aria-checked={spec === s.code} onClick={() => setSpec(s.code)} className={pill(spec === s.code)}>
@@ -408,7 +407,7 @@ export function UploadForm({
           {typeFolder && specInfo && (
             <p className="mt-2 flex items-center gap-1.5 text-[13px] text-ink-3">
               <Icon name="folder" className="size-4 shrink-0" />
-              Rangé dans « {typeFolder} » et dans « {specInfo.short} »
+              Rangé dans « {specInfo.short} › {typeFolder} », et visible aussi dans « {typeFolder} »
             </p>
           )}
         </section>

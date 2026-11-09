@@ -49,6 +49,7 @@ export type ExamType = (typeof EXAM_TYPES)[number];
 export const SPECIALTIES = [
   'generaliste', 'cardiologie', 'dermatologie', 'endocrinologie', 'gastro', 'gynecologie', 'nephrologie', 'neurologie',
   'ophtalmologie', 'orl', 'pneumologie', 'rhumatologie', 'urologie', 'podologie', 'dentaire', 'psychiatrie', 'radiologie', 'autre',
+  'vitamines',
 ] as const;
 export type Specialty = (typeof SPECIALTIES)[number];
 /** Dossiers de rangement (liste fixe, voir db/migrations/0027_document_folder.sql). */
@@ -165,6 +166,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
       date = d.date;
     }
     const examType = kind === 'imaging' && d?.examType && (EXAM_TYPES as readonly string[]).includes(d.examType) ? d.examType : null;
+    // Ancien dossier « vitamines » : c'est désormais un dossier thématique (spécialité, migration 0033).
+    if (d?.folder === 'vitamines') d = { ...d, folder: null, specialty: d.specialty ?? 'vitamines' };
     const specialty = d?.specialty && (SPECIALTIES as readonly string[]).includes(d.specialty) ? d.specialty : null;
     if (d?.specialty && !specialty) return { ok: false, error: 'Spécialité inconnue.' };
     const folder = d?.folder && (FOLDERS as readonly string[]).includes(d.folder) ? d.folder : null;

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { appContext, moduleAllowed } from '@/lib/server/context';
 import { documents } from '@/lib/server/auth';
 import { Chip, EmptyState, PageHeader, buttonClass } from '@/components/ui';
@@ -56,7 +57,7 @@ const KIND_WORDS: Record<string, [string, string]> = {
   autres: ['autre', 'autres'],
 };
 const SPEC_TONE = 'bg-rose-2 text-rose';
-const FOLDER_TONE: Record<string, string> = { vitamines: 'bg-sage-2 text-sage', mutuelle: 'bg-petrol-2 text-petrol', attestation: 'bg-surface-2 text-ink-2' };
+const FOLDER_TONE: Record<string, string> = { mutuelle: 'bg-petrol-2 text-petrol', attestation: 'bg-surface-2 text-ink-2' };
 
 /** Tuile de dossier (page d'accueil des documents). */
 function FolderTile({ href, icon, tone, label, count, sub }: { href: string; icon: DocCategoryIcon; tone: string; label: string; count: number; sub?: string }) {
@@ -105,7 +106,7 @@ function SubChip({ href, current, label, count, icon }: { href: string; current:
  * - `/documents` : les dossiers (par type, par spécialité, administratif) et les derniers ajouts ; `?tout=1` : tout.
  * - `?cat=<type>` : dossier d'un type ; sous-dossiers par spécialité (`&specialite=<code>|aucune`) ; imagerie : `&examen=irm…`.
  * - `?specialite=<code>` : dossier d'une spécialité ; sous-dossiers par type (`&type=<type>`).
- * - `?dossier=vitamines|mutuelle|attestation` : dossiers administratifs.
+ * - `?dossier=mutuelle|attestation` : dossiers administratifs.
  */
 export default async function DocumentsPage({
   searchParams,
@@ -114,6 +115,8 @@ export default async function DocumentsPage({
 }) {
   const ctx = await appContext();
   const sp = await searchParams;
+  // Ancien dossier administratif « Vitamines » : c'est désormais un dossier thématique.
+  if (sp.dossier === 'vitamines') redirect('/documents?specialite=vitamines');
   const folder = folderByCode(sp.dossier);
   const exam = !folder && sp.examen && EXAM_LABELS[sp.examen] ? sp.examen : null;
   // Racine : un type (?cat=, ou un examen d'imagerie seul), sinon une spécialité, sinon un dossier administratif.
@@ -346,23 +349,23 @@ export default async function DocumentsPage({
         <div className="flex min-w-0 flex-col gap-4 lg:order-1">
           {isHome && !showAll && (
             <>
-              <section aria-labelledby="par-type">
-                <h2 id="par-type" className="mb-2 px-1 text-sm font-semibold text-ink-2">
-                  Par type de document
-                </h2>
-                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {DOC_CATEGORIES.filter((c) => c.key !== 'autres' || byKind(c.kinds)).map((c) => (
-                    <FolderTile key={c.key} href={`/documents?cat=${c.key}`} icon={c.svg} tone={CAT_TONE[c.key]!.soft} label={c.label} count={byKind(c.kinds)} />
-                  ))}
-                </ul>
-              </section>
               <section aria-labelledby="par-specialite">
                 <h2 id="par-specialite" className="mb-2 px-1 text-sm font-semibold text-ink-2">
-                  Par spécialité
+                  Mes dossiers
                 </h2>
                 <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {specTiles.map(({ s, n, sub }) => (
                     <FolderTile key={s.code} href={`/documents?specialite=${s.code}`} icon={s.icon} tone={SPEC_TONE} label={s.short} count={n} sub={sub} />
+                  ))}
+                </ul>
+              </section>
+              <section aria-labelledby="par-type">
+                <h2 id="par-type" className="mb-2 px-1 text-sm font-semibold text-ink-2">
+                  Tous mes documents, par type
+                </h2>
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {DOC_CATEGORIES.filter((c) => c.key !== 'autres' || byKind(c.kinds)).map((c) => (
+                    <FolderTile key={c.key} href={`/documents?cat=${c.key}`} icon={c.svg} tone={CAT_TONE[c.key]!.soft} label={c.label} count={byKind(c.kinds)} />
                   ))}
                 </ul>
               </section>
@@ -386,7 +389,28 @@ export default async function DocumentsPage({
             </>
           )}
 
-          {subChips.length > 1 && (
+          {/* Dossier thématique (Yeux, Diabète…) : ses sous-dossiers par type, toujours affichés. */}
+          {specRoot && !subType && (
+            <section aria-labelledby="sous-dossiers">
+              <h2 id="sous-dossiers" className="mb-2 px-1 text-sm font-semibold text-ink-2">
+                Sous-dossiers
+              </h2>
+              <ul className="grid grid-cols-2 gap-2">
+                {DOC_CATEGORIES.filter((c) => c.key !== 'autres' || inRoot.some((d) => c.kinds.includes(d.kind))).map((c) => (
+                  <FolderTile
+                    key={c.key}
+                    href={`/documents?specialite=${specRoot.code}&type=${c.key}`}
+                    icon={c.svg}
+                    tone={CAT_TONE[c.key]!.soft}
+                    label={c.label}
+                    count={inRoot.filter((d) => c.kinds.includes(d.kind)).length}
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {subChips.length > 1 && !(specRoot && !subType) && (
             <nav aria-label={typeRoot ? 'Spécialités' : 'Types de document'} className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
               <ul className="flex gap-2 pb-1">
                 {subChips.map(({ key, ...c }) => (

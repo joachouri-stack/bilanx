@@ -71,6 +71,7 @@ const spec = (code: string, short: string, title: string, of: string, icon: DocC
 
 /** Ordre d'affichage : les plus courantes d'abord. */
 export const SPECIALTIES: SpecialtyInfo[] = [
+  spec('vitamines', 'Vitamines', 'Vitamines et compléments', 'de vitamines', 'capsule'),
   spec('ophtalmologie', 'Yeux', 'Ophtalmologie', 'd’ophtalmologie', 'eye'),
   spec('endocrinologie', 'Diabète', 'Endocrinologie', 'd’endocrinologie', 'drop'),
   spec('neurologie', 'Cerveau', 'Neurologie', 'de neurologie', 'brain'),
@@ -92,7 +93,7 @@ export const SPECIALTIES: SpecialtyInfo[] = [
 ];
 
 /** Spécialités proposées d'emblée (formulaire d'ajout, page Documents même vides). */
-export const PINNED_SPECIALTIES = ['ophtalmologie', 'endocrinologie', 'neurologie', 'cardiologie', 'orl', 'urologie'];
+export const PINNED_SPECIALTIES = ['ophtalmologie', 'endocrinologie', 'vitamines', 'neurologie', 'cardiologie', 'orl', 'urologie'];
 
 /** Dossiers de rangement (codes de la migration 0027) : vitamines, mutuelle, attestation. */
 export interface FolderInfo {
@@ -104,7 +105,6 @@ export interface FolderInfo {
 }
 
 export const FOLDERS: FolderInfo[] = [
-  { code: 'vitamines', title: 'Vitamines', add: 'Ajouter un document Vitamines', icon: 'capsule' },
   { code: 'mutuelle', title: 'Mutuelle', add: 'Ajouter un document de mutuelle', icon: 'shield' },
   { code: 'attestation', title: 'Attestations', add: 'Ajouter une attestation', icon: 'certificate' },
 ];
@@ -153,7 +153,7 @@ export const DOC_SHORTCUTS: DocShortcut[] = [
   { key: 'neurologie', label: 'Cerveau', href: '/documents?specialite=neurologie', icon: 'brain', tone: 'rose', match: isSpecialty('neurologie') },
   { key: 'orl', label: 'ORL', href: '/documents?specialite=orl', icon: 'ear', tone: 'rose', match: isSpecialty('orl') },
   { key: 'urologie', label: 'Urologie', href: '/documents?specialite=urologie', icon: 'kidney', tone: 'rose', match: isSpecialty('urologie') },
-  { key: 'vitamines', label: 'Vitamines', href: '/documents?dossier=vitamines', icon: 'capsule', tone: 'sage', match: isFolder('vitamines') },
+  { key: 'vitamines', label: 'Vitamines', href: '/documents?specialite=vitamines', icon: 'capsule', tone: 'rose', match: isSpecialty('vitamines') },
   { key: 'mutuelle', label: 'Mutuelle', href: '/documents?dossier=mutuelle', icon: 'shield', tone: 'petrol', match: isFolder('mutuelle') },
   { key: 'attestation', label: 'Attestations', href: '/documents?dossier=attestation', icon: 'certificate', tone: 'neutral', match: isFolder('attestation') },
 ];
