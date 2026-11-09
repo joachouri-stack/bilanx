@@ -24,7 +24,29 @@ export type AnalyteCategory =
   | 'hormones'
   | 'inflammation'
   | 'liver'
-  | 'proteins';
+  | 'proteins'
+  | 'serology';
+
+/**
+ * Libellés des familles d'analyses, dans l'ordre d'affichage de la page « Analyses »
+ * (l'HbA1c a sa propre rubrique ; la glycémie à jeun reste rangée sous « Diabète »).
+ */
+export const ANALYTE_CATEGORY_LABELS: Record<AnalyteCategory, string> = {
+  vitamins: 'Vitamines',
+  minerals: 'Minéraux',
+  iron: 'Fer',
+  serology: 'Virus & sérologies',
+  hematology: 'Hématologie (NFS)',
+  electrolytes: 'Ionogramme',
+  kidney: 'Fonction rénale',
+  liver: 'Foie',
+  lipids: 'Lipides',
+  thyroid: 'Thyroïde',
+  hormones: 'Hormones',
+  inflammation: 'Inflammation',
+  proteins: 'Protéines',
+  diabetes: 'Diabète',
+};
 
 export interface Analyte {
   code: string;
@@ -82,6 +104,20 @@ export const ANALYTES: readonly Analyte[] = [
   { code: 'protein_total', nameFr: 'Protides totaux', synonyms: ['protides totaux', 'protéines totales', 'proteines totales', 'protidémie', 'protidemie'], category: 'proteins', canonicalUnit: 'g/L', conversions: [{ unit: 'g/dL', factor: 10 }], plausible: { min: 20, max: 140 } },
   { code: 'chloride', nameFr: 'Chlore', synonyms: ['chlore', 'chlorémie', 'chloremie', 'chlorures'], category: 'electrolytes', canonicalUnit: 'mmol/L', conversions: [], plausible: { min: 60, max: 150 } },
   { code: 'phosphorus', nameFr: 'Phosphore', synonyms: ['phosphore', 'phosphorémie', 'phosphoremie', 'phosphates'], category: 'minerals', canonicalUnit: 'mmol/L', conversions: [{ unit: 'mg/L', factor: 0.0323 }], plausible: { min: 0.1, max: 5 } },
+  // Virus & sérologies : résultats chiffrés (index, titre d'anticorps, charge virale).
+  { code: 'anti_hbs', nameFr: 'Anticorps anti-HBs (hépatite B)', synonyms: ['anticorps anti-hbs', 'ac anti-hbs', 'ac anti hbs', 'anti-hbs', 'anticorps anti hbs'], category: 'serology', canonicalUnit: 'mUI/mL', conversions: [{ unit: 'UI/L', factor: 1 }], plausible: { min: 0, max: 100000 } },
+  { code: 'hbs_ag', nameFr: 'Antigène HBs (hépatite B)', synonyms: ['antigène hbs', 'antigene hbs', 'ag hbs', 'aghbs', 'ag hbs quantitatif'], category: 'serology', canonicalUnit: 'index', conversions: [{ unit: 'S/CO', factor: 1 }, { unit: 'COI', factor: 1 }], plausible: { min: 0, max: 100000 } },
+  { code: 'anti_hbc', nameFr: 'Anticorps anti-HBc (hépatite B)', synonyms: ['anticorps anti-hbc', 'ac anti-hbc', 'ac anti hbc', 'anti-hbc', 'anticorps anti hbc totaux', 'ac anti-hbc totaux'], category: 'serology', canonicalUnit: 'index', conversions: [{ unit: 'S/CO', factor: 1 }, { unit: 'COI', factor: 1 }], plausible: { min: 0, max: 1000 } },
+  { code: 'hcv_ab', nameFr: 'Anticorps anti-VHC (hépatite C)', synonyms: ['anticorps anti-vhc', 'ac anti-vhc', 'ac anti vhc', 'anti-vhc', 'sérologie hépatite c', 'serologie hepatite c', 'anti-hcv'], category: 'serology', canonicalUnit: 'index', conversions: [{ unit: 'S/CO', factor: 1 }, { unit: 'COI', factor: 1 }], plausible: { min: 0, max: 1000 } },
+  { code: 'hav_igg', nameFr: 'Anticorps anti-VHA IgG (hépatite A)', synonyms: ['anticorps anti-vha igg', 'ac anti-vha igg', 'anti-vha igg'], category: 'serology', canonicalUnit: 'index', conversions: [{ unit: 'S/CO', factor: 1 }, { unit: 'COI', factor: 1 }], plausible: { min: 0, max: 1000 } },
+  { code: 'hiv_ag_ab', nameFr: 'VIH 1+2 (antigène p24 et anticorps)', synonyms: ['vih 1+2', 'vih1+2', 'sérologie vih', 'serologie vih', 'ag p24 et ac anti-vih', 'ac anti-vih 1 et 2', 'dépistage vih', 'depistage vih', 'hiv 1+2'], category: 'serology', canonicalUnit: 'index', conversions: [{ unit: 'S/CO', factor: 1 }, { unit: 'COI', factor: 1 }], plausible: { min: 0, max: 1000 } },
+  { code: 'cmv_igg', nameFr: 'Cytomégalovirus (CMV) IgG', synonyms: ['cmv igg', 'cytomégalovirus igg', 'cytomegalovirus igg', 'ac anti-cmv igg', 'anticorps anti-cmv igg'], category: 'serology', canonicalUnit: 'UA/mL', conversions: [{ unit: 'U/mL', factor: 1 }], plausible: { min: 0, max: 10000 } },
+  { code: 'ebv_vca_igg', nameFr: 'Epstein-Barr (EBV) VCA IgG', synonyms: ['ebv vca igg', 'vca igg', 'ac anti-vca igg', 'epstein-barr vca igg', 'epstein barr vca igg'], category: 'serology', canonicalUnit: 'U/mL', conversions: [{ unit: 'UA/mL', factor: 1 }], plausible: { min: 0, max: 10000 } },
+  { code: 'rubella_igg', nameFr: 'Rubéole IgG', synonyms: ['rubéole igg', 'rubeole igg', 'ac anti-rubéole igg', 'anticorps anti-rubéole igg'], category: 'serology', canonicalUnit: 'UI/mL', conversions: [], plausible: { min: 0, max: 10000 } },
+  { code: 'toxo_igg', nameFr: 'Toxoplasmose IgG', synonyms: ['toxoplasmose igg', 'toxoplasma igg', 'ac anti-toxoplasme igg', 'anticorps anti-toxoplasme igg'], category: 'serology', canonicalUnit: 'UI/mL', conversions: [], plausible: { min: 0, max: 10000 } },
+  { code: 'vzv_igg', nameFr: 'Varicelle-zona (VZV) IgG', synonyms: ['vzv igg', 'varicelle igg', 'varicelle-zona igg', 'ac anti-vzv igg'], category: 'serology', canonicalUnit: 'mUI/mL', conversions: [{ unit: 'UI/L', factor: 1 }], plausible: { min: 0, max: 100000 } },
+  { code: 'hcv_viral_load', nameFr: 'Charge virale VHC', synonyms: ['charge virale vhc', 'arn vhc', 'arn du vhc', 'hcv rna'], category: 'serology', canonicalUnit: 'UI/mL', conversions: [], plausible: { min: 0, max: 1e9 } },
+  { code: 'hiv_viral_load', nameFr: 'Charge virale VIH', synonyms: ['charge virale vih', 'arn vih', 'arn vih-1', 'arn du vih', 'hiv rna'], category: 'serology', canonicalUnit: 'copies/mL', conversions: [], plausible: { min: 0, max: 1e9 } },
 ];
 
 const BY_CODE = new Map(ANALYTES.map((a) => [a.code, a]));

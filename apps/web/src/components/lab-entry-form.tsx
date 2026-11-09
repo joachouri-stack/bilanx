@@ -1,25 +1,12 @@
 'use client';
 
 import { useActionState, useState } from 'react';
-import { ANALYTES, getAnalyte, unitsFor, type AnalyteCategory } from '@bilanx/domain';
+import { ANALYTE_CATEGORY_LABELS, ANALYTES, getAnalyte, unitsFor, type AnalyteCategory } from '@bilanx/domain';
 import { addLabResultAction, type FormState } from '@/lib/server/actions';
 import { Alert, SubmitButton } from './forms';
 
-const CATEGORY_LABELS: Record<AnalyteCategory, string> = {
-  diabetes: 'Diabète',
-  iron: 'Fer',
-  hematology: 'Hématologie',
-  vitamins: 'Vitamines',
-  minerals: 'Minéraux',
-  electrolytes: 'Ionogramme',
-  kidney: 'Fonction rénale',
-  lipids: 'Lipides',
-  thyroid: 'Thyroïde',
-  hormones: 'Hormones',
-  inflammation: 'Inflammation',
-  liver: 'Foie',
-  proteins: 'Protéines',
-};
+/** Diabète (HbA1c, glycémie à jeun) en tête, puis les familles dans l'ordre de la page « Analyses ». */
+const CATEGORY_ORDER = ['diabetes', ...Object.keys(ANALYTE_CATEGORY_LABELS).filter((c) => c !== 'diabetes')] as AnalyteCategory[];
 
 const input = 'min-h-12 w-full rounded-xl border bg-surface px-3.5 text-base outline-none focus:border-petrol focus:ring-2 focus:ring-petrol-2';
 
@@ -46,7 +33,7 @@ export function LabEntryForm({ today, initialAnalyte }: { today: string; initial
   const [code, setCode] = useState(v.analyteCode ?? initialAnalyte ?? '');
   const analyte = getAnalyte(code);
   const units = analyte ? unitsFor(analyte) : [];
-  const groups = Object.entries(CATEGORY_LABELS).map(([cat, label]) => ({ label, items: ANALYTES.filter((a) => a.category === cat) }));
+  const groups = CATEGORY_ORDER.map((cat) => ({ label: ANALYTE_CATEGORY_LABELS[cat], items: ANALYTES.filter((a) => a.category === cat) }));
   const cls = (k: string) => `${input} ${fe[k] ? 'border-red' : 'border-line'}`;
 
   return (

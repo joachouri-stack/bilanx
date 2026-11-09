@@ -1,6 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
+import { analyteHref } from '@/lib/navigation';
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@bilanx/auth';
 import type { FieldErrors } from '@bilanx/auth';
 import { cookies } from 'next/headers';
@@ -342,14 +343,14 @@ export async function addLabResultAction(_: FormState, fd: FormData): Promise<Fo
     if ('duplicate' in r) return { attempt: crypto.randomUUID(), duplicate: true, errors: { form: r.message }, values: input };
     return { attempt: crypto.randomUUID(), fieldErrors: r.errors, errors: { form: 'Vérifiez les champs signalés.' }, values: input };
   }
-  redirect(`/analyses/${r.analyteCode}?ajout=1`);
+  redirect(`${analyteHref(r.analyteCode)}?ajout=1`);
 }
 
 export async function deleteLabResultAction(fd: FormData): Promise<void> {
   const ctx = await appContext();
   const code = str(fd, 'analyteCode');
   if (ctx.active.kind === 'real') await lab().remove(ctx.user, ctx.active.access.profileId, str(fd, 'resultId'));
-  redirect(`/analyses/${encodeURIComponent(code)}?suppression=1`);
+  redirect(`${analyteHref(code)}?suppression=1`);
 }
 
 // ───────────── Documents & scanner ─────────────

@@ -13,6 +13,7 @@ import { ConfirmDelete } from '@/components/autres-confirmer';
 import { appointmentWhen } from '@/components/rendez-vous-when';
 import { AppointmentForm } from '@/components/appointment-form';
 import { ModuleForbidden } from '@/components/module-forbidden';
+import { analyteHref } from '@/lib/navigation';
 
 export const metadata: Metadata = { title: 'Rendez-vous' };
 
@@ -117,7 +118,7 @@ export default async function AppointmentPage({ params, searchParams }: { params
                 const label = d ? `${d.kind === 'lab_report' ? 'Bilan sanguin' : d.title}${d.document_date ? ` · ${fmtD.format(new Date(`${d.document_date}T12:00:00Z`))}` : ''}` : r ? labLabel(r) : 'Élément non accessible ou supprimé';
                 return (
                   <li key={l.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
-                    {d ? <Link href={`/documents/${d.id}`} className="text-petrol underline">{label}</Link> : r ? <Link href={`/analyses/${r.analyteCode}`} className="text-petrol underline">{label}</Link> : <span className="text-ink-3">{label}</span>}
+                    {d ? <Link href={`/documents/${d.id}`} className="text-petrol underline">{label}</Link> : r ? <Link href={analyteHref(r.analyteCode)} className="text-petrol underline">{label}</Link> : <span className="text-ink-3">{label}</span>}
                     {canWrite && (
                       <form action={unlinkAppointmentAction}>
                         <input type="hidden" name="id" value={a.id} />
