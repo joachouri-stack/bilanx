@@ -223,7 +223,27 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     // Imagerie, comptes rendus, autres : simplement conservés (aucune valeur à extraire).
     if (meta.kind && meta.kind !== 'prescription' && meta.kind !== 'lab_report') return { ok: true, documentId, status: 'stored', drafts: 0 };
     if (!(await hasAutoReadingConsent(actor.accountId))) return { ok: true, documentId, status: 'not_processed', drafts: 0 };
-    return { ok: true, documentId, ...(await extract(actor, profileId, documentId, isPdf ? 'application/pdf' : mimes[0]!, files.map((f) => f.data), meta.kind)) };
+    return { ok: true, documentId, ...(await safeExtract(actor, profileId, documentId, isPdf ? 'application/pdf' : mimes[0]!, files.map((f) => f.data), meta.kind)) };
+  }
+
+  /**
+   * Lecture qui ne fait jamais échouer l'envoi : le document est déjà enregistré ; si la lecture plante
+   * (photo inattendue, texte déroutant), elle est notée « impossible » et l'utilisateur garde son document.
+   */
+  async function safeExtract(actor: Actor, profileId: string, documentId: string, mime: AcceptedMime, data: Buffer[], hint: DocumentCategory | null = null) {
+    try {
+      return await extract(actor, profileId, documentId, mime, data, hint);
+    } catch (e) {
+      if (e instanceof ForbiddenError) throw e;
+      console.error('Lecture du document impossible', documentId, e);
+      await profiles
+        .withProfileData(actor, profileId, 'documents', 'write', (tx) =>
+          tx`INSERT INTO extraction_job (document_id, profile_id, status, error, created_at, finished_at)
+             VALUES (${documentId}, ${profileId}, 'failed', ${String((e as Error)?.message ?? e).slice(0, 300)}, ${now()}, ${now()})`,
+        )
+        .catch(() => undefined);
+      return { status: 'no_text' as const, drafts: 0 };
+    }
   }
 
   // ───────────────────────── Lecture automatique ─────────────────────────
@@ -328,7 +348,7 @@ export function createDocumentsService(cfg: DocumentsConfig) {
     const hint = d?.kind_by_user ? (d.kind as DocumentCategory) : null;
     if (hint && hint !== 'prescription' && hint !== 'lab_report') return { status: 'stored' as const, drafts: 0 };
     const mime = files[0]!.mime === 'application/pdf' ? 'application/pdf' : (files[0]!.mime as AcceptedMime);
-    return extract(actor, profileId, documentId, mime, files.map((f) => f.data), hint);
+    return safeExtract(actor, profileId, documentId, mime, files.map((f) => f.data), hint);
   }
 
   /**
