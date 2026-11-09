@@ -215,7 +215,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
                   today={today}
                   sampledOn={job.detected_sampling_date}
                   laboratory={job.detected_lab}
-                  drafts={pending.map((d) => ({ id: d.id, rawLabel: d.rawLabel, rawValue: d.rawValue, rawUnit: d.rawUnit, analyteCode: d.analyteCode, refLow: d.refLow, refHigh: d.refHigh, page: d.page, lineText: d.lineText, checks: d.checks }))}
+                  drafts={pending.map((d) => ({ id: d.id, rawLabel: d.rawLabel, rawValue: d.rawValue, rawUnit: d.rawUnit, analyteCode: d.analyteCode, qualitative: d.qualitative, refLow: d.refLow, refHigh: d.refHigh, page: d.page, lineText: d.lineText, checks: d.checks }))}
                 />
               ) : (
                 <p className="text-sm text-ink-2">Vous pouvez consulter ce document, mais pas ajouter de résultats d’analyses à ce profil.</p>

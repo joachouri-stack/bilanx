@@ -475,6 +475,7 @@ export async function reviewDocumentAction(_: FormState, fd: FormData): Promise<
       analyteCode: typeof d.analyteCode === 'string' ? d.analyteCode : undefined,
       value: typeof d.value === 'string' ? d.value : undefined,
       unit: typeof d.unit === 'string' ? d.unit : undefined,
+      qualitative: typeof d.qualitative === 'string' ? d.qualitative : undefined,
       refLow: typeof d.refLow === 'string' ? d.refLow : undefined,
       refHigh: typeof d.refHigh === 'string' ? d.refHigh : undefined,
     }));
