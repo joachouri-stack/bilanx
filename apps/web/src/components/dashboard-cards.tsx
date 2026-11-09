@@ -1043,6 +1043,7 @@ const SHORTCUT_TONES: Record<DocShortcut['tone'], string> = {
   petrol: 'bg-petrol-2 text-petrol',
   glucose: 'bg-glucose-2 text-glucose',
   sage: 'bg-sage-2 text-sage',
+  rose: 'bg-rose-2 text-rose',
   neutral: 'bg-surface-2 text-ink-2',
 };
 

@@ -1,7 +1,21 @@
 import type { IconName } from '@/components/icon';
 
 /** Icône d'une catégorie : une icône du composant `Icon`, ou un tracé local de components/documents-icons.tsx. */
-export type DocCategoryIcon = IconName | 'imaging' | 'scanner' | 'eye' | 'ear' | 'kidney' | 'bone' | 'capsule' | 'shield' | 'certificate';
+export type DocCategoryIcon =
+  | IconName
+  | 'imaging'
+  | 'scanner'
+  | 'eye'
+  | 'ear'
+  | 'kidney'
+  | 'bone'
+  | 'capsule'
+  | 'shield'
+  | 'certificate'
+  | 'heart'
+  | 'brain'
+  | 'tooth'
+  | 'lungs';
 
 /** Catégories de documents affichées (ordre d'affichage) et libellés. */
 export interface DocCategory {
@@ -29,37 +43,56 @@ export const DOC_CATEGORIES: DocCategory[] = [
 
 export const EXAM_LABELS: Record<string, string> = { irm: 'IRM', scanner: 'Scanner', radio: 'Radiographie', echo: 'Échographie', autre: 'Autre examen' };
 
-/** Spécialités médicales (codes de la migration 0026) : titre de page, libellé du formulaire, complément « d’urologie ». */
+/**
+ * Spécialités médicales (codes de la migration 0026). Une spécialité est le second axe de rangement :
+ * une ordonnance de l'ophtalmo est une « Ordonnance » ET un document « Yeux » (elle apparaît dans les deux dossiers).
+ */
 export interface SpecialtyInfo {
   code: string;
-  /** Titre de page et de liste : « Urologie ». */
+  /** Nom du dossier, en mots simples : « Yeux », « Diabète ». */
+  short: string;
+  /** Nom médical : « Ophtalmologie ». */
   title: string;
-  /** Libellé du choix dans le formulaire : « Urologie (urologue) ». */
+  /** Libellé du choix dans le formulaire de classement : « Yeux (ophtalmologie) ». */
   label: string;
   /** Complément du nom : « d’urologie », « de cardiologie ». */
   of: string;
+  icon: DocCategoryIcon;
 }
 
+const spec = (code: string, short: string, title: string, of: string, icon: DocCategoryIcon): SpecialtyInfo => ({
+  code,
+  short,
+  title,
+  label: short === title ? title : `${short} (${title.toLowerCase()})`,
+  of,
+  icon,
+});
+
+/** Ordre d'affichage : les plus courantes d'abord. */
 export const SPECIALTIES: SpecialtyInfo[] = [
-  { code: 'generaliste', title: 'Médecine générale', label: 'Médecine générale (généraliste)', of: 'de médecine générale' },
-  { code: 'cardiologie', title: 'Cardiologie', label: 'Cardiologie (cardiologue)', of: 'de cardiologie' },
-  { code: 'dermatologie', title: 'Dermatologie', label: 'Dermatologie (dermatologue)', of: 'de dermatologie' },
-  { code: 'endocrinologie', title: 'Endocrinologie', label: 'Endocrinologie (diabète, thyroïde)', of: 'd’endocrinologie' },
-  { code: 'gastro', title: 'Gastro-entérologie', label: 'Gastro-entérologie (gastro)', of: 'de gastro-entérologie' },
-  { code: 'gynecologie', title: 'Gynécologie', label: 'Gynécologie (gynécologue)', of: 'de gynécologie' },
-  { code: 'nephrologie', title: 'Néphrologie', label: 'Néphrologie (reins)', of: 'de néphrologie' },
-  { code: 'neurologie', title: 'Neurologie', label: 'Neurologie (neurologue)', of: 'de neurologie' },
-  { code: 'ophtalmologie', title: 'Ophtalmologie', label: 'Ophtalmologie (ophtalmo)', of: 'd’ophtalmologie' },
-  { code: 'orl', title: 'ORL', label: 'ORL (oreilles, nez, gorge)', of: 'd’ORL' },
-  { code: 'pneumologie', title: 'Pneumologie', label: 'Pneumologie (poumons)', of: 'de pneumologie' },
-  { code: 'rhumatologie', title: 'Rhumatologie', label: 'Rhumatologie (rhumatologue)', of: 'de rhumatologie' },
-  { code: 'urologie', title: 'Urologie', label: 'Urologie (urologue)', of: 'd’urologie' },
-  { code: 'podologie', title: 'Podologie', label: 'Podologie (pieds)', of: 'de podologie' },
-  { code: 'dentaire', title: 'Dentaire', label: 'Dentaire (dentiste)', of: 'dentaire' },
-  { code: 'psychiatrie', title: 'Psychiatrie', label: 'Psychiatrie (psychiatre)', of: 'de psychiatrie' },
-  { code: 'radiologie', title: 'Radiologie', label: 'Radiologie (radiologue)', of: 'de radiologie' },
-  { code: 'autre', title: 'Autre spécialité', label: 'Autre spécialité', of: 'd’une autre spécialité' },
+  spec('ophtalmologie', 'Yeux', 'Ophtalmologie', 'd’ophtalmologie', 'eye'),
+  spec('endocrinologie', 'Diabète', 'Endocrinologie', 'd’endocrinologie', 'drop'),
+  spec('neurologie', 'Cerveau', 'Neurologie', 'de neurologie', 'brain'),
+  spec('cardiologie', 'Cœur', 'Cardiologie', 'de cardiologie', 'heart'),
+  spec('orl', 'ORL', 'ORL', 'd’ORL', 'ear'),
+  spec('urologie', 'Urologie', 'Urologie', 'd’urologie', 'kidney'),
+  spec('nephrologie', 'Reins', 'Néphrologie', 'de néphrologie', 'kidney'),
+  spec('dentaire', 'Dents', 'Dentaire', 'dentaire', 'tooth'),
+  spec('generaliste', 'Généraliste', 'Médecine générale', 'de médecine générale', 'user'),
+  spec('pneumologie', 'Poumons', 'Pneumologie', 'de pneumologie', 'lungs'),
+  spec('rhumatologie', 'Os et articulations', 'Rhumatologie', 'de rhumatologie', 'bone'),
+  spec('dermatologie', 'Peau', 'Dermatologie', 'de dermatologie', 'sparkle'),
+  spec('gastro', 'Digestion', 'Gastro-entérologie', 'de gastro-entérologie', 'meal'),
+  spec('gynecologie', 'Gynécologie', 'Gynécologie', 'de gynécologie', 'user'),
+  spec('podologie', 'Pieds', 'Podologie', 'de podologie', 'steps'),
+  spec('psychiatrie', 'Psychiatrie', 'Psychiatrie', 'de psychiatrie', 'user'),
+  spec('radiologie', 'Radiologie', 'Radiologie', 'de radiologie', 'imaging'),
+  spec('autre', 'Autre spécialité', 'Autre spécialité', 'd’une autre spécialité', 'folder'),
 ];
+
+/** Spécialités proposées d'emblée (formulaire d'ajout, page Documents même vides). */
+export const PINNED_SPECIALTIES = ['ophtalmologie', 'endocrinologie', 'neurologie', 'cardiologie', 'orl', 'urologie'];
 
 /** Dossiers de rangement (codes de la migration 0027) : vitamines, mutuelle, attestation. */
 export interface FolderInfo {
@@ -102,7 +135,7 @@ export interface DocShortcut {
   label: string;
   href: string;
   icon: DocCategoryIcon;
-  tone: 'amber' | 'petrol' | 'glucose' | 'sage' | 'neutral';
+  tone: 'amber' | 'petrol' | 'glucose' | 'sage' | 'rose' | 'neutral';
   match: (d: DocLike) => boolean;
 }
 
@@ -115,12 +148,14 @@ export const DOC_SHORTCUTS: DocShortcut[] = [
   { key: 'analyses', label: 'Bilans sanguins', href: '/documents?cat=analyses', icon: 'flask', tone: 'petrol', match: isKind('analyses') },
   { key: 'comptes-rendus', label: 'Comptes rendus', href: '/documents?cat=comptes-rendus', icon: 'document', tone: 'sage', match: isKind('comptes-rendus') },
   { key: 'imagerie', label: 'Imagerie', href: '/documents?cat=imagerie', icon: 'imaging', tone: 'glucose', match: isKind('imagerie') },
-  { key: 'urologie', label: 'Urologue', href: '/documents?specialite=urologie', icon: 'kidney', tone: 'neutral', match: isSpecialty('urologie') },
-  { key: 'ophtalmologie', label: 'Ophtalmo', href: '/documents?specialite=ophtalmologie', icon: 'eye', tone: 'neutral', match: isSpecialty('ophtalmologie') },
-  { key: 'orl', label: 'ORL', href: '/documents?specialite=orl', icon: 'ear', tone: 'neutral', match: isSpecialty('orl') },
+  { key: 'ophtalmologie', label: 'Yeux', href: '/documents?specialite=ophtalmologie', icon: 'eye', tone: 'rose', match: isSpecialty('ophtalmologie') },
+  { key: 'endocrinologie', label: 'Diabète', href: '/documents?specialite=endocrinologie', icon: 'drop', tone: 'rose', match: isSpecialty('endocrinologie') },
+  { key: 'neurologie', label: 'Cerveau', href: '/documents?specialite=neurologie', icon: 'brain', tone: 'rose', match: isSpecialty('neurologie') },
+  { key: 'orl', label: 'ORL', href: '/documents?specialite=orl', icon: 'ear', tone: 'rose', match: isSpecialty('orl') },
+  { key: 'urologie', label: 'Urologie', href: '/documents?specialite=urologie', icon: 'kidney', tone: 'rose', match: isSpecialty('urologie') },
   { key: 'vitamines', label: 'Vitamines', href: '/documents?dossier=vitamines', icon: 'capsule', tone: 'sage', match: isFolder('vitamines') },
   { key: 'mutuelle', label: 'Mutuelle', href: '/documents?dossier=mutuelle', icon: 'shield', tone: 'petrol', match: isFolder('mutuelle') },
-  { key: 'attestation', label: 'Attestation', href: '/documents?dossier=attestation', icon: 'certificate', tone: 'neutral', match: isFolder('attestation') },
+  { key: 'attestation', label: 'Attestations', href: '/documents?dossier=attestation', icon: 'certificate', tone: 'neutral', match: isFolder('attestation') },
 ];
 
 export function categoryOf(kind: string): DocCategory {

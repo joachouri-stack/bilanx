@@ -73,7 +73,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
             [
               cat.single,
               doc.kind === 'imaging' && doc.exam_type ? EXAM_LABELS[doc.exam_type] : null,
-              specialtyByCode(doc.specialty)?.title,
+              specialtyByCode(doc.specialty)?.short,
               folderByCode(doc.folder)?.title,
               doc.document_date ? `du ${fmtLong.format(new Date(`${doc.document_date}T12:00:00Z`))}` : `ajouté le ${fmtLong.format(doc.uploaded_at)}`,
               doc.issuer,

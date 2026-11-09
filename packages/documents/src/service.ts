@@ -18,6 +18,7 @@ import {
 } from '@bilanx/domain';
 import { ForbiddenError, type Actor, type ProfilesService } from '@bilanx/profiles';
 import { imageText, pdfText, sniffMime, type AcceptedMime, type ExtractedText } from './text';
+import { guessSpecialty } from './specialty';
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
@@ -273,6 +274,9 @@ export function createDocumentsService(cfg: DocumentsConfig) {
                   ${d.bbox ? tx.json(d.bbox) : null}, ${a.analyteCode}, ${a.parsedValue}, ${d.rawUnit ?? null}, ${ref?.low ?? null}, ${ref?.high ?? null},
                   ${d.confidence ?? null}, ${tx.json(checks as never)}, 'proposed', ${d.lineText}, ${d.lineIndex})`;
       }
+      // Pas un bilan (courrier, compte rendu…) : spécialité devinée d'après le texte, si l'utilisateur n'en a pas choisi.
+      const guessed = report.drafts.length ? null : guessSpecialty(source);
+      if (guessed) await tx`UPDATE document SET specialty = ${guessed} WHERE id = ${documentId} AND specialty IS NULL`;
       if (report.drafts.length)
         await tx`UPDATE document SET kind = 'lab_report', issuer = COALESCE(issuer, ${report.laboratory}), document_date = COALESCE(document_date, ${report.samplingDate})
                  WHERE id = ${documentId}`;
@@ -303,6 +307,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
           VALUES (${job!.id}, ${profileId}, ${it.lineText}, ${it.lineIndex}, ${it.page}, ${it.name}, ${it.strength}, ${it.posology}, ${it.times}, ${it.qty},
                   ${it.startDate}, ${it.endDate}, ${it.confidence}, ${tx.json(it.checks as never)})`;
       }
+      const guessed = guessSpecialty(text.lines.map((l) => l.text).join('\n'));
+      if (guessed) await tx`UPDATE document SET specialty = ${guessed} WHERE id = ${documentId} AND specialty IS NULL`;
       await tx`UPDATE document SET kind = 'prescription', issuer = COALESCE(issuer, ${p.prescriber}), document_date = COALESCE(document_date, ${p.date})
                WHERE id = ${documentId}`;
       return { status: p.items.length ? ('to_review' as const) : ('no_values' as const), drafts: p.items.length };
