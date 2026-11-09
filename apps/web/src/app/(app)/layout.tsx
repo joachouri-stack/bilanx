@@ -1,5 +1,5 @@
 import { AppShell, type ShellProfile } from '@/components/app-shell';
-import { appContext, DEMO_PROFILE_ID, moduleAllowed, NAV_MODULES } from '@/lib/server/context';
+import { appContext, DEMO_PROFILE_ID, demoEnabled, moduleAllowed, NAV_MODULES } from '@/lib/server/context';
 import { RELATIONSHIPS, ROLE_LABELS } from '@bilanx/profiles';
 import Link from 'next/link';
 import { privacy } from '@/lib/server/auth';
@@ -15,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       detail: p.role === 'owner' ? (p.relationship ? RELATIONSHIPS[p.relationship] : 'Proche') : ROLE_LABELS[p.role],
       isDemo: false,
     })),
-    { id: DEMO_PROFILE_ID, name: 'Claire', detail: 'Démonstration — données fictives', isDemo: true },
+    ...(demoEnabled(ctx.profiles.length) ? [{ id: DEMO_PROFILE_ID, name: 'Claire', detail: 'Démonstration — données fictives', isDemo: true }] : []),
   ];
   const activeId = ctx.active.kind === 'demo' ? DEMO_PROFILE_ID : ctx.active.access.profileId;
   const hidden = Object.entries(NAV_MODULES)

@@ -25,12 +25,20 @@ export async function appContext(): Promise<AppContext> {
   const list = await profiles().listProfiles(user.accountId);
   const wanted = (await cookies()).get(PROFILE_COOKIE)?.value;
   let active: ActiveProfile;
-  if (wanted === DEMO_PROFILE_ID) active = { kind: 'demo' };
+  if (wanted === DEMO_PROFILE_ID && demoEnabled(list.length)) active = { kind: 'demo' };
   else {
     const found = list.find((p) => p.profileId === wanted) ?? list[0];
     active = found ? { kind: 'real', access: found } : { kind: 'demo' };
   }
   return { user, profiles: list, active };
+}
+
+/**
+ * Profil de démonstration (« Claire », données fictives) : masqué dès que le compte a un vrai profil.
+ * BILANX_DEMO=1 le réaffiche (tests de bout en bout, présentation).
+ */
+export function demoEnabled(realProfiles: number): boolean {
+  return process.env.BILANX_DEMO === '1' || realProfiles === 0;
 }
 
 export function moduleAllowed(active: ActiveProfile, module: ModuleKey, mode: 'read' | 'write' = 'read'): boolean {

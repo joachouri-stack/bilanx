@@ -76,7 +76,7 @@ execFileSync('psql', [DATABASE_URL, '-qc', 'DELETE FROM auth_throttle'], { stdio
 async function startServer(log, extraEnv = {}) {
   const child = spawn(process.execPath, [join(REPO, 'node_modules/next/dist/bin/next'), 'start', '-p', String(PORT)], {
     cwd: WEB,
-    env: { ...process.env, DATABASE_URL, BILANX_SECRET_KEY: SECRET, BILANX_APP_URL: BASE, NEXT_TELEMETRY_DISABLED: '1', NODE_EXTRA_CA_CERTS: join(OUT, 'push-cert.pem'), ...extraEnv },
+    env: { ...process.env, DATABASE_URL, BILANX_SECRET_KEY: SECRET, BILANX_APP_URL: BASE, BILANX_DEMO: '1', NEXT_TELEMETRY_DISABLED: '1', NODE_EXTRA_CA_CERTS: join(OUT, 'push-cert.pem'), ...extraEnv },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const chunks = [];

@@ -484,7 +484,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     if (w('glucose')) firstSteps.push({ key: 'glucose', label: 'Saisir une glycémie', href: '/glycemie#ajouter-glycemie', done: anyGlucose });
     if (w('lab')) firstSteps.push({ key: 'hba1c', label: 'Ajouter une HbA1c', href: '/analyses/ajouter?analyse=hba1c', done: hba1c.length > 0 });
     if (w('documents') && docs)
-      firstSteps.push({ key: 'prescription', label: 'Ajouter une ordonnance', href: '/documents#ajouter', done: docs.some((d) => d.kind === 'prescription') });
+      firstSteps.push({ key: 'prescription', label: 'Ajouter une ordonnance', href: '/ordonnances#ajouter', done: docs.some((d) => d.kind === 'prescription') });
     if (w('appointments') && appts)
       firstSteps.push({ key: 'appointment', label: 'Ajouter un rendez-vous', href: '/rendez-vous#nouveau-rendez-vous', done: appts.upcoming.length + appts.past.length > 0 });
   }

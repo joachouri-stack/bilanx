@@ -20,6 +20,7 @@ import {
 } from '@bilanx/domain';
 import { ForbiddenError, type Actor, type ProfilesService } from '@bilanx/profiles';
 import { imageText, pdfText, sniffMime, type AcceptedMime, type ExtractedText } from './text';
+import { guessSpecialty } from './specialty';
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
@@ -50,6 +51,7 @@ export type ExamType = (typeof EXAM_TYPES)[number];
 export const SPECIALTIES = [
   'generaliste', 'cardiologie', 'dermatologie', 'endocrinologie', 'gastro', 'gynecologie', 'nephrologie', 'neurologie',
   'ophtalmologie', 'orl', 'pneumologie', 'rhumatologie', 'urologie', 'podologie', 'dentaire', 'psychiatrie', 'radiologie', 'autre',
+  'vitamines',
 ] as const;
 export type Specialty = (typeof SPECIALTIES)[number];
 /** Dossiers de rangement (liste fixe, voir db/migrations/0027_document_folder.sql). */
@@ -171,6 +173,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
       date = d.date;
     }
     const examType = kind === 'imaging' && d?.examType && (EXAM_TYPES as readonly string[]).includes(d.examType) ? d.examType : null;
+    // Ancien dossier « vitamines » : c'est désormais un dossier thématique (spécialité, migration 0033).
+    if (d?.folder === 'vitamines') d = { ...d, folder: null, specialty: d.specialty ?? 'vitamines' };
     const specialty = d?.specialty && (SPECIALTIES as readonly string[]).includes(d.specialty) ? d.specialty : null;
     if (d?.specialty && !specialty) return { ok: false, error: 'Spécialité inconnue.' };
     const folder = d?.folder && (FOLDERS as readonly string[]).includes(d.folder) ? d.folder : null;
@@ -281,6 +285,9 @@ export function createDocumentsService(cfg: DocumentsConfig) {
                   ${ref?.low ?? null}, ${ref?.high ?? null},
                   ${d.confidence ?? null}, ${tx.json(checks as never)}, 'proposed', ${d.lineText}, ${d.lineIndex})`;
       }
+      // Pas un bilan (courrier, compte rendu…) : spécialité devinée d'après le texte, si l'utilisateur n'en a pas choisi.
+      const guessed = report.drafts.length ? null : guessSpecialty(source);
+      if (guessed) await tx`UPDATE document SET specialty = ${guessed} WHERE id = ${documentId} AND specialty IS NULL`;
       if (report.drafts.length)
         await tx`UPDATE document SET kind = 'lab_report', issuer = COALESCE(issuer, ${report.laboratory}), document_date = COALESCE(document_date, ${report.samplingDate})
                  WHERE id = ${documentId}`;
@@ -311,6 +318,8 @@ export function createDocumentsService(cfg: DocumentsConfig) {
           VALUES (${job!.id}, ${profileId}, ${it.lineText}, ${it.lineIndex}, ${it.page}, ${it.name}, ${it.strength}, ${it.posology}, ${it.times}, ${it.qty},
                   ${it.startDate}, ${it.endDate}, ${it.confidence}, ${tx.json(it.checks as never)})`;
       }
+      const guessed = guessSpecialty(text.lines.map((l) => l.text).join('\n'));
+      if (guessed) await tx`UPDATE document SET specialty = ${guessed} WHERE id = ${documentId} AND specialty IS NULL`;
       await tx`UPDATE document SET kind = 'prescription', issuer = COALESCE(issuer, ${p.prescriber}), document_date = COALESCE(document_date, ${p.date})
                WHERE id = ${documentId}`;
       return { status: p.items.length ? ('to_review' as const) : ('no_values' as const), drafts: p.items.length };

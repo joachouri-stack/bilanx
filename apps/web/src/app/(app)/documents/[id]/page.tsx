@@ -11,6 +11,7 @@ import { DocumentDetailsForm, ReviewForm } from '@/components/document-forms';
 import { categoryOf, documentTitle, EXAM_LABELS, folderByCode, specialtyByCode } from '@/lib/document-categories';
 import { PrescriptionReviewForm } from '@/components/prescription-forms';
 import { ModuleForbidden } from '@/components/module-forbidden';
+import { ShareDocument } from '@/components/share-document';
 
 export const metadata: Metadata = { title: 'Document' };
 
@@ -73,7 +74,7 @@ export default async function DocumentPage({ params, searchParams }: { params: P
             [
               cat.single,
               doc.kind === 'imaging' && doc.exam_type ? EXAM_LABELS[doc.exam_type] : null,
-              specialtyByCode(doc.specialty)?.title,
+              specialtyByCode(doc.specialty)?.short,
               folderByCode(doc.folder)?.title,
               doc.document_date ? `du ${fmtLong.format(new Date(`${doc.document_date}T12:00:00Z`))}` : `ajouté le ${fmtLong.format(doc.uploaded_at)}`,
               doc.issuer,
@@ -127,8 +128,12 @@ export default async function DocumentPage({ params, searchParams }: { params: P
               Document original{doc.page_count > 1 ? ` · ${plural(doc.page_count, 'page', 'pages')}` : ''}
             </h2>
             <a href={`/api/documents/${doc.id}/pages/1`} target="_blank" rel="noopener" className={buttonClass({ variant: 'ghost' })}>
-              Ouvrir en plein écran
+              Plein écran
             </a>
+          </div>
+          {/* Envoyer l'original : e-mail, WhatsApp, Messages, AirDrop… */}
+          <div className="mb-3">
+            <ShareDocument id={doc.id} title={documentTitle(doc)} pageCount={doc.page_count} />
           </div>
           {isPdf ? (
             <iframe src={`/api/documents/${doc.id}/pages/1`} title="Document original" className="h-[45vh] w-full rounded-xl border border-line bg-white lg:h-[70vh]" />

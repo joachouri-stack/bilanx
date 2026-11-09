@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { ANALYTES, getAnalyte, isLabQualitative, LAB_QUALITATIVE_LABELS, unitsFor, type LabQualitative } from '@bilanx/domain';
 import { reviewDocumentAction, updateDocumentDetailsAction, uploadDocumentAction, type FormState } from '@/lib/server/actions';
-import { DOC_CATEGORIES, DOC_SHORTCUTS, EXAM_LABELS, FOLDERS, SPECIALTIES, type DocCategoryIcon } from '@/lib/document-categories';
+import { DOC_CATEGORIES, EXAM_LABELS, FOLDERS, PINNED_SPECIALTIES, SPECIALTIES, type DocCategoryIcon } from '@/lib/document-categories';
 import { Alert } from './forms';
 import { useFormStatus } from 'react-dom';
 import { Icon } from './icon';
@@ -177,102 +177,47 @@ export function DocumentDetailsForm({
   );
 }
 
-/** Destination d'un document : la catégorie et, le cas échéant, l'examen, la spécialité ou le dossier. */
-interface Destination {
+/** Réponse à « Quel document ? » : le type (et, pour l'administratif, le dossier). */
+interface TypeChoice {
   key: string;
   label: string;
   icon: DocCategoryIcon;
   tone: string;
   kind: string;
-  examType?: string;
-  specialty?: string;
   folder?: string;
+  /** Les documents administratifs n'ont pas de spécialité. */
+  medical: boolean;
 }
 
-const DEST_TONE: Record<string, string> = {
+const TONE: Record<string, string> = {
   amber: 'bg-amber-2 text-amber',
   petrol: 'bg-petrol-2 text-petrol',
   glucose: 'bg-glucose-2 text-glucose',
   sage: 'bg-sage-2 text-sage',
+  rose: 'bg-rose-2 text-rose',
   neutral: 'bg-surface-2 text-ink-2',
 };
 
-/** Les dossiers du tableau de bord, puis « Autre » et « Je ne sais pas » (lecture automatique). */
-const DESTINATIONS: Destination[] = [
-  ...DOC_SHORTCUTS.map((s): Destination => {
-    const folder = FOLDERS.find((f) => f.code === s.key);
-    const exam = ['irm', 'scanner', 'radio'].includes(s.key) ? s.key : undefined;
-    const spec = SPECIALTIES.find((x) => x.code === s.key);
-    const kind =
-      s.key === 'ordonnances'
-        ? 'prescription'
-        : s.key === 'analyses'
-          ? 'lab_report'
-          : s.key === 'comptes-rendus'
-            ? 'medical_report'
-            : s.key === 'imagerie' || exam
-              ? 'imaging'
-              : folder
-                ? 'other'
-                : '';
-    return {
-      key: s.key,
-      label: s.label,
-      icon: s.icon,
-      tone: s.tone,
-      kind,
-      examType: exam,
-      specialty: spec?.code,
-      folder: folder?.code,
-    };
-  }),
-  {
-    key: 'autre',
-    label: 'Autre',
-    icon: 'folder',
-    tone: 'neutral',
-    kind: 'other',
-  },
-  {
-    key: 'auto',
-    label: 'Je ne sais pas',
-    icon: 'sparkle',
-    tone: 'neutral',
-    kind: '',
-  },
+const TYPE_CHOICES: TypeChoice[] = [
+  { key: 'ordonnances', label: 'Ordonnance', icon: 'prescription', tone: 'amber', kind: 'prescription', medical: true },
+  { key: 'analyses', label: 'Bilan sanguin', icon: 'flask', tone: 'petrol', kind: 'lab_report', medical: true },
+  { key: 'imagerie', label: 'Imagerie', icon: 'imaging', tone: 'glucose', kind: 'imaging', medical: true },
+  { key: 'comptes-rendus', label: 'Compte rendu', icon: 'document', tone: 'sage', kind: 'medical_report', medical: true },
+  { key: 'mutuelle', label: 'Mutuelle', icon: 'shield', tone: 'petrol', kind: 'other', folder: 'mutuelle', medical: false },
+  { key: 'attestation', label: 'Attestation', icon: 'certificate', tone: 'neutral', kind: 'other', folder: 'attestation', medical: false },
+  { key: 'autre', label: 'Autre', icon: 'folder', tone: 'neutral', kind: 'other', medical: true },
+  { key: 'auto', label: 'Je ne sais pas', icon: 'sparkle', tone: 'neutral', kind: '', medical: true },
 ];
 
-/** Destination présélectionnée depuis la page d'où l'on vient (dossier, examen, spécialité, catégorie). */
-function initialDestination(kind: string, examType?: string, specialty?: string, folder?: string): Destination | null {
-  if (folder) return DESTINATIONS.find((d) => d.folder === folder) ?? null;
-  if (examType) {
-    return { key: 'imagerie', label: 'Imagerie', icon: 'imaging', tone: 'glucose', kind: 'imaging', examType };
-  }
-  if (specialty) {
-    const sp = SPECIALTIES.find((x) => x.code === specialty);
-    return (
-      DESTINATIONS.find((d) => d.specialty === specialty) ??
-      (sp
-        ? {
-            key: `spec-${specialty}`,
-            label: sp.title,
-            icon: 'folder',
-            tone: 'neutral',
-            kind: '',
-            specialty,
-          }
-        : null)
-    );
-  }
-  if (kind === 'imaging') return DESTINATIONS.find((d) => d.key === 'imagerie') ?? null;
-  const byKind: Record<string, string> = {
-    prescription: 'ordonnances',
-    lab_report: 'analyses',
-    medical_report: 'comptes-rendus',
-    other: 'autre',
-  };
-  return kind ? (DESTINATIONS.find((d) => d.key === byKind[kind]) ?? null) : null;
+/** Type présélectionné depuis le dossier ouvert (catégorie ou dossier administratif). */
+function initialType(kind: string, folder?: string): TypeChoice | null {
+  if (folder) return TYPE_CHOICES.find((t) => t.folder === folder) ?? null;
+  if (!kind) return null;
+  return TYPE_CHOICES.find((t) => t.kind === kind && !t.folder) ?? null;
 }
+
+/** Spécialités proposées en pastilles ; les autres sont dans « Autre… ». */
+const QUICK_SPECS = SPECIALTIES.filter((s) => PINNED_SPECIALTIES.includes(s.code));
 
 /** Aperçu d'une page choisie (image) ou pastille PDF. */
 function PageThumb({ file, index, onRemove }: { file: File; index: number; onRemove: () => void }) {
@@ -325,13 +270,13 @@ export function UploadForm({
   today: string;
 }) {
   const [state, action] = useActionState(uploadDocumentAction, {} as FormState);
-  const preset = useMemo(
-    () => initialDestination(defaultKind, defaultExamType, defaultSpecialty, defaultFolder),
-    [defaultKind, defaultExamType, defaultSpecialty, defaultFolder],
-  );
-  const [dest, setDest] = useState<Destination | null>(preset);
+  const preset = useMemo(() => initialType(defaultKind, defaultFolder), [defaultKind, defaultFolder]);
+  // Sans dossier d'origine : « Je ne sais pas » coché d'avance (la lecture reconnaît ordonnances et bilans) ; jamais de bouton bloqué.
+  const [type, setType] = useState<TypeChoice | null>(preset ?? TYPE_CHOICES.find((t) => t.key === 'auto')!);
   const [choosing, setChoosing] = useState(!preset);
-  const [exam, setExam] = useState(preset?.examType ?? 'irm');
+  const [exam, setExam] = useState(defaultExamType ?? 'irm');
+  const [spec, setSpec] = useState(defaultSpecialty ?? '');
+  const [moreSpecs, setMoreSpecs] = useState(!!defaultSpecialty && !QUICK_SPECS.some((s) => s.code === defaultSpecialty));
   const [files, setFiles] = useState<File[]>([]);
   const camera = useRef<HTMLInputElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -349,7 +294,14 @@ export function UploadForm({
   const remove = (i: number) => sync(files.filter((_, j) => j !== i));
   const pick =
     'flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-2xl bg-surface-2 p-3 text-center transition hover:bg-line active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-petrol';
-  const reads = !dest || dest.kind === '' || dest.kind === 'prescription' || dest.kind === 'lab_report';
+  const reads = !type || type.kind === '' || type.kind === 'prescription' || type.kind === 'lab_report';
+  const showSpec = !type || type.medical;
+  const specInfo = showSpec && spec ? SPECIALTIES.find((s) => s.code === spec) : undefined;
+  const typeFolder = type && type.kind !== '' ? (type.folder ? FOLDERS.find((f) => f.code === type.folder)?.title : DOC_CATEGORIES.find((c) => c.kind === type.kind)?.label) : null;
+  const pill = (on: boolean) =>
+    `inline-flex min-h-11 items-center gap-1.5 rounded-full px-3.5 text-[15px] font-medium transition active:scale-[0.97] ${
+      on ? 'bg-rose text-on-accent' : 'border border-line bg-surface text-ink-2 hover:text-ink'
+    }`;
 
   return (
     <form action={action} className="flex flex-col gap-5">
@@ -364,81 +316,104 @@ export function UploadForm({
         hidden
         onChange={(e) => add(e.target.files)}
       />
-      {/* Destination : champs envoyés au serveur. */}
-      <input type="hidden" name="kind" value={dest?.kind ?? ''} />
-      {dest?.kind === 'imaging' && <input type="hidden" name="examType" value={exam} />}
-      {dest?.specialty && <input type="hidden" name="specialty" value={dest.specialty} />}
-      {dest?.folder && <input type="hidden" name="folder" value={dest.folder} />}
+      {/* Classement : champs envoyés au serveur. */}
+      <input type="hidden" name="kind" value={type?.kind ?? ''} />
+      {type?.kind === 'imaging' && <input type="hidden" name="examType" value={exam} />}
+      {specInfo && <input type="hidden" name="specialty" value={specInfo.code} />}
+      {type?.folder && <input type="hidden" name="folder" value={type.folder} />}
 
-      {/* 1. Où ranger le document */}
-      <section aria-labelledby="ou-ranger">
-        <h3 id="ou-ranger" className="mb-2 text-sm font-semibold text-ink-2">
-          Ranger dans
+      {/* 1. Quel document */}
+      <section aria-labelledby="quel-document">
+        <h3 id="quel-document" className="mb-2 text-sm font-semibold text-ink-2">
+          Quel document ?
         </h3>
-        {dest && !choosing ? (
+        {type && !choosing ? (
           <div className="flex items-center gap-3 rounded-2xl border border-line p-2.5 pr-2">
-            <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${DEST_TONE[dest.tone] ?? DEST_TONE.neutral}`} aria-hidden>
-              <DocIcon name={dest.icon} className="size-5" />
+            <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${TONE[type.tone] ?? TONE.neutral}`} aria-hidden>
+              <DocIcon name={type.icon} className="size-5" />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-semibold">{dest.label}</span>
-              {dest.kind === '' && <span className="block text-[13px] text-ink-3">BILANX reconnaît ordonnances et bilans</span>}
+              <span className="block truncate font-semibold">{type.label}</span>
+              {type.kind === '' && <span className="block text-[13px] text-ink-3">BILANX reconnaît ordonnances et bilans</span>}
             </span>
-            <button
-              type="button"
-              onClick={() => setChoosing(true)}
-              className={buttonClass({
-                variant: 'ghost',
-                className: 'shrink-0 text-petrol',
-              })}
-            >
+            <button type="button" onClick={() => setChoosing(true)} className={buttonClass({ variant: 'ghost', className: 'shrink-0 text-petrol' })}>
               Changer
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="ou-ranger">
-            {DESTINATIONS.map((d) => (
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="quel-document">
+            {TYPE_CHOICES.map((t) => (
               <button
-                key={d.key}
+                key={t.key}
                 type="button"
                 role="radio"
-                aria-checked={dest?.key === d.key}
+                aria-checked={type?.key === t.key}
                 onClick={() => {
-                  setDest(d);
+                  setType(t);
                   setChoosing(false);
                 }}
                 className={`flex h-full min-h-20 w-full flex-col items-center justify-center gap-1.5 rounded-2xl border p-2 text-center text-[13px] font-medium leading-tight transition active:scale-[0.97] ${
-                  dest?.key === d.key ? 'border-petrol bg-petrol-2' : 'border-line hover:bg-surface-2'
+                  type?.key === t.key ? 'border-petrol bg-petrol-2' : 'border-line hover:bg-surface-2'
                 }`}
               >
-                <span className={`grid size-9 place-items-center rounded-xl ${DEST_TONE[d.tone] ?? DEST_TONE.neutral}`} aria-hidden>
-                  <DocIcon name={d.icon} className="size-5" />
+                <span className={`grid size-9 place-items-center rounded-xl ${TONE[t.tone] ?? TONE.neutral}`} aria-hidden>
+                  <DocIcon name={t.icon} className="size-5" />
                 </span>
-                {d.label}
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {type?.kind === 'imaging' && !choosing && (
+          <div role="radiogroup" aria-label="Type d’examen" className="mt-2 flex flex-wrap gap-2">
+            {Object.entries(EXAM_LABELS).map(([k, l]) => (
+              <button
+                key={k}
+                type="button"
+                role="radio"
+                aria-checked={exam === k}
+                onClick={() => setExam(k)}
+                className={`min-h-10 rounded-full px-3.5 text-sm font-medium transition ${exam === k ? 'bg-glucose-2 text-glucose ring-1 ring-glucose' : 'bg-surface-2 text-ink-2'}`}
+              >
+                {k === 'autre' ? 'Autre' : l}
               </button>
             ))}
           </div>
         )}
       </section>
 
-      {dest?.kind === 'imaging' && !choosing && (
-        <div role="radiogroup" aria-label="Type d’examen" className="-mt-2 flex flex-wrap gap-2">
-          {Object.entries(EXAM_LABELS).map(([k, l]) => (
-            <button
-              key={k}
-              type="button"
-              role="radio"
-              aria-checked={exam === k}
-              onClick={() => setExam(k)}
-              className={`min-h-10 rounded-full px-3.5 text-sm font-medium transition ${exam === k ? 'bg-glucose-2 text-glucose ring-1 ring-glucose' : 'bg-surface-2 text-ink-2'}`}
-            >
-              {k === 'autre' ? 'Autre' : l}
+      {/* 2. Quelle spécialité (facultatif) : le second dossier où le document apparaît. */}
+      {showSpec && (
+        <section aria-labelledby="quelle-specialite">
+          <h3 id="quelle-specialite" className="mb-2 text-sm font-semibold text-ink-2">
+            Dans quel dossier ? <span className="font-normal text-ink-3">(facultatif)</span>
+          </h3>
+          <div role="radiogroup" aria-labelledby="quelle-specialite" className="flex flex-wrap gap-2">
+            <button type="button" role="radio" aria-checked={!spec} onClick={() => setSpec('')} className={pill(!spec)}>
+              Aucun
             </button>
-          ))}
-        </div>
+            {(moreSpecs ? SPECIALTIES : QUICK_SPECS).map((s) => (
+              <button key={s.code} type="button" role="radio" aria-checked={spec === s.code} onClick={() => setSpec(s.code)} className={pill(spec === s.code)}>
+                <DocIcon name={s.icon} className="size-[18px] shrink-0" />
+                {s.short}
+              </button>
+            ))}
+            {!moreSpecs && (
+              <button type="button" onClick={() => setMoreSpecs(true)} className="inline-flex min-h-11 items-center rounded-full px-3 text-[15px] font-medium text-petrol">
+                Autres…
+              </button>
+            )}
+          </div>
+          {typeFolder && specInfo && (
+            <p className="mt-2 flex items-center gap-1.5 text-[13px] text-ink-3">
+              <Icon name="folder" className="size-4 shrink-0" />
+              Rangé dans « {specInfo.short} › {typeFolder} », et visible aussi dans « {typeFolder} »
+            </p>
+          )}
+        </section>
       )}
 
-      {/* 2. Le document */}
+      {/* 3. Le document */}
       <section aria-labelledby="le-document">
         <h3 id="le-document" className="mb-2 text-sm font-semibold text-ink-2">
           Le document
@@ -468,7 +443,7 @@ export function UploadForm({
         )}
       </section>
 
-      {/* 3. Facultatif */}
+      {/* 4. Facultatif */}
       <details className="group rounded-2xl border border-line" open={!!(state.values?.title || state.values?.date)}>
         <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-3 text-sm font-medium text-ink-2 [&::-webkit-details-marker]:hidden">
           <Icon name="plus" className="size-4" />
@@ -487,9 +462,9 @@ export function UploadForm({
         </div>
       </details>
 
-      <Submit pending={reads ? 'Envoi et lecture du document…' : 'Envoi du document…'} disabled={files.length === 0 || !dest}>
-        {!dest
-          ? 'Choisissez où le ranger'
+      <Submit pending={reads ? 'Envoi et lecture du document…' : 'Envoi du document…'} disabled={files.length === 0 || !type}>
+        {!type
+          ? 'Choisissez le type de document'
           : files.length === 0
             ? 'Ajoutez une photo ou un fichier'
             : `Enregistrer${files.length > 1 ? ` les ${files.length} pages` : ''}`}
