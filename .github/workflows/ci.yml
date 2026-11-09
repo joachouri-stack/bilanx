@@ -71,4 +71,6 @@ jobs:
         with:
           name: resultats-e2e
           path: apps/web/e2e/.resultats/
+          # Dossier caché : à inclure explicitement, sinon les captures d'échec ne sont pas envoyées.
+          include-hidden-files: true
           retention-days: 7
