@@ -42,6 +42,8 @@ const ACCESS = 'M11.5 4a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM10 7.5V13h5.5l2.5 5
 const MOTION = 'M14 4.5a1.8 1.8 0 1 1-3.6 0 1.8 1.8 0 0 1 3.6 0zM5 9.5l5.5 1L16 7.5M10.5 10.5 9.5 15l3.5 2 1 4M9.5 15 6 20.5';
 /** Colonne vertébrale (ostéopathie). */
 const SPINE = 'M9 3.5h6l-.5 3.5h-5zM8.5 10.25h7v3.5h-7zM9.5 17h5l.5 3.5H9zM12 7v3.25M12 13.75V17';
+/** Lèvres et ondes sonores (orthophonie). */
+const SPEECH = 'M2.5 12c1.5-2 3.2-2.8 4.3-2.8.7 0 1.1.4 1.7.4s1-.4 1.7-.4c1.1 0 2.8.8 4.3 2.8-1.5 2-3.4 2.8-6 2.8s-4.5-.8-6-2.8zM2.5 12h12M17.5 9.5c.7.7 1 1.6 1 2.5s-.3 1.8-1 2.5M20 7.5c1.2 1.2 1.8 2.8 1.8 4.5s-.6 3.3-1.8 4.5';
 
 const PATHS: Partial<Record<DocCategoryIcon, string>> = {
   imaging: IMAGING,
@@ -63,6 +65,7 @@ const PATHS: Partial<Record<DocCategoryIcon, string>> = {
   access: ACCESS,
   motion: MOTION,
   spine: SPINE,
+  speech: SPEECH,
 };
 
 /** Icône d'une catégorie de document (décorative). */

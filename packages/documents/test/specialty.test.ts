@@ -13,6 +13,7 @@ describe('guessSpecialty', () => {
     expect(guessSpecialty('MDPH du Rhône\nDécision de la CDAPH : AAH accordée')).toBe('mdph');
     expect(guessSpecialty('Prescription : 10 séances de kinésithérapie, rééducation du genou')).toBe('kine');
     expect(guessSpecialty('Cabinet d’ostéopathie\nM. Leroy, ostéopathe D.O.')).toBe('osteopathe');
+    expect(guessSpecialty('Mme Roux, orthophoniste\nBilan orthophonique : retard de langage')).toBe('orthophonie');
   });
   it('ne devine rien sans indice ou en cas d’égalité', () => {
     expect(guessSpecialty('Paracétamol 1 g, 3 fois par jour')).toBeNull();
