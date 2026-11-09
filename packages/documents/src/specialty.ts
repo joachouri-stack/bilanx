@@ -10,6 +10,7 @@ const CLUES: [Specialty, RegExp][] = [
   ['ophtalmologie', /\bophtalmolog\w*|\blunettes\b|\bverres? correcteurs?\b|\blentilles de contact\b|\bacuit[ée] visuelle\b|\bfond d['’ ]?(?:œ|oe)il\b|\borthoptiste\b/gi],
   ['endocrinologie', /\bendocrinolog\w*|\bdiab[ée]tolog\w*|\binsulines?\b|\bfreestyle\b|\bcapteurs? de glucose\b|\bbandelettes? (?:de )?glyc[ée]mie\b|\bstylos? (?:à|a) insuline\b/gi],
   ['neurologie', /\bneurolog\w*|\b[ée]lectroenc[ée]phalogramme\b/gi],
+  ['thrombose', /\bthromb\w*|\bphl[ée]bite\b|\bembolie\b|\banticoagul\w*|\bangiolog\w*|\bm[ée]decine vasculaire\b|\bdoppler veineux\b|\bxarelto\b|\beliquis\b|\bpradaxa\b|\bpr[ée]viscan\b|\bcoumadine\b|\bbas de contention\b/gi],
   ['cardiologie', /\bcardiolog\w*|\b[ée]chocardiograph\w*|\b[ée]lectrocardiogramme\b|\bholter\b/gi],
   ['orl', /\bo\.?r\.?l\b|\boto-?rhino\w*|\baudiogramme\b|\bappareils? auditifs?\b/gi],
   ['urologie', /\burolog\w*/gi],

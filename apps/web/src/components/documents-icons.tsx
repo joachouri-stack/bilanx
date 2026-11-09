@@ -30,6 +30,8 @@ const BRAIN =
 const TOOTH = 'M7.5 3.5C5 3.5 4 5.5 4 8c0 3 1.5 4.5 2 7.5.4 2.6 1 5 2.3 5 1.6 0 1.4-5 3.7-5s2.1 5 3.7 5c1.3 0 1.9-2.4 2.3-5 .5-3 2-4.5 2-7.5 0-2.5-1-4.5-3.5-4.5-2 0-2.5 1-4.5 1s-2.5-1-4.5-1z';
 /** Poumons (pneumologie). */
 const LUNGS = 'M12 3.5V12M12 9.5l-2.5 2M12 9.5l2.5 2M8.5 7C6 7 3.5 11 3.5 16.5c0 2 1.2 3 3 3 2.2 0 3-1.5 3-4V8.5c0-.9-.4-1.5-1-1.5zM15.5 7c2.5 0 5 4 5 9.5 0 2-1.2 3-3 3-2.2 0-3-1.5-3-4V8.5c0-.9.4-1.5 1-1.5z';
+/** Vaisseau sanguin avec un caillot (thrombose). */
+const VESSEL = 'M3 8.5c3 0 4-1.5 9-1.5s6 1.5 9 1.5M3 15.5c3 0 4 1.5 9 1.5s6-1.5 9-1.5M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z';
 
 const PATHS: Partial<Record<DocCategoryIcon, string>> = {
   imaging: IMAGING,
@@ -45,6 +47,7 @@ const PATHS: Partial<Record<DocCategoryIcon, string>> = {
   brain: BRAIN,
   tooth: TOOTH,
   lungs: LUNGS,
+  vessel: VESSEL,
 };
 
 /** Icône d'une catégorie de document (décorative). */
