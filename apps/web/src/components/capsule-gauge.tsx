@@ -1,4 +1,5 @@
-import { GAUGE_RANGE_HIGH, GAUGE_RANGE_LOW, formatNumberFr, gaugePosition } from '@bilanx/domain';
+import { GAUGE_RANGE_HIGH, GAUGE_RANGE_LOW, formatNumberFr, gaugePosition, labLevel } from '@bilanx/domain';
+import { LEVEL_COLORS } from './lab-capsule';
 
 /**
  * Jauge « capsule » : les valeurs de référence du laboratoire occupent 30 → 70 % de la hauteur (bande verte).
@@ -25,7 +26,8 @@ export function CapsuleGauge({
   if (!g) {
     return <div className="grid h-[168px] w-[132px] place-items-center text-center text-sm text-ink-3">Sans valeurs de référence</div>;
   }
-  const within = g.status === 'within';
+  // Trois couleurs : bon (vert), moyen (orange), à revoir (rouge).
+  const lv = LEVEL_COLORS[labLevel(value, { low: refLow, high: refHigh })];
   const clipId = `cap-${label.replace(/\W/g, '')}`;
   const bounds: [number, number | null | undefined][] = g.partialRange
     ? refHigh != null
@@ -56,9 +58,9 @@ export function CapsuleGauge({
         y={my}
         width={cw}
         height={H * g.position}
-        fill={within ? 'var(--sage)' : 'var(--amber-2)'}
-        fillOpacity={within ? 0.22 : 0.9}
-        stroke={within ? 'var(--sage)' : 'var(--amber)'}
+        fill={lv.fill}
+        fillOpacity={0.3}
+        stroke={lv.stroke}
         strokeWidth={2}
         clipPath={`url(#${clipId})`}
       />
