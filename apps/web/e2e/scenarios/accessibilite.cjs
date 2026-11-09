@@ -24,7 +24,7 @@ for(const [vw,tag,scheme] of [[{width:1280,height:900},'bureau','light'],[{width
  // Profil de démonstration (données)
  if(tag.includes('mobile')){
   // Feuilles du bas (ajout rapide, menu) auditées ouvertes.
-  await p.goto(B+'/tableau-de-bord');await p.getByRole('button',{name:/^Ajouter :/}).click();await p.getByRole('dialog',{name:'Ajouter'}).waitFor();await audit(p,`${tag} feuille Ajouter`,results);await p.keyboard.press('Escape');
+  await p.goto(B+'/tableau-de-bord');await Promise.all([p.waitForEvent('filechooser').then(f=>f.setFiles([])),p.getByRole('button',{name:/^Ajouter :/}).click()]);await p.getByRole('dialog',{name:'Ajouter'}).waitFor();await audit(p,`${tag} feuille Ajouter`,results);await p.keyboard.press('Escape');
   await p.getByRole('button',{name:'Menu'}).click();await p.getByRole('dialog',{name:'Menu'}).waitFor();await audit(p,`${tag} feuille Menu`,results);await p.keyboard.press('Escape');
   await p.getByRole('button',{name:/^Changer de profil/}).click();await p.getByRole('dialog',{name:'Changer de profil'}).waitFor();await audit(p,`${tag} feuille Changer de profil`,results)}else{await p.locator('aside summary').click()}
  await p.getByRole('button',{name:/Claire/}).first().click();await p.getByText('Profil de démonstration —').waitFor();

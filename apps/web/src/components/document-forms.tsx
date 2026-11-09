@@ -320,6 +320,28 @@ function SpecialtyPicker({ value, onChange, hint }: { value: string; onChange: (
   );
 }
 
+/**
+ * Photo du téléphone (souvent 3 à 5 Mo) réduite avant l'envoi : 2400 px sur le grand côté, JPEG.
+ * Assez net pour la lecture automatique, 5 à 10 fois plus léger. PDF et petites images : inchangés.
+ */
+async function shrinkPhoto(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || file.size < 1_500_000 || typeof createImageBitmap !== 'function') return file;
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    const scale = Math.min(1, 2400 / Math.max(bmp.width, bmp.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bmp.width * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    canvas.getContext('2d')!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    bmp.close();
+    const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.85));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+  } catch {
+    return file;
+  }
+}
+
 /** Aperçu d'une page choisie (image) ou pastille PDF. */
 function PageThumb({ file, index, onRemove }: { file: File; index: number; onRemove: () => void }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -360,7 +382,10 @@ export function UploadForm({
   defaultSpecialty,
   defaultFolder,
   today,
+  initialFiles,
 }: {
+  /** Pages déjà prises (bouton ＋ « Scanner » de la barre du bas). */
+  initialFiles?: File[];
   defaultKind?: string;
   /** Type d'examen présélectionné (imagerie), ex. « irm » depuis /documents?examen=irm. */
   defaultExamType?: string;
@@ -382,16 +407,26 @@ export function UploadForm({
   const picker = useRef<HTMLInputElement>(null);
   const hidden = useRef<HTMLInputElement>(null);
 
-  const sync = (next: File[]) => {
-    setFiles(next);
-    const dt = new DataTransfer();
-    next.forEach((f) => dt.items.add(f));
-    if (hidden.current) hidden.current.files = dt.files;
-  };
-  const add = (list: FileList | null) => {
-    if (list) sync([...files, ...Array.from(list)].slice(0, 10));
+  const sync = (next: File[]) => setFilesFn(() => next);
+  // Le champ envoyé suit toujours la liste affichée.
+  const setFilesFn = (fn: (cur: File[]) => File[]) =>
+    setFiles((cur) => {
+      const next = fn(cur);
+      const dt = new DataTransfer();
+      next.forEach((f) => dt.items.add(f));
+      if (hidden.current) hidden.current.files = dt.files;
+      return next;
+    });
+  const add = async (list: FileList | File[] | null) => {
+    if (!list) return;
+    const picked = await Promise.all(Array.from(list).map(shrinkPhoto));
+    setFilesFn((cur) => [...cur, ...picked].slice(0, 10));
   };
   const remove = (i: number) => sync(files.filter((_, j) => j !== i));
+  useEffect(() => {
+    if (initialFiles?.length) void add(initialFiles);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pages reçues à l'ouverture seulement
+  }, [initialFiles]);
   const pick =
     'flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-2xl bg-surface-2 p-3 text-center transition hover:bg-line active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-petrol';
   const reads = !type || type.kind === '' || type.kind === 'prescription' || type.kind === 'lab_report';
