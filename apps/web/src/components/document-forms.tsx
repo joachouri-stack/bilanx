@@ -216,8 +216,109 @@ function initialType(kind: string, folder?: string): TypeChoice | null {
   return TYPE_CHOICES.find((t) => t.kind === kind && !t.folder) ?? null;
 }
 
-/** Spécialités proposées en pastilles ; les autres sont dans « Autre… ». */
-const QUICK_SPECS = SPECIALTIES.filter((s) => PINNED_SPECIALTIES.includes(s.code));
+/** Spécialités proposées d'emblée (les 8 premières épinglées) ; les autres sont derrière « Toutes les spécialités ». */
+const QUICK_SPECS = PINNED_SPECIALTIES.slice(0, 8).map((c) => SPECIALTIES.find((s) => s.code === c)!);
+
+/** Minuscules sans accents, pour la recherche (« coeur » trouve « Cœur »). */
+const fold = (t: string) =>
+  t
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/œ/g, 'oe')
+    .toLowerCase();
+
+/** Choix du dossier thématique (facultatif) : grille compacte, recherche, un second toucher désélectionne. */
+function SpecialtyPicker({ value, onChange, hint }: { value: string; onChange: (code: string) => void; hint: string | null }) {
+  const [all, setAll] = useState(false);
+  const [q, setQ] = useState('');
+  const chosen = SPECIALTIES.find((s) => s.code === value);
+  const needle = fold(q.trim());
+  const list = all
+    ? SPECIALTIES.filter((s) => !needle || fold(`${s.short} ${s.title}`).includes(needle))
+    : chosen && !QUICK_SPECS.includes(chosen)
+      ? [...QUICK_SPECS, chosen]
+      : QUICK_SPECS;
+
+  return (
+    <section aria-labelledby="quelle-specialite">
+      <div className="mb-2 flex min-h-8 items-center justify-between gap-2">
+        <h3 id="quelle-specialite" className="text-sm font-semibold text-ink-2">
+          Dans quel dossier ? <span className="font-normal text-ink-3">(facultatif)</span>
+        </h3>
+        {chosen && (
+          <button type="button" onClick={() => onChange('')} className="inline-flex min-h-8 items-center gap-1 rounded-full px-2 text-[13px] font-medium text-ink-3 hover:text-ink">
+            <Icon name="close" className="size-3.5" />
+            Retirer
+          </button>
+        )}
+      </div>
+
+      {all && (
+        <label className="relative mb-2 block">
+          <span className="sr-only">Rechercher une spécialité</span>
+          <svg viewBox="0 0 24 24" aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 fill-none stroke-ink-3 stroke-2">
+            <circle cx="11" cy="11" r="6.5" />
+            <path d="m20 20-4.2-4.2" strokeLinecap="round" />
+          </svg>
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && e.preventDefault()}
+            placeholder="Cœur, cancer, MDPH…"
+            className="min-h-11 w-full rounded-xl border border-line bg-surface-2 pl-9 pr-3 text-base outline-none transition placeholder:text-ink-3 focus:border-petrol focus:bg-surface [&::-webkit-search-cancel-button]:appearance-none"
+          />
+        </label>
+      )}
+
+      <div role="radiogroup" aria-labelledby="quelle-specialite" className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2">
+        {list.map((s) => {
+          const on = value === s.code;
+          return (
+            <button
+              key={s.code}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              title={s.title !== s.short ? s.title : undefined}
+              onClick={() => onChange(on ? '' : s.code)}
+              className={`flex min-h-12 items-center gap-2.5 rounded-xl border px-2.5 py-1.5 text-left text-[14px] font-medium leading-tight transition duration-150 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-petrol ${
+                on ? 'border-petrol bg-petrol-2 text-ink' : 'border-line bg-surface text-ink-2 hover:border-ink-3/40 hover:text-ink'
+              }`}
+            >
+              <span className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${on ? 'bg-petrol text-on-accent' : 'bg-surface-2 text-ink-2'}`} aria-hidden>
+                <DocIcon name={s.icon} className="size-[18px]" />
+              </span>
+              <span className="min-w-0 flex-1 break-words">{s.short}</span>
+              {on && <Icon name="check" className="size-4 shrink-0 text-petrol" strokeWidth={2.4} />}
+            </button>
+          );
+        })}
+        {all && list.length === 0 && <p className="col-span-full py-3 text-center text-[13px] text-ink-3">Aucune spécialité ne correspond. Essayez « Autre spécialité ».</p>}
+      </div>
+
+      <button
+        type="button"
+        aria-expanded={all}
+        onClick={() => {
+          setAll(!all);
+          setQ('');
+        }}
+        className="mt-2 inline-flex min-h-10 items-center gap-1 rounded-full px-1 text-[14px] font-medium text-petrol"
+      >
+        {all ? 'Moins de choix' : `Toutes les spécialités (${SPECIALTIES.length})`}
+        <Icon name="chevronDown" className={`size-4 transition-transform ${all ? 'rotate-180' : ''}`} />
+      </button>
+
+      {hint && (
+        <p className="mt-1 flex items-center gap-1.5 text-[13px] text-ink-3">
+          <Icon name="folder" className="size-4 shrink-0" />
+          {hint}
+        </p>
+      )}
+    </section>
+  );
+}
 
 /**
  * Photo du téléphone (souvent 3 à 5 Mo) réduite avant l'envoi : 2400 px sur le grand côté, JPEG.
@@ -301,7 +402,6 @@ export function UploadForm({
   const [choosing, setChoosing] = useState(!preset);
   const [exam, setExam] = useState(defaultExamType ?? 'irm');
   const [spec, setSpec] = useState(defaultSpecialty ?? '');
-  const [moreSpecs, setMoreSpecs] = useState(!!defaultSpecialty && !QUICK_SPECS.some((s) => s.code === defaultSpecialty));
   const [files, setFiles] = useState<File[]>([]);
   const camera = useRef<HTMLInputElement>(null);
   const picker = useRef<HTMLInputElement>(null);
@@ -333,10 +433,6 @@ export function UploadForm({
   const showSpec = !type || type.medical;
   const specInfo = showSpec && spec ? SPECIALTIES.find((s) => s.code === spec) : undefined;
   const typeFolder = type && type.kind !== '' ? (type.folder ? FOLDERS.find((f) => f.code === type.folder)?.title : DOC_CATEGORIES.find((c) => c.kind === type.kind)?.label) : null;
-  const pill = (on: boolean) =>
-    `inline-flex min-h-11 items-center gap-1.5 rounded-full px-3.5 text-[15px] font-medium transition active:scale-[0.97] ${
-      on ? 'bg-rose text-on-accent' : 'border border-line bg-surface text-ink-2 hover:text-ink'
-    }`;
 
   return (
     <form action={action} className="flex flex-col gap-5">
@@ -418,35 +514,7 @@ export function UploadForm({
       </section>
 
       {/* 2. Quelle spécialité (facultatif) : le second dossier où le document apparaît. */}
-      {showSpec && (
-        <section aria-labelledby="quelle-specialite">
-          <h3 id="quelle-specialite" className="mb-2 text-sm font-semibold text-ink-2">
-            Dans quel dossier ? <span className="font-normal text-ink-3">(facultatif)</span>
-          </h3>
-          <div role="radiogroup" aria-labelledby="quelle-specialite" className="flex flex-wrap gap-2">
-            <button type="button" role="radio" aria-checked={!spec} onClick={() => setSpec('')} className={pill(!spec)}>
-              Aucun
-            </button>
-            {(moreSpecs ? SPECIALTIES : QUICK_SPECS).map((s) => (
-              <button key={s.code} type="button" role="radio" aria-checked={spec === s.code} onClick={() => setSpec(s.code)} className={pill(spec === s.code)}>
-                <DocIcon name={s.icon} className="size-[18px] shrink-0" />
-                {s.short}
-              </button>
-            ))}
-            {!moreSpecs && (
-              <button type="button" onClick={() => setMoreSpecs(true)} className="inline-flex min-h-11 items-center rounded-full px-3 text-[15px] font-medium text-petrol">
-                Autres…
-              </button>
-            )}
-          </div>
-          {typeFolder && specInfo && (
-            <p className="mt-2 flex items-center gap-1.5 text-[13px] text-ink-3">
-              <Icon name="folder" className="size-4 shrink-0" />
-              Rangé dans « {specInfo.short} › {typeFolder} », et visible aussi dans « {typeFolder} »
-            </p>
-          )}
-        </section>
-      )}
+      {showSpec && <SpecialtyPicker value={spec} onChange={setSpec} hint={typeFolder && specInfo ? `Rangé dans « ${specInfo.short} › ${typeFolder} », et visible aussi dans « ${typeFolder} »` : null} />}
 
       {/* 3. Le document */}
       <section aria-labelledby="le-document">
