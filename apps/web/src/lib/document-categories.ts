@@ -19,7 +19,9 @@ export type DocCategoryIcon =
   | 'vessel'
   | 'ribbon'
   | 'talk'
-  | 'access';
+  | 'access'
+  | 'motion'
+  | 'spine';
 
 /** Catégories de documents affichées (ordre d'affichage) et libellés. */
 export interface DocCategory {
@@ -88,6 +90,8 @@ export const SPECIALTIES: SpecialtyInfo[] = [
   spec('generaliste', 'Généraliste', 'Médecine générale', 'de médecine générale', 'user'),
   spec('pneumologie', 'Poumons', 'Pneumologie', 'de pneumologie', 'lungs'),
   spec('rhumatologie', 'Os et articulations', 'Rhumatologie', 'de rhumatologie', 'bone'),
+  spec('kine', 'Kiné', 'Kinésithérapie', 'de kinésithérapie', 'motion'),
+  spec('osteopathe', 'Ostéopathe', 'Ostéopathie', 'd’ostéopathie', 'spine'),
   spec('dermatologie', 'Peau', 'Dermatologie', 'de dermatologie', 'sparkle'),
   spec('gastro', 'Digestion', 'Gastro-entérologie', 'de gastro-entérologie', 'meal'),
   spec('gynecologie', 'Gynécologie', 'Gynécologie', 'de gynécologie', 'user'),
@@ -103,7 +107,7 @@ export const SPECIALTIES: SpecialtyInfo[] = [
 /** Spécialités proposées d'emblée (formulaire d'ajout, page Documents même vides), les plus utiles d'abord. */
 export const PINNED_SPECIALTIES = [
   'endocrinologie', 'ophtalmologie', 'cardiologie', 'cancer', 'thrombose', 'vitamines', 'psychologue', 'mdph',
-  'neurologie', 'orl', 'urologie',
+  'neurologie', 'orl', 'urologie', 'kine', 'osteopathe',
 ];
 
 /** Dossiers de rangement (codes de la migration 0027) : vitamines, mutuelle, attestation. */

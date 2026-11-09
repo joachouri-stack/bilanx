@@ -11,6 +11,8 @@ describe('guessSpecialty', () => {
     expect(guessSpecialty('Service d’oncologie\nProtocole de chimiothérapie, cure n°3')).toBe('cancer');
     expect(guessSpecialty('Mme Petit, psychologue\nSéance de psychothérapie')).toBe('psychologue');
     expect(guessSpecialty('MDPH du Rhône\nDécision de la CDAPH : AAH accordée')).toBe('mdph');
+    expect(guessSpecialty('Prescription : 10 séances de kinésithérapie, rééducation du genou')).toBe('kine');
+    expect(guessSpecialty('Cabinet d’ostéopathie\nM. Leroy, ostéopathe D.O.')).toBe('osteopathe');
   });
   it('ne devine rien sans indice ou en cas d’égalité', () => {
     expect(guessSpecialty('Paracétamol 1 g, 3 fois par jour')).toBeNull();

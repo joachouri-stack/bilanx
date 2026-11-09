@@ -38,6 +38,10 @@ const RIBBON = 'M17 20.5 10 10.6C8.7 8.7 8.6 6.4 9.2 5c.5-1.3 1.5-2 2.8-2s2.3.7 
 const TALK = 'M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5v-3.5H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5zM12 13.5s-3-1.7-3-3.6a1.5 1.5 0 0 1 3-.6 1.5 1.5 0 0 1 3 .6c0 1.9-3 3.6-3 3.6z';
 /** Fauteuil roulant (MDPH, handicap). */
 const ACCESS = 'M11.5 4a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM10 7.5V13h5.5l2.5 5.5 1.5-.6M10 10h4.5M7.5 10.6A5 5 0 1 0 14.3 17';
+/** Personne qui fait un exercice (kinésithérapie). */
+const MOTION = 'M14 4.5a1.8 1.8 0 1 1-3.6 0 1.8 1.8 0 0 1 3.6 0zM5 9.5l5.5 1L16 7.5M10.5 10.5 9.5 15l3.5 2 1 4M9.5 15 6 20.5';
+/** Colonne vertébrale (ostéopathie). */
+const SPINE = 'M9 3.5h6l-.5 3.5h-5zM8.5 10.25h7v3.5h-7zM9.5 17h5l.5 3.5H9zM12 7v3.25M12 13.75V17';
 
 const PATHS: Partial<Record<DocCategoryIcon, string>> = {
   imaging: IMAGING,
@@ -57,6 +61,8 @@ const PATHS: Partial<Record<DocCategoryIcon, string>> = {
   ribbon: RIBBON,
   talk: TALK,
   access: ACCESS,
+  motion: MOTION,
+  spine: SPINE,
 };
 
 /** Icône d'une catégorie de document (décorative). */

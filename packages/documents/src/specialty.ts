@@ -19,6 +19,8 @@ const CLUES: [Specialty, RegExp][] = [
   ['dermatologie', /\bdermatolog\w*/gi],
   ['pneumologie', /\bpneumolog\w*|\bspirom[ée]trie\b/gi],
   ['rhumatologie', /\brhumatolog\w*/gi],
+  ['kine', /\bkin[ée]sith[ée]rap\w*|\bkin[ée]\b|\bmasseur[- ]kin[ée]\w*/gi],
+  ['osteopathe', /\bost[ée]opath\w*/gi],
   ['gastro', /\bgastro-?ent[ée]rolog\w*|\bcoloscopie\b|\bfibroscopie\b/gi],
   ['gynecologie', /\bgyn[ée]colog\w*|\bsage-femme\b/gi],
   ['podologie', /\bpodolog\w*|\bsemelles orthop[ée]diques\b/gi],
