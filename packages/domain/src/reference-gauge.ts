@@ -67,3 +67,63 @@ export const STATUS_LABEL_FR: Record<ReferenceStatus, string> = {
   above: "au-dessus de l'intervalle de référence du laboratoire",
   unknown: 'intervalle de référence non renseigné',
 };
+
+/**
+ * Niveau d'un résultat en trois couleurs, d'après les valeurs de référence DU LABORATOIRE :
+ * - « good » : dans l'intervalle, à distance des bornes ;
+ * - « fair » : dans l'intervalle mais près d'une borne (moins de 10 % de sa largeur), ou juste en dehors
+ *   (jusqu'à 25 % de la largeur ; 10 à 25 % de la borne pour un intervalle à une seule borne) ;
+ * - « poor » : nettement en dehors.
+ * Indicatif : l'interprétation revient au médecin.
+ */
+export type LabLevel = 'good' | 'fair' | 'poor' | 'unknown';
+
+export const LAB_LEVEL_LABEL_FR: Record<LabLevel, string> = {
+  good: 'Bon',
+  fair: 'Moyen',
+  poor: 'À revoir',
+  unknown: 'Sans référence',
+};
+
+export function labLevel(value: number, range: ReferenceRange): LabLevel {
+  const { low, high } = range;
+  if (low != null && high != null) {
+    if (!(high > low)) return 'unknown';
+    const w = high - low;
+    if (value >= low && value <= high) return Math.min(value - low, high - value) / w < 0.1 ? 'fair' : 'good';
+    const out = (value < low ? low - value : value - high) / w;
+    return out <= 0.25 ? 'fair' : 'poor';
+  }
+  if (high != null) {
+    if (value <= high) return high > 0 && value > high * 0.9 ? 'fair' : 'good';
+    return high > 0 && value <= high * 1.25 ? 'fair' : 'poor';
+  }
+  if (low != null) {
+    if (value >= low) return value < low * 1.1 ? 'fair' : 'good';
+    return value >= low * 0.75 ? 'fair' : 'poor';
+  }
+  return 'unknown';
+}
+
+/**
+ * Comparaison de deux résultats (même unité) : l'évolution rapproche-t-elle de l'intervalle de référence ?
+ * Distance = écart à l'intervalle (0 si dedans) ; dans l'intervalle, écart au milieu (bornes complètes).
+ * « stable » si la variation est inférieure à 3 % de la largeur de l'intervalle (ou de la valeur précédente).
+ */
+export type LabTrend = 'better' | 'worse' | 'stable';
+
+export function labTrend(previous: number, current: number, range: ReferenceRange): LabTrend {
+  const { low, high } = range;
+  const scale = low != null && high != null && high > low ? high - low : Math.abs(previous) || 1;
+  if (Math.abs(current - previous) < 0.03 * scale) return 'stable';
+  const dist = (v: number) => {
+    if (low != null && v < low) return scale + (low - v);
+    if (high != null && v > high) return scale + (v - high);
+    if (low != null && high != null) return Math.abs(v - (low + high) / 2);
+    return 0;
+  };
+  const d0 = dist(previous);
+  const d1 = dist(current);
+  if (Math.abs(d1 - d0) < 0.03 * scale) return 'stable';
+  return d1 < d0 ? 'better' : 'worse';
+}
