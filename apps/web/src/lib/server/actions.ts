@@ -16,6 +16,7 @@ import { demoToday } from '@/lib/demo-data';
 import {
   activity,
   apiTokens,
+  vault,
   libreLink,
   weight,
   gym,
@@ -1138,6 +1139,36 @@ export async function removeWeightAction(fd: FormData): Promise<void> {
   }
   revalidatePath('/tableau-de-bord');
   revalidatePath('/poids');
+}
+
+/** Coffre d'identifiants : ajout d'un service (Doctolib, Ameli…). */
+export async function addVaultAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  const values = { service: str(fd, 'service'), url: str(fd, 'url'), login: str(fd, 'login'), note: str(fd, 'note') };
+  const r = await vault().add(ctx.user.accountId, { ...values, password: String(fd.get('password') ?? '') });
+  if (!r.ok) return { errors: { form: r.error }, values };
+  revalidatePath('/identifiants');
+  return { ok: true, message: `${values.service.trim()} ajouté.`, attempt: String(Date.now()) };
+}
+
+/** Mot de passe en clair d'une entrée du coffre (affichage ou copie), pour le compte connecté uniquement. */
+export async function revealVaultAction(id: string): Promise<string | null> {
+  const ctx = await appContext();
+  return vault().reveal(ctx.user.accountId, id);
+}
+
+export async function updateVaultPasswordAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  const ok = await vault().updatePassword(ctx.user.accountId, str(fd, 'id'), String(fd.get('password') ?? ''));
+  if (!ok) return { errors: { form: 'Indiquez le nouveau mot de passe.' } };
+  revalidatePath('/identifiants');
+  return { ok: true, message: 'Mot de passe modifié.', attempt: String(Date.now()) };
+}
+
+export async function removeVaultAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  await vault().remove(ctx.user.accountId, str(fd, 'id'));
+  revalidatePath('/identifiants');
 }
 
 /** Salle de sport : coche (present=1) ou décoche (present=0) un jour. Profil de démonstration : sans effet. */

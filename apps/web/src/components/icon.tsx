@@ -25,6 +25,12 @@ export const ICONS = {
   /** Salle de sport : haltère (barre, deux disques de chaque côté). */
   dumbbell:
     'M7.5 12h9M5.5 6.5h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM4.5 9H3a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1h1.5M17.5 6.5h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM19.5 9H21a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-1.5',
+  /** Copier : deux feuilles. */
+  copy: 'M9 9h10v12H9zM5 15V3h10',
+  /** Afficher : œil. */
+  eye: 'M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  /** Identifiants : clé. */
+  key: 'M15.5 3a5.5 5.5 0 0 0-5.2 7.3L3 17.6V21h3.4v-2h2v-2h2l1.3-1.3A5.5 5.5 0 1 0 15.5 3zM16.5 8.5h.01',
   /** Lieu : repère de carte. */
   pin: 'M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z',
   /** Heure : horloge. */

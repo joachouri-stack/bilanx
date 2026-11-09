@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createApiTokenService, type ApiTokenService, createAuthService, mailerFromEnv, SmtpMailer, parseSecretKey, sessionLifetimeMinutes, type AuthService, type SessionInfo } from '@bilanx/auth';
+import { createApiTokenService, type ApiTokenService, createVaultService, type VaultService, createAuthService, mailerFromEnv, SmtpMailer, parseSecretKey, sessionLifetimeMinutes, type AuthService, type SessionInfo } from '@bilanx/auth';
 import { createAppSql, type Sql } from '@bilanx/db';
 import { createProfilesService, type ProfilesService } from '@bilanx/profiles';
 import {
@@ -37,7 +37,7 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService; bilanxApiTokens?: ApiTokenService; bilanxLibre?: LibreLinkService; bilanxWeight?: WeightService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService; bilanxApiTokens?: ApiTokenService; bilanxLibre?: LibreLinkService; bilanxWeight?: WeightService; bilanxVault?: VaultService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createAppSql();
@@ -93,6 +93,12 @@ export function weight(): WeightService {
 export function libreLink(): LibreLinkService {
   globalForAuth.bilanxLibre ??= createLibreLinkService({ sql: sql(), profiles: profiles(), secretKey: parseSecretKey(process.env.BILANX_SECRET_KEY) });
   return globalForAuth.bilanxLibre;
+}
+
+/** Coffre d'identifiants personnels (Doctolib, Ameli…), chiffré, propre au compte. */
+export function vault(): VaultService {
+  globalForAuth.bilanxVault ??= createVaultService({ sql: sql(), secretKey: parseSecretKey(process.env.BILANX_SECRET_KEY) });
+  return globalForAuth.bilanxVault;
 }
 
 export function apiTokens(): ApiTokenService {

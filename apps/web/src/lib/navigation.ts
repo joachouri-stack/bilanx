@@ -39,6 +39,7 @@ export const NAV: NavItem[] = [
   { href: '/documents', label: 'Documents', short: 'Documents', icon: 'folder', status: 'available', group: 'main', section: 'Documents' },
   { href: '/ordonnances', label: 'Ordonnances', short: 'Ordonnances', icon: 'prescription', status: 'available', group: 'main', section: 'Documents' },
   { href: '/rapports', label: 'Partager avec un soignant', short: 'Partager', icon: 'share', status: 'available', group: 'main', section: 'Documents' },
+  { href: '/identifiants', label: 'Mes identifiants', short: 'Identifiants', icon: 'key', status: 'available', group: 'account' },
   { href: '/famille', label: 'Famille & profils', short: 'Famille', icon: 'family', status: 'available', group: 'account' },
   { href: '/parametres', label: 'Paramètres', short: 'Paramètres', icon: 'settings', status: 'available', group: 'account' },
 ];

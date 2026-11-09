@@ -6,3 +6,4 @@ export * from './service';
 export * from './audit';
 export type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server';
 export * from './api-tokens';
+export * from './vault';
