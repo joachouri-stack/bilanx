@@ -11,6 +11,7 @@ export * from './report-parser';
 export * from './insulin-entry';
 export * from './journal-entry';
 export * from './appointment';
+export * from './contact';
 export * from './agp';
 export * from './steps';
 export * from './medication';

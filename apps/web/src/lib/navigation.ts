@@ -21,7 +21,7 @@ export interface NavItem {
 
 /**
  * Menu principal, dans l'ordre d'affichage :
- * Accueil ; Suivi (Glycémie, HbA1c, Analyses, Activité, Salle de sport, Poids, Journal) ; Traitements (Médicaments, Insuline) ; Rendez-vous ;
+ * Accueil ; Suivi (Glycémie, HbA1c, Analyses, Activité, Salle de sport, Poids, Journal) ; Traitements (Médicaments, Insuline) ; Rendez-vous ; Contacts ;
  * Documents (Documents, Ordonnances, Partager avec un soignant) ; puis le compte (Famille & profils, Paramètres).
  * La route /assistant (prévue) existe toujours mais n'est plus dans le menu.
  */
@@ -37,6 +37,7 @@ export const NAV: NavItem[] = [
   { href: '/medicaments', label: 'Médicaments', short: 'Médicaments', icon: 'pill', status: 'available', group: 'main', section: 'Traitements' },
   { href: '/traitements', label: 'Insuline', short: 'Insuline', icon: 'syringe', status: 'available', group: 'main', section: 'Traitements' },
   { href: '/rendez-vous', label: 'Rendez-vous', short: 'RDV', icon: 'calendar', status: 'available', group: 'main' },
+  { href: '/contacts', label: 'Contacts', short: 'Contacts', icon: 'contact', status: 'available', group: 'main' },
   { href: '/documents', label: 'Documents', short: 'Documents', icon: 'folder', status: 'available', group: 'main', section: 'Documents' },
   { href: '/ordonnances', label: 'Ordonnances', short: 'Ordonnances', icon: 'prescription', status: 'available', group: 'main', section: 'Documents' },
   { href: '/rapports', label: 'Partager avec un soignant', short: 'Partager', icon: 'share', status: 'available', group: 'main', section: 'Documents' },

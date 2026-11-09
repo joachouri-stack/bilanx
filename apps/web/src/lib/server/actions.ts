@@ -23,6 +23,7 @@ import {
   gym,
   glucose,
   appointments,
+  contacts,
   auth,
   privacy,
   documents,
@@ -680,6 +681,38 @@ export async function unlinkAppointmentAction(fd: FormData): Promise<void> {
   const ctx = await appContext();
   if (ctx.active.kind === 'real') await appointments().unlink(ctx.user, ctx.active.access.profileId, str(fd, 'linkId'));
   redirect(`/rendez-vous/${str(fd, 'id')}`);
+}
+
+// ───────────── Contacts des professionnels de santé ─────────────
+export async function saveContactAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  const values = {
+    firstName: str(fd, 'firstName'),
+    lastName: str(fd, 'lastName'),
+    specialty: str(fd, 'specialty'),
+    phone: str(fd, 'phone'),
+    email: str(fd, 'email'),
+    address: str(fd, 'address'),
+    notes: str(fd, 'notes'),
+  };
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Le profil de démonstration est en lecture seule : choisissez votre profil.' }, values };
+  const id = str(fd, 'id') || undefined;
+  let r;
+  try {
+    r = await contacts().save(ctx.user, ctx.active.access.profileId, values, id);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values };
+    throw e;
+  }
+  if (!r.ok) return { attempt: crypto.randomUUID(), fieldErrors: r.errors, errors: { form: 'Vérifiez les champs signalés.' }, values };
+  revalidatePath('/contacts');
+  redirect(`/contacts/${r.id}?${id ? 'modifie' : 'cree'}=1`);
+}
+
+export async function deleteContactAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await contacts().remove(ctx.user, ctx.active.access.profileId, str(fd, 'id'));
+  redirect('/contacts?supprime=1');
 }
 
 // ───────────── Compte : mot de passe, adresse e-mail, codes de secours ─────────────

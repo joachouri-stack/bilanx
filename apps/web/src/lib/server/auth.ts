@@ -15,6 +15,7 @@ import {
   createGlucoseService,
   type GlucoseService,
   createAppointmentsService,
+  createContactsService,
   createInsulinService,
   createJournalService,
   createLabService,
@@ -23,6 +24,7 @@ import {
   createRemindersService,
   type ActivityService,
   type AppointmentsService,
+  type ContactsService,
   type InsulinService,
   type JournalService,
   type LabService,
@@ -37,7 +39,7 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService; bilanxApiTokens?: ApiTokenService; bilanxLibre?: LibreLinkService; bilanxWeight?: WeightService; bilanxVault?: VaultService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxContacts?: ContactsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService; bilanxApiTokens?: ApiTokenService; bilanxLibre?: LibreLinkService; bilanxWeight?: WeightService; bilanxVault?: VaultService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createAppSql();
@@ -72,6 +74,12 @@ export function journal(): JournalService {
 export function appointments(): AppointmentsService {
   globalForAuth.bilanxAppointments ??= createAppointmentsService({ profiles: profiles() });
   return globalForAuth.bilanxAppointments;
+}
+
+/** Contacts des professionnels de santé (mêmes droits que les rendez-vous). */
+export function contacts(): ContactsService {
+  globalForAuth.bilanxContacts ??= createContactsService({ profiles: profiles() });
+  return globalForAuth.bilanxContacts;
 }
 
 export function documents(): DocumentsService {
