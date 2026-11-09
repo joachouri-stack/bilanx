@@ -17,7 +17,13 @@ export type DocCategoryIcon =
   | 'brain'
   | 'tooth'
   | 'lungs'
-  | 'vessel';
+  | 'vessel'
+  | 'ribbon'
+  | 'talk'
+  | 'access'
+  | 'motion'
+  | 'spine'
+  | 'speech';
 
 /** Catégories de documents affichées (ordre d'affichage) et libellés. */
 export interface DocCategory {
@@ -89,17 +95,26 @@ export const SPECIALTIES: SpecialtyInfo[] = [
   spec('generaliste', 'Généraliste', 'Médecine générale', 'de médecine générale', 'user'),
   spec('pneumologie', 'Poumons', 'Pneumologie', 'de pneumologie', 'lungs', 'glucose'),
   spec('rhumatologie', 'Os et articulations', 'Rhumatologie', 'de rhumatologie', 'bone', 'amber'),
+  spec('kine', 'Kiné', 'Kinésithérapie', 'de kinésithérapie', 'motion', 'sage'),
+  spec('osteopathe', 'Ostéopathe', 'Ostéopathie', 'd’ostéopathie', 'spine', 'amber'),
+  spec('orthophonie', 'Orthophoniste', 'Orthophonie', 'd’orthophonie', 'speech', 'indigo'),
   spec('dermatologie', 'Peau', 'Dermatologie', 'de dermatologie', 'sparkle', 'rose'),
   spec('gastro', 'Digestion', 'Gastro-entérologie', 'de gastro-entérologie', 'meal', 'sage'),
   spec('gynecologie', 'Gynécologie', 'Gynécologie', 'de gynécologie', 'user', 'violet'),
   spec('podologie', 'Pieds', 'Podologie', 'de podologie', 'steps', 'sage'),
+  spec('cancer', 'Cancer', 'Oncologie', 'd’oncologie', 'ribbon', 'rose'),
+  spec('psychologue', 'Psychologue', 'Psychologie', 'de psychologie', 'talk', 'violet'),
+  spec('mdph', 'MDPH', 'Handicap', 'MDPH', 'access', 'glucose'),
   spec('psychiatrie', 'Psychiatrie', 'Psychiatrie', 'de psychiatrie', 'user', 'violet'),
   spec('radiologie', 'Radiologie', 'Radiologie', 'de radiologie', 'imaging', 'glucose'),
   spec('autre', 'Autre spécialité', 'Autre spécialité', 'd’une autre spécialité', 'folder'),
 ];
 
-/** Spécialités proposées d'emblée (formulaire d'ajout, page Documents même vides). */
-export const PINNED_SPECIALTIES = ['ophtalmologie', 'endocrinologie', 'vitamines', 'thrombose', 'neurologie', 'cardiologie', 'orl', 'urologie'];
+/** Spécialités proposées d'emblée (formulaire d'ajout, page Documents même vides), les plus utiles d'abord. */
+export const PINNED_SPECIALTIES = [
+  'endocrinologie', 'ophtalmologie', 'cardiologie', 'cancer', 'thrombose', 'vitamines', 'psychologue', 'mdph',
+  'neurologie', 'orl', 'urologie', 'kine', 'osteopathe', 'orthophonie',
+];
 
 /** Dossiers de rangement (codes de la migration 0027) : vitamines, mutuelle, attestation. */
 export interface FolderInfo {

@@ -32,6 +32,18 @@ const TOOTH = 'M7.5 3.5C5 3.5 4 5.5 4 8c0 3 1.5 4.5 2 7.5.4 2.6 1 5 2.3 5 1.6 0 
 const LUNGS = 'M12 3.5V12M12 9.5l-2.5 2M12 9.5l2.5 2M8.5 7C6 7 3.5 11 3.5 16.5c0 2 1.2 3 3 3 2.2 0 3-1.5 3-4V8.5c0-.9-.4-1.5-1-1.5zM15.5 7c2.5 0 5 4 5 9.5 0 2-1.2 3-3 3-2.2 0-3-1.5-3-4V8.5c0-.9.4-1.5 1-1.5z';
 /** Vaisseau sanguin avec un caillot (thrombose). */
 const VESSEL = 'M3 8.5c3 0 4-1.5 9-1.5s6 1.5 9 1.5M3 15.5c3 0 4 1.5 9 1.5s6-1.5 9-1.5M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z';
+/** Ruban (cancer). */
+const RIBBON = 'M17 20.5 10 10.6C8.7 8.7 8.6 6.4 9.2 5c.5-1.3 1.5-2 2.8-2s2.3.7 2.8 2c.6 1.4.5 3.7-.8 5.6L7 20.5M7 20.5 5.4 19M17 20.5l1.6-1.5';
+/** Bulle de parole avec un cœur (psychologue). */
+const TALK = 'M5 4.5h14a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 3.5v-3.5H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5zM12 13.5s-3-1.7-3-3.6a1.5 1.5 0 0 1 3-.6 1.5 1.5 0 0 1 3 .6c0 1.9-3 3.6-3 3.6z';
+/** Fauteuil roulant (MDPH, handicap). */
+const ACCESS = 'M11.5 4a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM10 7.5V13h5.5l2.5 5.5 1.5-.6M10 10h4.5M7.5 10.6A5 5 0 1 0 14.3 17';
+/** Personne qui fait un exercice (kinésithérapie). */
+const MOTION = 'M14 4.5a1.8 1.8 0 1 1-3.6 0 1.8 1.8 0 0 1 3.6 0zM5 9.5l5.5 1L16 7.5M10.5 10.5 9.5 15l3.5 2 1 4M9.5 15 6 20.5';
+/** Colonne vertébrale (ostéopathie). */
+const SPINE = 'M9 3.5h6l-.5 3.5h-5zM8.5 10.25h7v3.5h-7zM9.5 17h5l.5 3.5H9zM12 7v3.25M12 13.75V17';
+/** Lèvres et ondes sonores (orthophonie). */
+const SPEECH = 'M2.5 12c1.5-2 3.2-2.8 4.3-2.8.7 0 1.1.4 1.7.4s1-.4 1.7-.4c1.1 0 2.8.8 4.3 2.8-1.5 2-3.4 2.8-6 2.8s-4.5-.8-6-2.8zM2.5 12h12M17.5 9.5c.7.7 1 1.6 1 2.5s-.3 1.8-1 2.5M20 7.5c1.2 1.2 1.8 2.8 1.8 4.5s-.6 3.3-1.8 4.5';
 
 const PATHS: Partial<Record<DocCategoryIcon, string>> = {
   imaging: IMAGING,
@@ -48,6 +60,12 @@ const PATHS: Partial<Record<DocCategoryIcon, string>> = {
   tooth: TOOTH,
   lungs: LUNGS,
   vessel: VESSEL,
+  ribbon: RIBBON,
+  talk: TALK,
+  access: ACCESS,
+  motion: MOTION,
+  spine: SPINE,
+  speech: SPEECH,
 };
 
 /** Icône d'une catégorie de document (décorative). */
