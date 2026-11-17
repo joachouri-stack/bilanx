@@ -9,9 +9,10 @@ type Targets = { veryLow: number; low: number; high: number; veryHigh: number };
 
 /** Même code couleur que le reste du tableau de bord : vert dans la cible, orange un peu à côté, rouge hors plage. */
 function cellClass(v: number, t: Targets): string {
-  if (v >= t.low && v <= t.high) return 'bg-sage-2 text-go';
-  if (v >= t.veryLow && v <= t.veryHigh) return 'bg-amber-2 text-amber';
-  return 'bg-red-2 text-red';
+  // Couleurs franches (feu tricolore), texte foncé : bien distinctes en mode clair comme sombre, contraste suffisant.
+  if (v >= t.low && v <= t.high) return 'bg-[#34c759] text-[#062b12]';
+  if (v >= t.veryLow && v <= t.veryHigh) return 'bg-[#ff9f0a] text-[#2e1a00]';
+  return 'bg-[#ff453a] text-[#2b0603]';
 }
 
 const WD = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
