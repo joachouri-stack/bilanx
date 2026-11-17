@@ -8,7 +8,7 @@ import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { ForbiddenError, MODULE_KEYS } from '@bilanx/profiles';
 import { appContext, DEMO_PROFILE_ID, PROFILE_COOKIE } from './context';
-import { addDays, formatLocalDate, isGlucoseUnit } from '@bilanx/domain';
+import { addDays, CARE_PLAN_PRESETS, formatLocalDate, isGlucoseUnit } from '@bilanx/domain';
 import { buildReportPdf, SECTION_KEYS, type SectionKey } from '@bilanx/reports';
 import { SHARE_VIEWER_MINUTES } from '@bilanx/records';
 import type { DocumentCategory, ExamType, Folder, Specialty } from '@bilanx/documents';
@@ -23,6 +23,7 @@ import {
   gym,
   glucose,
   appointments,
+  carePlans,
   contacts,
   auth,
   privacy,
@@ -651,7 +652,9 @@ export async function saveAppointmentAction(_: FormState, fd: FormData): Promise
   const id = str(fd, 'id') || undefined;
   let r;
   try {
-    r = await appointments().save(ctx.user, ctx.active.access.profileId, values, id);
+    // Suivi régulier : seulement si le formulaire le propose (sinon le lien existant est conservé).
+    const carePlanId = fd.has('carePlanId') ? str(fd, 'carePlanId') || null : undefined;
+    r = await appointments().save(ctx.user, ctx.active.access.profileId, { ...values, carePlanId }, id);
   } catch (e) {
     if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values };
     throw e;
@@ -1226,4 +1229,78 @@ export async function clearActivityAction(): Promise<void> {
   const ctx = await appContext();
   if (ctx.active.kind === 'real') await activity().clear(ctx.user, ctx.active.access.profileId);
   redirect('/activite?efface=1');
+}
+
+
+// ───────────────────────── Suivis réguliers ─────────────────────────
+const intOrNull = (v: string) => (v.trim() === '' ? null : Number(v));
+
+/** Créer ou modifier un suivi régulier (fréquence en mois, ou chaque année à un mois donné). */
+export async function saveCarePlanAction(_: FormState, fd: FormData): Promise<FormState> {
+  const ctx = await appContext();
+  const values = {
+    label: str(fd, 'label'),
+    icon: str(fd, 'icon'),
+    specialty: str(fd, 'specialty'),
+    mode: str(fd, 'mode') || 'every',
+    everyMonths: str(fd, 'everyMonths'),
+    fixedMonth: str(fd, 'fixedMonth'),
+    remindDays: str(fd, 'remindDays'),
+    lastDone: str(fd, 'lastDone'),
+  };
+  if (ctx.active.kind !== 'real') return { errors: { form: 'Le profil de démonstration est en lecture seule.' }, values };
+  const id = str(fd, 'id') || undefined;
+  let r;
+  try {
+    r = await carePlans().save(
+      ctx.user,
+      ctx.active.access.profileId,
+      {
+        label: values.label,
+        icon: values.icon,
+        specialty: values.specialty,
+        everyMonths: values.mode === 'every' ? intOrNull(values.everyMonths) : null,
+        fixedMonth: values.mode === 'fixed' ? intOrNull(values.fixedMonth) : null,
+        remindDays: intOrNull(values.remindDays) ?? 30,
+        lastDone: values.lastDone || null,
+        labAnalyte: str(fd, 'labAnalyte') || null,
+      },
+      id,
+    );
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { attempt: crypto.randomUUID(), errors: { form: e.message }, values };
+    throw e;
+  }
+  if (!r.ok) return { attempt: crypto.randomUUID(), fieldErrors: r.errors, errors: { form: 'Vérifiez les champs signalés.' }, values };
+  revalidatePath('/rendez-vous');
+  revalidatePath('/tableau-de-bord');
+  redirect(`/rendez-vous?suivi_ok=${id ? 'modifie' : 'cree'}#mes-suivis`);
+}
+
+/** Démarrage : ajoute les suivis proposés cochés (avec, si connue, la date du dernier passage). */
+export async function addCarePlanPresetsAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind !== 'real') return;
+  const keys = new Set(fd.getAll('preset').map(String));
+  for (const p of CARE_PLAN_PRESETS.filter((x) => keys.has(x.key))) {
+    const last = str(fd, `last-${p.key}`) || null;
+    await carePlans().save(ctx.user, ctx.active.access.profileId, { ...p, lastDone: last });
+  }
+  revalidatePath('/tableau-de-bord');
+  redirect('/rendez-vous?suivi_ok=cree#mes-suivis');
+}
+
+/** Date du dernier passage, saisie depuis la carte du suivi. */
+export async function setCarePlanLastDoneAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await carePlans().setLastDone(ctx.user, ctx.active.access.profileId, str(fd, 'id'), str(fd, 'lastDone') || null);
+  revalidatePath('/tableau-de-bord');
+  redirect('/rendez-vous#mes-suivis');
+}
+
+export async function deleteCarePlanAction(fd: FormData): Promise<void> {
+  const ctx = await appContext();
+  if (ctx.active.kind === 'real') await carePlans().remove(ctx.user, ctx.active.access.profileId, str(fd, 'id'));
+  revalidatePath('/tableau-de-bord');
+  redirect('/rendez-vous?suivi_ok=supprime#mes-suivis');
 }

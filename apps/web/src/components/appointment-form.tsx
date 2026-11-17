@@ -25,9 +25,19 @@ export interface AppointmentDefaults {
   toPrepare?: string;
   reminder?: string;
   notesAfter?: string;
+  carePlanId?: string;
 }
 
-export function AppointmentForm({ initial, showNotes }: { initial: AppointmentDefaults; showNotes: boolean }) {
+export function AppointmentForm({
+  initial,
+  showNotes,
+  plans,
+}: {
+  initial: AppointmentDefaults;
+  showNotes: boolean;
+  /** Suivis réguliers du profil : le rendez-vous peut répondre à l'un d'eux. */
+  plans?: { id: string; label: string }[];
+}) {
   const [state, action] = useActionState(saveAppointmentAction, {} as FormState);
   const v: Record<string, string | undefined> = { ...initial, ...(state.values ?? {}) };
   const fe = state.fieldErrors ?? {};
@@ -36,6 +46,21 @@ export function AppointmentForm({ initial, showNotes }: { initial: AppointmentDe
     <form action={action} className="flex flex-col gap-3.5" key={state.attempt ?? 'initial'}>
       {state.errors?.form && <Alert tone="error">{state.errors.form}</Alert>}
       {initial.id && <input type="hidden" name="id" value={initial.id} />}
+      {plans && plans.length > 0 && (
+        <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
+          <span>
+            Pour le suivi {opt('(facultatif)')}
+          </span>
+          <select name="carePlanId" defaultValue={v.carePlanId ?? ''} className={cls()}>
+            <option value="">Aucun suivi régulier</option>
+            {plans.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
           Date

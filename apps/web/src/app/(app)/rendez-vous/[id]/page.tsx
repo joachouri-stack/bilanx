@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import { formatLabResultFr, formatNumberFr, getAnalyte, REMINDER_OPTIONS } from '@bilanx/domain';
 import { DEMO_TIMEZONE } from '@/lib/demo-data';
 import { appContext, moduleAllowed } from '@/lib/server/context';
-import { appointments, documents } from '@/lib/server/auth';
+import { appointments, carePlans, documents } from '@/lib/server/auth';
 import { labResults } from '@/lib/server/data';
 import { deleteAppointmentAction, linkAppointmentAction, unlinkAppointmentAction } from '@/lib/server/actions';
 import { Button, ButtonLink, buttonClass, Card, CardHeader, Chip, Meta, PageHeader } from '@/components/ui';
@@ -24,7 +24,7 @@ export default async function AppointmentPage({ params, searchParams }: { params
   const { id } = await params;
   const sp = await searchParams;
   const pid = ctx.active.access.profileId;
-  const a = await appointments().get(ctx.user, pid, id);
+  const [a, plans] = await Promise.all([appointments().get(ctx.user, pid, id), carePlans().list(ctx.user, pid)]);
   if (!a) notFound();
   const canWrite = moduleAllowed(ctx.active, 'appointments', 'write');
   const canDocs = moduleAllowed(ctx.active, 'documents');
@@ -185,7 +185,9 @@ export default async function AppointmentPage({ params, searchParams }: { params
                   toPrepare: a.toPrepare ?? '',
                   reminder: a.reminderMinutes ? String(a.reminderMinutes) : '',
                   notesAfter: a.notesAfter ?? '',
+                  carePlanId: a.carePlanId ?? '',
                 }}
+                plans={plans.map((p) => ({ id: p.id, label: p.label }))}
               />
             </div>
           </Card>

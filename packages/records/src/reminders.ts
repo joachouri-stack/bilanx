@@ -14,6 +14,7 @@ import { formatLocalDate, localDateOf, plannedFor, type ScheduleSlot } from '@bi
 import { writeAudit } from '@bilanx/auth';
 import type { Sql } from '@bilanx/db';
 import { canAccess, type Actor, type ProfilesService } from '@bilanx/profiles';
+import { loadCarePlans } from './care-plans';
 
 export interface RemindersConfig {
   sql: Sql;
@@ -222,7 +223,51 @@ export function createRemindersService(cfg: RemindersConfig) {
     return sent;
   }
 
-  return { vapidPublicKey: () => vapid.publicKey, subscribe, unsubscribe, devices, removeDevice, prefs, setPrefs, sendTest, runDue };
+  /**
+   * Suivis réguliers : « pensez à prendre RDV » quand un suivi arrive à son rappel (ou passe en retard).
+   * Une seule notification par échéance et par compte ; envoi en journée (9 h – 20 h).
+   * Destinataires : les comptes qui ont un appareil enregistré et accès aux rendez-vous du profil.
+   */
+  async function runCarePlans(): Promise<number> {
+    const at = now();
+    const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' }).format(at));
+    if (hour < 9 || hour >= 20) return 0;
+    const accounts = await sql<{ account_id: string }[]>`SELECT DISTINCT account_id FROM push_subscription`;
+    const fmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+    let sent = 0;
+    for (const { account_id } of accounts) {
+      const accesses = (await P.listProfiles(account_id)).filter((a) => canAccess(a.role, a.permissions, 'appointments', 'read'));
+      for (const access of accesses) {
+        const due = await sql.begin(async (tx) => {
+          await tx`SELECT set_config('app.account_id', ${account_id}, true), set_config('app.profile_id', ${access.profileId}, true)`;
+          const plans = (await loadCarePlans(tx, access.profileId, at, tz)).filter((p) => (p.status === 'soon' || p.status === 'late') && p.due);
+          const out: typeof plans = [];
+          for (const p of plans) {
+            const [first] = await tx`
+              INSERT INTO care_plan_notified (care_plan_id, due_on, account_id, sent_at) VALUES (${p.id}, ${p.due}, ${account_id}, ${at})
+              ON CONFLICT DO NOTHING RETURNING care_plan_id`;
+            if (first) out.push(p);
+          }
+          return out;
+        });
+        if (!due.length) continue;
+        const subs = await sql<Sub[]>`SELECT id, endpoint, p256dh, auth FROM push_subscription WHERE account_id = ${account_id}`;
+        const who = access.relationship === 'self' && access.role === 'owner' ? '' : ` (${access.displayName})`;
+        for (const p of due) {
+          const when = fmt.format(new Date(`${p.due}T12:00:00Z`)).replace('.', '');
+          const body =
+            p.status === 'late'
+              ? `${p.label} : l’échéance (${when}) est passée. Pensez à prendre rendez-vous.`
+              : `${p.label} : pensez à prendre rendez-vous, prochain passage prévu vers le ${when}.`;
+          for (const s of subs) if (await push(s, { title: `Rendez-vous à prendre${who}`, body, url: '/rendez-vous', tag: `suivi-${p.id}` })) sent++;
+        }
+      }
+    }
+    await sql`DELETE FROM care_plan_notified WHERE sent_at < ${addDaysUtc(at, -400)}`;
+    return sent;
+  }
+
+  return { vapidPublicKey: () => vapid.publicKey, subscribe, unsubscribe, devices, removeDevice, prefs, setPrefs, sendTest, runDue, runCarePlans };
 }
 
 const addDaysUtc = (d: Date, n: number) => new Date(d.getTime() + n * 86_400_000);

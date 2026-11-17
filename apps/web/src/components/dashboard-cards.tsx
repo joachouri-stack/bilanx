@@ -580,11 +580,28 @@ export function AppointmentCard({ data, now }: { data: AppointmentsSummary; now:
         icon="calendar"
         iconTone="violet"
         action={
-          <span className="inline-flex min-h-11 items-center gap-1 font-medium text-petrol">
+          <span className="inline-flex min-h-11 items-center gap-2 font-medium text-petrol">
+            {data.toBook.length > 0 && (
+              <span className={`rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${data.toBook.some((t) => t.late) ? 'bg-red-2 text-red' : 'bg-amber-2 text-amber'}`}>
+                {data.toBook.length} à prendre
+              </span>
+            )}
             Tous <span aria-hidden>›</span>
           </span>
         }
       />
+      {data.toBook.length > 0 && (
+        <p className="mb-3 rounded-xl bg-surface-2 px-3 py-2 text-sm">
+          <span className="text-ink-2">À prendre : </span>
+          {data.toBook.map((t, i) => (
+            <span key={t.label}>
+              {i > 0 && ', '}
+              <span className={`font-semibold ${t.late ? 'text-red' : 'text-amber'}`}>{t.label}</span>
+              {t.late ? ' (en retard)' : ''}
+            </span>
+          ))}
+        </p>
+      )}
       {data.upcoming.length === 0 ? (
         <p className="text-sm text-ink-2">Aucun rendez-vous à venir.</p>
       ) : (

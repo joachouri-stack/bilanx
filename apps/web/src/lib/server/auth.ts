@@ -16,6 +16,8 @@ import {
   type GlucoseService,
   createAppointmentsService,
   createContactsService,
+  createCarePlansService,
+  type CarePlansService,
   createInsulinService,
   createJournalService,
   createLabService,
@@ -39,7 +41,7 @@ import { createPrivacyService, type PrivacyService } from '@bilanx/privacy';
  * Accès serveur uniquement (Server Components, Server Actions).
  * Un seul service par processus, conservé entre les rechargements à chaud en développement.
  */
-const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxContacts?: ContactsService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService; bilanxApiTokens?: ApiTokenService; bilanxLibre?: LibreLinkService; bilanxWeight?: WeightService; bilanxVault?: VaultService };
+const globalForAuth = globalThis as unknown as { bilanxAuth?: AuthService; bilanxProfiles?: ProfilesService; bilanxSql?: Sql; bilanxLab?: LabService; bilanxDocs?: DocumentsService; bilanxInsulin?: InsulinService; bilanxJournal?: JournalService; bilanxAppointments?: AppointmentsService; bilanxContacts?: ContactsService; bilanxCarePlans?: CarePlansService; bilanxPrivacy?: PrivacyService; bilanxActivity?: ActivityService; bilanxGym?: GymService; bilanxGlucose?: GlucoseService; bilanxMedications?: MedicationsService; bilanxSharing?: SharingService; bilanxReminders?: RemindersService; bilanxApiTokens?: ApiTokenService; bilanxLibre?: LibreLinkService; bilanxWeight?: WeightService; bilanxVault?: VaultService };
 
 function sql(): Sql {
   globalForAuth.bilanxSql ??= createAppSql();
@@ -80,6 +82,12 @@ export function appointments(): AppointmentsService {
 export function contacts(): ContactsService {
   globalForAuth.bilanxContacts ??= createContactsService({ profiles: profiles() });
   return globalForAuth.bilanxContacts;
+}
+
+/** Suivis réguliers (rendez-vous à refaire ; mêmes droits que les rendez-vous). */
+export function carePlans(): CarePlansService {
+  globalForAuth.bilanxCarePlans ??= createCarePlansService({ profiles: profiles() });
+  return globalForAuth.bilanxCarePlans;
 }
 
 export function documents(): DocumentsService {

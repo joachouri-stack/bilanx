@@ -171,6 +171,14 @@ export function createPrivacyService(cfg: PrivacyConfig) {
       contactRows.map((r) => [r.first_name, r.last_name, r.specialty, r.phone, r.email, r.address, r.notes, r.created_at]),
     );
 
+    const plans = await P.withProfileData(actor, profileId, 'appointments', 'read', (tx) =>
+      tx`SELECT label, specialty, every_months, fixed_month, remind_days, to_char(last_done, 'YYYY-MM-DD') AS last_done, lab_analyte, created_at FROM care_plan
+         WHERE profile_id = ${profileId} AND deleted_at IS NULL ORDER BY created_at`);
+    files[`${dir}/suivis-reguliers.csv`] = csv(
+      ['suivi', 'specialite', 'tous_les_mois', 'mois_fixe', 'rappel_jours_avant', 'dernier_passage', 'analyse_liee', 'ajoute_le'],
+      plans.map((r) => [r.label, r.specialty, r.every_months, r.fixed_month, r.remind_days, r.last_done, r.lab_analyte, r.created_at]),
+    );
+
     const steps = await P.withProfileData(actor, profileId, 'activity', 'read', (tx) =>
       tx`SELECT to_char(day, 'YYYY-MM-DD') AS day, steps FROM activity_daily WHERE profile_id = ${profileId} ORDER BY day`);
     files[`${dir}/activite-pas.csv`] = csv(['jour', 'pas'], steps.map((r) => [r.day, r.steps]));

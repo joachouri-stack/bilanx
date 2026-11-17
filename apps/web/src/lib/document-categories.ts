@@ -18,6 +18,7 @@ export type DocCategoryIcon =
   | 'tooth'
   | 'lungs'
   | 'vessel'
+  | 'foot'
   | 'ribbon'
   | 'talk'
   | 'access'

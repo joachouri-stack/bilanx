@@ -17,6 +17,8 @@ export interface AppointmentRow {
   toPrepare: string | null;
   reminderMinutes: number | null;
   notesAfter: string | null;
+  /** Suivi régulier auquel ce rendez-vous répond. */
+  carePlanId: string | null;
 }
 
 export interface LinkRow {
@@ -26,7 +28,7 @@ export interface LinkRow {
 }
 
 const UUID = /^[0-9a-f-]{36}$/i;
-type Row = { id: string; starts_at: Date; specialty: string | null; practitioner: string | null; location: string | null; reason: string | null; to_prepare: string | null; reminder_minutes: number[] | null; notes_after: string | null };
+type Row = { id: string; starts_at: Date; specialty: string | null; practitioner: string | null; location: string | null; reason: string | null; to_prepare: string | null; reminder_minutes: number[] | null; notes_after: string | null; care_plan_id: string | null };
 const toRow = (r: Row): AppointmentRow => ({
   id: r.id,
   startsAt: r.starts_at,
@@ -37,6 +39,7 @@ const toRow = (r: Row): AppointmentRow => ({
   toPrepare: r.to_prepare,
   reminderMinutes: r.reminder_minutes?.[0] ?? null,
   notesAfter: r.notes_after,
+  carePlanId: r.care_plan_id,
 });
 
 export function createAppointmentsService(cfg: AppointmentsConfig) {
@@ -44,24 +47,35 @@ export function createAppointmentsService(cfg: AppointmentsConfig) {
   const now = cfg.now ?? (() => new Date());
   const P = cfg.profiles;
 
-  async function save(actor: Actor, profileId: string, input: AppointmentInput, id?: string): Promise<{ ok: true; id: string } | { ok: false; errors: AppointmentErrors }> {
+  async function save(
+    actor: Actor,
+    profileId: string,
+    input: AppointmentInput & { carePlanId?: string | null },
+    id?: string,
+  ): Promise<{ ok: true; id: string } | { ok: false; errors: AppointmentErrors }> {
     const v = validateAppointment(input, now(), tz);
     if (!v.ok) return v;
     const a = v.value;
     const reminder = a.reminderMinutes === null ? null : [a.reminderMinutes];
     return P.withProfileData(actor, profileId, 'appointments', 'write', async (tx) => {
+      // Suivi lié : seulement un suivi existant de ce profil.
+      let plan: string | null = null;
+      if (input.carePlanId && UUID.test(input.carePlanId)) {
+        const [p] = await tx<{ id: string }[]>`SELECT id FROM care_plan WHERE id = ${input.carePlanId} AND profile_id = ${profileId} AND deleted_at IS NULL`;
+        plan = p?.id ?? null;
+      }
       if (id) {
         if (!UUID.test(id)) return { ok: false as const, errors: { date: 'Rendez-vous introuvable.' } };
         const r = await tx<{ id: string }[]>`
           UPDATE appointment SET starts_at = ${a.startsAt}, specialty = ${a.specialty}, practitioner = ${a.practitioner}, location = ${a.location},
-                 reason = ${a.reason}, to_prepare = ${a.toPrepare}, reminder_minutes = ${reminder}, notes_after = ${a.notesAfter}, updated_at = ${now()}
+                 reason = ${a.reason}, to_prepare = ${a.toPrepare}, reminder_minutes = ${reminder}, notes_after = ${a.notesAfter}, care_plan_id = CASE WHEN ${input.carePlanId === undefined} THEN care_plan_id ELSE ${plan}::uuid END, updated_at = ${now()}
           WHERE id = ${id} AND profile_id = ${profileId} AND deleted_at IS NULL RETURNING id`;
         return r.length ? { ok: true as const, id } : { ok: false as const, errors: { date: 'Rendez-vous introuvable.' } };
       }
       const [r] = await tx<{ id: string }[]>`
-        INSERT INTO appointment (profile_id, starts_at, specialty, practitioner, location, reason, to_prepare, reminder_minutes, notes_after, created_by, created_at)
+        INSERT INTO appointment (profile_id, starts_at, specialty, practitioner, location, reason, to_prepare, reminder_minutes, notes_after, care_plan_id, created_by, created_at)
         VALUES (${profileId}, ${a.startsAt}, ${a.specialty}, ${a.practitioner}, ${a.location}, ${a.reason}, ${a.toPrepare}, ${reminder}, ${a.notesAfter},
-                ${actor.accountId}, ${now()})
+                ${plan}, ${actor.accountId}, ${now()})
         RETURNING id`;
       return { ok: true as const, id: r!.id };
     });
@@ -70,7 +84,7 @@ export function createAppointmentsService(cfg: AppointmentsConfig) {
   async function list(actor: Actor, profileId: string): Promise<{ upcoming: AppointmentRow[]; past: AppointmentRow[] }> {
     const rows = await P.withProfileData(actor, profileId, 'appointments', 'read', (tx) =>
       tx<Row[]>`
-        SELECT id, starts_at, specialty, practitioner, location, reason, to_prepare, reminder_minutes, notes_after
+        SELECT id, starts_at, specialty, practitioner, location, reason, to_prepare, reminder_minutes, notes_after, care_plan_id
         FROM appointment WHERE profile_id = ${profileId} AND deleted_at IS NULL ORDER BY starts_at`,
     );
     // Un rendez-vous reste « à venir » jusqu'à 2 h après son début.
@@ -83,7 +97,7 @@ export function createAppointmentsService(cfg: AppointmentsConfig) {
     if (!UUID.test(id)) return null;
     return P.withProfileData(actor, profileId, 'appointments', 'read', async (tx) => {
       const [r] = await tx<Row[]>`
-        SELECT id, starts_at, specialty, practitioner, location, reason, to_prepare, reminder_minutes, notes_after
+        SELECT id, starts_at, specialty, practitioner, location, reason, to_prepare, reminder_minutes, notes_after, care_plan_id
         FROM appointment WHERE id = ${id} AND profile_id = ${profileId} AND deleted_at IS NULL`;
       if (!r) return null;
       const links = await tx<{ id: string; document_id: string | null; lab_result_id: string | null }[]>`

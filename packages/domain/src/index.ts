@@ -19,3 +19,4 @@ export * from './prescription-parser';
 export * from './glucose-entry';
 export * from './glucose-meter';
 export * from './gym';
+export * from './care-plan';

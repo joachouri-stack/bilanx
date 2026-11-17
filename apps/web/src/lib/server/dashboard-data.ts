@@ -27,7 +27,7 @@ import {
 import type { AppointmentRow, DoseOfDay } from '@bilanx/records';
 import { DEMO_NEXT_APPOINTMENT, DEMO_TIMEZONE, demoDay, demoToday } from '@/lib/demo-data';
 import { DOC_SHORTCUTS } from '@/lib/document-categories';
-import { appointments, documents, glucose, journal, profiles } from './auth';
+import { appointments, carePlans, documents, glucose, journal, profiles } from './auth';
 import { moduleAllowed, type AppContext } from './context';
 import { isNumericLab, labResults, sensorRange, type LabRow, type NumericLabRow } from './data';
 import { insulinDoses, insulinProducts } from './insulin-data';
@@ -158,6 +158,8 @@ export interface AppointmentsSummary {
   upcomingTotal: number;
   /** Dernier rendez-vous passé. */
   last: NextAppointment | null;
+  /** Suivis réguliers à prendre maintenant (en retard d'abord). */
+  toBook: { label: string; late: boolean }[];
 }
 
 export interface StepsSummary {
@@ -408,7 +410,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
   const showAppointments = moduleAllowed(ctx.active, 'appointments');
   const showDocs = !!real && moduleAllowed(ctx.active, 'documents');
 
-  const [cap, sensor, labs, medsNow, medsToday, products, doses, steps, goal, appts, docs, anyGlucose, gymDays, weights] = await Promise.all([
+  const [cap, sensor, labs, medsNow, medsToday, products, doses, steps, goal, appts, plans, docs, anyGlucose, gymDays, weights] = await Promise.all([
     showGlucose ? capillaryReadings(ctx, today, now) : Promise.resolve([] as Reading[]),
     showGlucose ? sensorSummary(ctx, today, now) : Promise.resolve(null),
     showLab ? labResults(ctx) : Promise.resolve([] as LabRow[]),
@@ -419,6 +421,7 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
     showActivity ? stepsDaily(ctx, addDays(today, -13), today, now) : Promise.resolve(null),
     showActivity ? stepsGoal(ctx) : Promise.resolve(8000),
     real && showAppointments ? appointments().list(ctx.user, real.profileId) : Promise.resolve(null),
+    real && showAppointments ? carePlans().list(ctx.user, real.profileId) : Promise.resolve([]),
     showDocs && real ? documents().list(ctx.user, real.profileId) : Promise.resolve(null),
     showGlucose ? hasAnyGlucose(ctx) : Promise.resolve(false),
     showActivity ? gymHistory(ctx, today, now) : Promise.resolve(null),
@@ -502,14 +505,21 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
         },
       ],
       upcomingTotal: 1,
+      toBook: [],
       last: null,
     };
-  } else if (appts && (appts.upcoming.length || appts.past.length)) {
-    appointmentsSummary = {
-      upcoming: appts.upcoming.slice(0, 4).map(toNext),
-      upcomingTotal: appts.upcoming.length,
-      last: appts.past[0] ? toNext(appts.past[0]) : null,
-    };
+  } else {
+    const toBook = plans
+      .filter((p) => p.status === 'late' || p.status === 'soon')
+      .sort((a, b) => (a.daysToDue ?? 0) - (b.daysToDue ?? 0))
+      .map((p) => ({ label: p.label, late: p.status === 'late' }));
+    if (appts && (appts.upcoming.length || appts.past.length || toBook.length))
+      appointmentsSummary = {
+        upcoming: appts.upcoming.slice(0, 4).map(toNext),
+        upcomingTotal: appts.upcoming.length,
+        last: appts.past[0] ? toNext(appts.past[0]) : null,
+        toBook,
+      };
   }
 
   let stepsSummary: StepsSummary | null = null;

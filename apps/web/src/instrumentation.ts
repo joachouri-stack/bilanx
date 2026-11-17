@@ -55,6 +55,22 @@ export async function register() {
       libreBusy = false;
     }
   };
+  // Suivis réguliers (« pensez à prendre RDV ») : toutes les 15 min, en journée ; une notification par échéance.
+  let careBusy = false;
+  const care = async () => {
+    if (careBusy) return;
+    careBusy = true;
+    try {
+      const n = await reminders().runCarePlans();
+      if (n) console.info(`Suivis réguliers : ${n} notification(s) envoyée(s).`);
+    } catch (e) {
+      console.error('Suivis réguliers en échec :', (e as Error).message);
+    } finally {
+      careBusy = false;
+    }
+  };
+  setTimeout(care, 90_000).unref();
+  setInterval(care, 15 * 60_000).unref();
   setTimeout(libre, 30_000).unref();
   setInterval(libre, 60_000).unref();
   setTimeout(remind, 15_000).unref();

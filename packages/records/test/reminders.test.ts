@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createProfilesService, ForbiddenError, type Actor } from '@bilanx/profiles';
 import { setupAuth, TEST_DB, tokenFrom } from '../../auth/test/helpers';
-import { createMedicationsService, createRemindersService, vapidKeysFrom } from '../src';
+import { createAppointmentsService, createCarePlansService, createMedicationsService, createRemindersService, vapidKeysFrom } from '../src';
 
 const ece = createRequire(import.meta.url)('http_ece') as { decrypt: (b: Buffer, p: Record<string, unknown>) => Buffer };
 
@@ -149,5 +149,42 @@ describe.skipIf(!TEST_DB)('rappels de prise par notification (PostgreSQL réel)'
     expect(await rem.sendTest(jo)).toEqual({ sent: 0, devices: 1 });
     expect(await rem.devices(jo.accountId)).toEqual([]);
     push.status = 201;
+  });
+
+  it('suivis réguliers : « pensez à prendre RDV » une fois par échéance, en journée ; plus rien une fois le RDV pris', async () => {
+    const now = () => new Date(ctx.clock.t);
+    const care = createCarePlansService({ profiles, now });
+    const appts = createAppointmentsService({ profiles, now });
+    at('2026-11-04T09:00:00Z'); // 10 h à Paris
+    await rem.subscribe(jo, push.device('telephone-jo-2'), 'iPhone');
+    // Tous les 4 mois, dernier passage le 15 juillet : échéance le 15 nov., rappel 21 jours avant (25 oct.) → à prendre.
+    const r = await care.save(jo, pid, { label: 'Podologue', icon: 'foot', everyMonths: 4, remindDays: 21, lastDone: '2026-07-15' });
+    expect(r.ok).toBe(true);
+    // Encore loin : rien.
+    await care.save(jo, pid, { label: 'Détartrage', icon: 'tooth', everyMonths: 12, remindDays: 30, lastDone: '2026-06-01' });
+    const [plan] = (await care.list(jo, pid)).filter((p) => p.label === 'Podologue');
+    expect(plan).toMatchObject({ status: 'soon', due: '2026-11-15', remindOn: '2026-10-25' });
+
+    const before = push.received.length;
+    expect(await rem.runCarePlans()).toBe(1);
+    const n = push.received.at(-1)!;
+    expect(n.device).toBe('telephone-jo-2');
+    expect(n.payload).toMatchObject({ title: 'Rendez-vous à prendre', url: '/rendez-vous' });
+    expect(n.payload.body).toMatch(/^Podologue : pensez à prendre rendez-vous/);
+    expect(await rem.runCarePlans()).toBe(0); // une seule fois pour cette échéance
+    at('2026-11-04T21:30:00Z'); // 22 h 30 : jamais la nuit
+    expect(await rem.runCarePlans()).toBe(0);
+    expect(push.received.length).toBe(before + 1);
+
+    // RDV pris pour ce suivi : le suivi passe « RDV pris ».
+    at('2026-11-05T09:00:00Z');
+    const a = await appts.save(jo, pid, { date: '2026-11-20', time: '14:00', specialty: 'Podologie', carePlanId: plan!.id });
+    expect(a.ok).toBe(true);
+    expect((await care.list(jo, pid)).find((p) => p.id === plan!.id)).toMatchObject({ status: 'booked' });
+    // Une fois passé, le RDV devient le dernier passage : prochaine échéance 4 mois plus tard.
+    at('2026-11-21T09:00:00Z');
+    expect((await care.list(jo, pid)).find((p) => p.id === plan!.id)).toMatchObject({ status: 'ok', lastDone: '2026-11-20', lastDoneSource: 'appointment', due: '2027-03-20' });
+    // Marc n'a pas accès au profil de Jo.
+    await expect(care.list(marc, pid)).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
