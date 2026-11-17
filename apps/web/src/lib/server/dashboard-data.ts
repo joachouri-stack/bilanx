@@ -87,7 +87,18 @@ export interface KeyMomentValue {
 
 export interface KeyMomentDay {
   date: string;
+  /** Jour à venir (reste de la semaine en cours) : cases vides. */
+  future?: boolean;
   values: Record<KeyMomentKey, KeyMomentValue>;
+}
+
+/** Semaines affichées dans le tableau des moments clés (du lundi au dimanche), la semaine en cours en dernier. */
+export const KEY_MOMENT_WEEKS = 8;
+
+/** Lundi de la semaine d'un jour (semaines du lundi au dimanche). */
+export function mondayOf(d: LocalDate): LocalDate {
+  const dow = new Date(Date.UTC(d.year, d.month - 1, d.day)).getUTCDay();
+  return addDays(d, -((dow + 6) % 7));
 }
 
 export interface KeyMomentDef {
@@ -293,8 +304,19 @@ export interface MealMark {
   kind: 'lunch' | 'dinner';
 }
 
-/** Moments clés des 7 derniers jours (voir `KEY_MOMENTS`), aujourd'hui en dernier. */
-export function keyMoments(sensor: Reading[], capillary: Reading[], meals: MealMark[], today: LocalDate, now: Date): KeyMomentDay[] {
+/**
+ * Moments clés jour par jour (voir `KEY_MOMENTS`), de `start` sur `count` jours (par défaut les 7 derniers jours).
+ * Les jours après aujourd'hui sont marqués « à venir », sans valeur.
+ */
+export function keyMoments(
+  sensor: Reading[],
+  capillary: Reading[],
+  meals: MealMark[],
+  today: LocalDate,
+  now: Date,
+  start: LocalDate = addDays(today, -6),
+  count = 7,
+): KeyMomentDay[] {
   const nowMin = minutesOfDay(now);
   const dayKey = (d: Date) => formatLocalDate(localDateOf(d, DEMO_TIMEZONE));
   const byDay = <T extends { at: Date }>(rows: T[]) => {
@@ -305,9 +327,15 @@ export function keyMoments(sensor: Reading[], capillary: Reading[], meals: MealM
   const sDays = byDay(sensor);
   const cDays = byDay(capillary);
   const mDays = byDay(meals);
-  return [6, 5, 4, 3, 2, 1, 0].map((i) => {
-    const date = formatLocalDate(addDays(today, -i));
+  const todayKey = formatLocalDate(today);
+  return Array.from({ length: count }, (_, n) => {
+    const date = formatLocalDate(addDays(start, n));
+    const i = date === todayKey ? 0 : date > todayKey ? -1 : 1;
     const values = {} as Record<KeyMomentKey, KeyMomentValue>;
+    if (i < 0) {
+      for (const k of KEY_MOMENTS) values[k.key] = { mgdl: null, at: null, source: null, upcoming: true };
+      return { date, future: true, values };
+    }
     for (const k of KEY_MOMENTS) {
       // Fenêtre : celle du repas noté ce jour-là (premier de ce type), sinon la fenêtre habituelle.
       let { from, to, ref } = k;
@@ -337,11 +365,22 @@ export function keyMoments(sensor: Reading[], capillary: Reading[], meals: MealM
   });
 }
 
-/** Déjeuners et dîners notés dans le journal ces 8 derniers jours (si le module journal est autorisé). */
-async function recentMeals(ctx: AppContext, now: Date): Promise<MealMark[]> {
+/** Déjeuners et dîners notés dans le journal depuis `from` (si le module journal est autorisé). */
+async function recentMeals(ctx: AppContext, now: Date, from: Date): Promise<MealMark[]> {
   if (ctx.active.kind !== 'real' || !moduleAllowed(ctx.active, 'journal')) return [];
-  const rows = await journal().list(ctx.user, ctx.active.access.profileId, new Date(now.getTime() - 8 * DAY), new Date(now.getTime() + 3_600_000));
+  const rows = await journal().list(ctx.user, ctx.active.access.profileId, from, new Date(now.getTime() + 3_600_000));
   return rows.filter((r) => r.kind === 'meal' && (r.mealKind === 'lunch' || r.mealKind === 'dinner')).map((r) => ({ at: r.at, kind: r.mealKind as 'lunch' | 'dinner' }));
+}
+
+/** Mesures au doigt (avec leur moment) depuis `start`, pour les moments clés. */
+async function momentCapillary(ctx: AppContext, start: LocalDate, today: LocalDate, now: Date, from: Date): Promise<Reading[]> {
+  if (ctx.active.kind === 'demo') {
+    const out: Reading[] = [];
+    for (let d = start; formatLocalDate(d) <= formatLocalDate(today); d = addDays(d, 1)) out.push(...demoDay(d, now).capillary.map((r) => ({ at: r.at, mgdl: r.mgdl, context: null })));
+    return out;
+  }
+  const rows = await glucose().listCapillary(ctx.user, ctx.active.access.profileId, from, new Date(now.getTime() + 3_600_000), 5000);
+  return [...rows].sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
 async function hasAnyGlucose(ctx: AppContext): Promise<boolean> {
@@ -384,7 +423,25 @@ export async function dashboardData(ctx: AppContext, now = new Date()): Promise<
   ]);
 
   const meter = meterSummary(cap, now, today);
-  if (sensor) sensor.moments = keyMoments(sensor.recent, cap, await recentMeals(ctx, now), today, now);
+  if (sensor) {
+    // Moments clés : semaines du lundi au dimanche, les plus anciennes d'abord (balayage semaine par semaine).
+    const start = addDays(mondayOf(today), -7 * (KEY_MOMENT_WEEKS - 1));
+    const from = dayBounds(start, DEMO_TIMEZONE).start;
+    const [sensorRows, capRows, meals] = await Promise.all([
+      sensorRange(ctx, start, today, now),
+      momentCapillary(ctx, start, today, now, from),
+      recentMeals(ctx, now, from),
+    ]);
+    sensor.moments = keyMoments(
+      sensorRows.map((r) => ({ at: r.at, mgdl: r.mgdl, context: null })),
+      capRows,
+      meals,
+      today,
+      now,
+      start,
+      7 * KEY_MOMENT_WEEKS,
+    );
+  }
 
   const hba1c = labs
     .filter((r) => r.analyteCode === 'hba1c')
