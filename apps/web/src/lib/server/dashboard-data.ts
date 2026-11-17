@@ -68,6 +68,8 @@ export interface SensorSummary {
   today: GlucoseStats;
   /** Moyenne des 7 derniers jours (null sans mesure). */
   mean7: number | null;
+  /** Moyenne des 7 jours d'avant (de J-14 à J-7), pour l'évolution. */
+  meanPrev7: number | null;
   /** Mesures du capteur des 8 derniers jours (pour les moments clés). */
   recent: Reading[];
   /** Moments clés (réveil à jeun, avant déjeuner, avant dîner) des 7 derniers jours, aujourd'hui en dernier. */
@@ -286,8 +288,9 @@ async function sensorSummary(ctx: AppContext, today: LocalDate, now: Date): Prom
     { periodStart: midnight, periodEnd: now, targets: GLUCOSE_TARGETS },
   );
   const mean7 = mean(inWindow.filter((r) => r.at.getTime() >= now.getTime() - 7 * DAY).map((r) => r.mgdl));
+  const meanPrev7 = mean(inWindow.filter((r) => r.at.getTime() < now.getTime() - 7 * DAY).map((r) => r.mgdl));
   const recent: Reading[] = inWindow.filter((r) => r.at.getTime() >= now.getTime() - 8 * DAY).map((r) => ({ at: r.at, mgdl: r.mgdl, context: null }));
-  return { last: { at: last.at, mgdl: last.mgdl, context: null }, stats14, curve, today: todayStats, mean7, recent, moments: [] };
+  return { last: { at: last.at, mgdl: last.mgdl, context: null }, stats14, curve, today: todayStats, mean7, meanPrev7, recent, moments: [] };
 }
 
 const minutesOfDay = (() => {

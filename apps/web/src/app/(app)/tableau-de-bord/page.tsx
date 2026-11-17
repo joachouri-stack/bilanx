@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { formatGlucose, formatHba1c, localDateOf } from '@bilanx/domain';
+import { formatGlucose, localDateOf } from '@bilanx/domain';
 import { DEMO_PROFILE, DEMO_TIMEZONE } from '@/lib/demo-data';
 import { appContext, displayUnits, moduleAllowed, NAV_MODULES } from '@/lib/server/context';
 import { dashboardData } from '@/lib/server/dashboard-data';
@@ -54,42 +54,57 @@ export default async function DashboardPage() {
   const isSelf = ctx.active.kind === 'real' && ctx.active.access.relationship === 'self' && ctx.active.access.role === 'owner';
   const dateFr = new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, dateStyle: 'full' }).format(now);
 
-  // Chiffres du bandeau : dernière HbA1c, glycémie moyenne, prochain rendez-vous (seulement ceux qui existent).
+  // Chiffres du bandeau : glycémie moyenne sur 7 jours, glycémie d'aujourd'hui, prochain rendez-vous (seulement ceux qui existent).
+  // L'HbA1c (tous les 3 mois) reste dans sa carte, plus bas.
   const heroItems: HeroItem[] = [];
-  const lastA1c = data.hba1c.at(-1);
-  if (lastA1c) {
-    const f = formatHba1c(lastA1c.percent, A1C);
-    const prevA1c = data.hba1c.at(-2);
+  // Vert : dans la plage 70–180 ; orange : entre les deux (54–69 ou 181–250) ; rouge : hors plage (< 54 ou > 250).
+  const level = (v: number): 'ok' | 'mid' | 'out' => (v >= 70 && v <= 180 ? 'ok' : v >= 54 && v <= 250 ? 'mid' : 'out');
+  const levelLabel = (v: number, what: string) => {
+    const l = level(v);
+    return l === 'ok' ? `${what} dans la plage` : `${what} ${l === 'mid' ? 'un peu ' : ''}${v > 180 ? 'au-dessus' : 'en dessous'} de la plage`;
+  };
+  // Écart à la plage 70–180 (0 dans la plage) : sert à dire si la moyenne s'en rapproche.
+  const offRange = (v: number) => (v > 180 ? v - 180 : v < 70 ? 70 - v : 0);
+
+  const mean7 = data.sensor?.mean7 ?? data.meter?.mean7 ?? null;
+  const prev7 = data.sensor ? data.sensor.meanPrev7 : (data.meter?.meanPrev7 ?? null);
+  if (mean7 != null) {
+    let sub = `${UNIT} · 7 j`;
     let subTone: HeroItem['subTone'];
-    let sub = `Le ${new Intl.DateTimeFormat('fr-FR', { timeZone: DEMO_TIMEZONE, day: 'numeric', month: 'short' }).format(lastA1c.sampledAt)}`;
-    if (prevA1c) {
-      const d = Math.round((lastA1c.percent - prevA1c.percent) * 10) / 10;
-      sub = d === 0 ? '→ Stable' : `${d < 0 ? '↓' : '↑'} ${String(Math.abs(d)).replace('.', ',')}\u00a0pt`;
-      // Baisse = vert, hausse = rouge, stable = orange.
-      subTone = d < 0 ? 'ok' : d > 0 ? 'out' : 'mid';
+    if (prev7 != null) {
+      const d = Math.round(mean7 - prev7);
+      const shown = formatGlucose(Math.abs(mean7 - prev7), UNIT);
+      // Court (case étroite sur téléphone) : évolution par rapport aux 7 jours d'avant.
+      sub = d === 0 ? '= stable' : `${d < 0 ? '↓' : '↑'} ${shown} ${UNIT}`;
+      // Vert si la moyenne se rapproche de la plage (ou y reste), rouge si elle s'en éloigne.
+      const a = offRange(mean7);
+      const b = offRange(prev7);
+      subTone = a < b ? 'ok' : a > b ? 'out' : a === 0 ? 'ok' : 'mid';
     }
-    heroItems.push({ icon: 'flask', label: 'HbA1c', value: f.value, unit: f.unit, sub, subTone, href: '/hba1c' });
+    heroItems.push({
+      icon: 'chart',
+      label: 'Moy. 7 j',
+      value: formatGlucose(mean7, UNIT),
+      sub,
+      subTone,
+      dot: level(mean7),
+      dotLabel: `${levelLabel(mean7, 'Moyenne sur 7 jours')}${prev7 != null ? ` ; évolution par rapport aux 7 jours d’avant` : ''}`,
+      href: '/glycemie?periode=7',
+    });
   }
-  // Glycémie : moyenne d'aujourd'hui (capteur, sinon mesures au doigt du jour) — elle bouge au fil de la journée ;
-  // à défaut, moyenne sur 7 jours.
+  // Glycémie : moyenne d'aujourd'hui (capteur, sinon mesures au doigt du jour) — elle bouge au fil de la journée.
   const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: DEMO_TIMEZONE }).format(now);
   const meterToday = data.meter?.week.find((d) => d.date === todayKey)?.readings ?? [];
   const todayMean = data.sensor?.today.mean ?? (meterToday.length ? meterToday.reduce((a, r) => a + r.mgdl, 0) / meterToday.length : null);
-  const gMean = todayMean ?? data.sensor?.mean7 ?? data.meter?.mean7 ?? null;
-  if (gMean != null) {
-    // Vert : dans la plage 70–180 ; orange : entre les deux (54–69 ou 181–250) ; rouge : hors plage (< 54 ou > 250).
-    const dot = gMean >= 70 && gMean <= 180 ? 'ok' : gMean >= 54 && gMean <= 250 ? 'mid' : 'out';
+  if (todayMean != null) {
     heroItems.push({
       icon: 'drop',
       label: 'Glycémie',
-      value: formatGlucose(gMean, UNIT),
-      sub: `${UNIT} · ${todayMean !== null ? 'auj.' : '7 j'}`,
-      dot,
-      dotLabel:
-        dot === 'ok'
-          ? `Moyenne ${todayMean !== null ? 'du jour' : 'sur 7 jours'} dans la plage`
-          : `Moyenne ${dot === 'mid' ? 'un peu ' : ''}${gMean > 180 ? 'au-dessus' : 'en dessous'} de la plage`,
-      href: todayMean !== null ? '/glycemie' : '/glycemie?periode=7',
+      value: formatGlucose(todayMean, UNIT),
+      sub: `${UNIT} · auj.`,
+      dot: level(todayMean),
+      dotLabel: levelLabel(todayMean, 'Moyenne du jour'),
+      href: '/glycemie',
     });
   }
   const nextA = data.appointments?.upcoming[0];
